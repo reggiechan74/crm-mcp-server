@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "crm": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/cli.js", "mcp"],
+      "env": {
+        "CRM_ROOT": "/workspaces/reggie-life-plan/04_RELATIONSHIPS/CRM"
+      }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "crm-mcp-server",
+  "version": "0.1.0",
+  "description": "CRM contact intelligence — token-optimized dossier search, relationship graphs, and management via MCP",
+  "author": { "name": "Reggie Chan" },
+  "license": "MIT",
+  "keywords": ["crm", "contacts", "dossier", "mcp", "search"]
+}
