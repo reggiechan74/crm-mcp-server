@@ -17,7 +17,14 @@ if (command === 'mcp') {
   console.log(`Reindex complete: ${stats.totalContacts} contacts indexed.`);
   store.close();
 } else if (command === 'embed') {
-  console.log('Embedding not yet implemented. Coming in a future release.');
+  const { generateEmbeddings } = await import('./embeddings.js');
+  const config = loadConfig();
+  const store = createStore(config.dbPath, config.crmRoot);
+  store.indexAll();
+  console.log('Generating embeddings...');
+  const result = await generateEmbeddings(store, config);
+  console.log(`Done: ${result.indexed} chunks indexed, ${result.skipped} sections skipped.`);
+  store.close();
 } else {
   console.log('Usage: crm-mcp <mcp|reindex|embed>');
   console.log('');

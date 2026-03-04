@@ -3,6 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import type { Store } from './store.js';
 import { appendLog, updateField } from './writer.js';
+import { vectorSearch } from './embeddings.js';
 import type { Config, DossierSection } from './types.js';
 
 /**
@@ -222,16 +223,27 @@ export function createMcpServer(store: Store, config: Config): McpServer {
     },
   );
 
-  // ── 9. crm_vector_search (stub) ──────────────────────────────────────
+  // ── 9. crm_vector_search ────────────────────────────────────────────
   server.tool(
     'crm_vector_search',
-    'Semantic search across all dossier content (requires embeddings).',
+    "Semantic search across all dossier content. Finds contacts and sections matching a natural language query. Requires embeddings (run 'crm-mcp embed' first).",
     {
-      query: z.string(),
-      limit: z.number().optional().default(5),
+      query: z.string().describe('Natural language query'),
+      limit: z.number().optional().default(5).describe('Max results'),
     },
-    async () => {
-      return { content: [{ type: 'text' as const, text: "Vector search not yet available. Run 'crm-mcp embed' to generate embeddings." }] };
+    async ({ query, limit }) => {
+      try {
+        const results = await vectorSearch(store, config, query, limit);
+        if (results.length === 0) {
+          return { content: [{ type: 'text' as const, text: "No results. Have you run 'crm-mcp embed' to generate embeddings?" }] };
+        }
+        const lines = results.map(r =>
+          `- **${r.contactName}** (${r.section}) [${(r.score * 100).toFixed(0)}%]: ${r.chunk.substring(0, 150)}...`
+        );
+        return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
+      } catch (e: any) {
+        return { content: [{ type: 'text' as const, text: `Error: ${e.message}` }] };
+      }
     },
   );
 

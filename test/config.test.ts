@@ -16,8 +16,8 @@ describe('loadConfig', () => {
     delete process.env.CRM_ROOT;
   });
 
-  it('defaults embedding model to embeddinggemma', () => {
+  it('defaults embedding model to MiniLM', () => {
     const config = loadConfig();
-    expect(config.embeddingModel).toBe('google/embeddinggemma-300m');
+    expect(config.embeddingModel).toBe('Xenova/all-MiniLM-L6-v2');
   });
 });
