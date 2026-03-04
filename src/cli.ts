@@ -1,2 +1,28 @@
-// src/cli.ts - Entry point for crm-mcp-server
-console.log('crm-mcp-server: not yet implemented');
+import { loadConfig } from './config.js';
+import { createStore } from './store.js';
+import { startMcpServer } from './server.js';
+
+const command = process.argv[2];
+
+if (command === 'mcp') {
+  const config = loadConfig();
+  const store = createStore(config.dbPath, config.crmRoot);
+  store.indexAll();
+  await startMcpServer(store, config);
+} else if (command === 'reindex') {
+  const config = loadConfig();
+  const store = createStore(config.dbPath, config.crmRoot);
+  store.indexAll();
+  const stats = store.getStats();
+  console.log(`Reindex complete: ${stats.totalContacts} contacts indexed.`);
+  store.close();
+} else if (command === 'embed') {
+  console.log('Embedding not yet implemented. Coming in a future release.');
+} else {
+  console.log('Usage: crm-mcp <mcp|reindex|embed>');
+  console.log('');
+  console.log('Commands:');
+  console.log('  mcp      Start MCP server (stdio transport)');
+  console.log('  reindex   Re-scan and re-index all dossiers');
+  console.log('  embed     Generate vector embeddings for semantic search');
+}
