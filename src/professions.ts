@@ -1,5 +1,5 @@
 /**
- * RE-CRM Profession Taxonomy — 139 real estate profession types across 18 categories.
+ * RE-CRM Profession Taxonomy — 167 real estate profession types across 18 categories.
  *
  * Each entry maps a unique 3-letter profession code to metadata used for
  * dossier code generation, template resolution, and profession-specific tracking.
@@ -10,7 +10,7 @@ export interface ProfessionEntry {
   name: string;           // Human-readable name, e.g. "Sales Broker/Agent"
   category: string;       // Category name, e.g. "Brokerage & Sales"
   categoryLetter: string; // Single letter, e.g. "A"
-  templateDir: string;    // Template directory name, e.g. "BROKER_SALES"
+  templateDir: string;    // Template directory path, e.g. "A_BROKERAGE_SALES/BROKER_SALES"
   trackingFile: string;   // Profession-specific tracking file, e.g. "deals.md"
 }
 

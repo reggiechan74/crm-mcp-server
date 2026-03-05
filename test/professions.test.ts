@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { PROFESSIONS, lookupProfession, searchProfessions } from '../src/professions.js';
 
 describe('PROFESSIONS registry', () => {
-  it('contains exactly 139 entries', () => {
+  it('contains exactly 167 entries', () => {
     expect(Object.keys(PROFESSIONS).length).toBe(167);
   });
 
