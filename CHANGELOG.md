@@ -2,6 +2,55 @@
 
 All notable changes to crm-mcp-server are documented here.
 
+## [0.4.0] - 2026-03-05
+
+19 plugin-bundled skills that orchestrate MCP tools into higher-level workflows, triggered by natural conversation.
+
+### Added
+
+#### Skills System
+- 19 skills across 5 categories: Preparation (3), Maintenance (3), Research (3), Reporting (3), Personal & Family (7)
+- Shared conventions file (`skills/_shared/conventions.md`) defining output format, contact resolution, token awareness, model tiers, and error handling
+- Skills bundled inside plugin at `skills/` — travel with every installation, no separate setup
+
+#### Phase 1 — Daily Use (5 skills)
+- `intel-briefing` — full intelligence synthesis for a single contact before meetings (opus)
+- `post-meeting` — structured debrief with multi-section write-back to CRM (opus)
+- `relationship-pulse` — weekly/monthly network health check with prioritized touch list (opus)
+- `medical-briefing` — pre-appointment health synthesis for family contacts with Izzy FH variant (opus)
+- `deal-parties` — transaction stakeholder mapping with gap identification across deal types (opus)
+
+#### Phase 2 — Weekly/Monthly (8 skills)
+- `family-intel` — family member wellbeing briefing with health, relationships, and support (opus)
+- `enrich-contact` — interview-driven dossier enrichment with natural conversation flow (opus)
+- `crm-health` — CRM structural health scorecard with weighted scoring formula (haiku)
+- `event-prep` — bulk networking briefing cards with 15-contact cap and token strategy (opus)
+- `find-path` — introduction chain finder with 2-hop traversal budget (opus)
+- `family-health-dashboard` — cross-family medical overview scanning medical.md only (sonnet)
+- `birthday-and-dates` — upcoming key dates across all contacts with recently-missed detection (haiku)
+- `pipeline-review` — cross-contact deal pipeline aggregation with referral balance tracking (sonnet)
+
+#### Phase 3 — Situational (6 skills)
+- `competitive-intel` — organization-focused intelligence synthesis from network data (sonnet)
+- `relationship-roi` — network value analysis with over/under-invested contact identification (sonnet)
+- `education-tracker` — school progress synthesis with cross-project GIST_news.md integration (opus)
+- `gift-intel` — gift history and preference synthesis with budget context awareness (haiku)
+- `life-event-support` — context-aware life event response guidance with cultural sensitivity (opus)
+- `annual-review` — comprehensive year-end portfolio review combining all analysis patterns (sonnet)
+
+#### Documentation
+- Skills section added to README with trigger examples and model tiers per skill
+- Skills badge (19) added to README badge bar
+- Table of contents added to README
+- Architecture design doc: `docs/plans/2026-03-05-crm-skills-design.md`
+- Implementation plan: `docs/plans/2026-03-05-crm-skills-implementation.md`
+
+### Design Decisions
+- **Model tiers:** haiku (3 lightweight scans), sonnet (5 heavy aggregation), opus/default (11 nuanced synthesis)
+- **Full tool set per skill:** All skills declare all 14 CRM tools for opportunistic edge-case handling; workflow sections document which tools are routinely called
+- **Token strategies:** Multi-contact skills include explicit scan-then-drill budgets and contact caps
+- **Edge case handling:** Non-Family guards on medical/family skills, zero-results fallbacks, first-run handling for annual-review
+
 ## [0.3.0] - 2026-03-05
 
 Template management system, Claude Code plugin marketplace, and performance optimizations.

@@ -1,6 +1,6 @@
 {
   "name": "crm",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Token-optimized CRM with progressive disclosure — search, relationship graphs, and contact management via MCP",
   "author": { "name": "Reggie Chan" },
   "repository": "https://github.com/reggiechan74/crm-mcp-server",
