@@ -7,7 +7,7 @@ A personal CRM system built as an [MCP](https://modelcontextprotocol.io/) server
 Store contact intelligence in markdown dossiers, then search, read, and update them through Claude Code with token-optimized progressive disclosure:
 
 ```
-You: "What do I know about David Gratton?"
+You: "What do I know about John Doe?"
 Claude: [uses crm_search → crm_outline → crm_read to fetch relevant sections]
 ```
 
@@ -101,7 +101,7 @@ Each contact is a folder of markdown files:
 ```
 CRM/
 ├── Network/
-│   └── GRATTON_David/
+│   └── DOE_John/
 │       ├── INDEX.md          # Quick reference, status, next actions
 │       ├── profile.md        # Background, career, relationship history
 │       ├── intelligence/
@@ -110,7 +110,7 @@ CRM/
 │       │   └── intelligence-risk.md        # Key intel, risk factors, threat assessment
 │       └── log.md            # Interaction log, related documents
 ├── Family/
-│   └── CHAN_Esther/
+│   └── DOE_Jane/
 │       ├── INDEX.md
 │       ├── profile.md
 │       ├── medical.md        # Family-specific
