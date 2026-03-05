@@ -42,6 +42,7 @@ export interface Store {
     staleContacts: number;
     avgFillPercent: number;
   };
+  getContactPath(contactId: string): string | null;
   close(): void;
 }
 
@@ -88,6 +89,12 @@ function initSchema(db: Database): void {
       cleaned_content TEXT,
       cleaned_at TEXT,
       PRIMARY KEY (contact_id, section)
+    );
+
+    CREATE TABLE IF NOT EXISTS audit_cache (
+      contact_id TEXT PRIMARY KEY,
+      audit_json TEXT NOT NULL,
+      created_at TEXT NOT NULL
     );
   `);
 }
@@ -534,6 +541,11 @@ export function createStore(dbPath: string, crmRoot: string): Store {
         fileCount > 0 ? Math.round(totalFill / fileCount) : 0;
 
       return { totalContacts, byCategory, staleContacts, avgFillPercent };
+    },
+
+    getContactPath(contactId: string): string | null {
+      const row = stmts.getContactPath.get(contactId) as any;
+      return row ? row.path : null;
     },
 
     close(): void {

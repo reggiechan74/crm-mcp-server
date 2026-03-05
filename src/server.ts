@@ -5,6 +5,10 @@ import type { Store } from './store.js';
 import { appendLog, updateField, createDossier } from './writer.js';
 import { vectorSearch } from './embeddings.js';
 import { formatExport } from './export.js';
+import { runAudit, type AuditPass } from './audit.js';
+import { runRepair } from './repair.js';
+import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 import type { Config, DossierSection } from './types.js';
 
 /**
@@ -32,6 +36,31 @@ function resolveContact(store: Store, contact: string): string | null {
   // Otherwise search by name
   const results = store.searchContacts({ query: contact, limit: 1 });
   return results.length > 0 ? results[0].id : null;
+}
+
+/**
+ * Resolve the template directory for a contact based on their category.
+ * Looks for user templates in CRM_ROOT/.templates/ first, falls back to bundled templates.
+ */
+function resolveTemplateDir(crmRoot: string, store: Store, contactId: string): string | null {
+  const outline = store.getOutline(contactId);
+  const category = outline.contact.category.toLowerCase();
+
+  // Map category to template type
+  let templateType = 'PROFESSIONAL';
+  if (category === 'family') templateType = 'FAMILY';
+  else if (category === 'personal') templateType = 'PERSONAL';
+
+  // Check user templates first
+  const userTpl = join(crmRoot, '.templates', templateType.toLowerCase());
+  if (existsSync(userTpl)) return userTpl;
+
+  // Fall back to bundled templates
+  const bundledDir = join(import.meta.dirname, '..', 'templates');
+  const bundled = join(bundledDir, templateType);
+  if (existsSync(bundled)) return bundled;
+
+  return null;
 }
 
 /**
@@ -70,6 +99,8 @@ function buildInstructions(store: Store | null, config: Config): string {
   lines.push('  - crm_stats — CRM-wide statistics');
   lines.push('  - crm_update — update dossier field');
   lines.push('  - crm_log — append interaction log entry');
+  lines.push('  - crm_audit — analyze dossier structural health');
+  lines.push('  - crm_repair — apply fixes from audit results');
   return lines.join('\n');
 }
 
@@ -360,6 +391,75 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
       if (contacts.length === 0) return { content: [{ type: 'text' as const, text: 'No contacts match filter.' }] };
       const output = formatExport(contacts, format);
       return { content: [{ type: 'text' as const, text: output }] };
+    },
+  );
+
+  // ── 13. crm_audit ─────────────────────────────────────────────────
+  server.tool(
+    'crm_audit',
+    "Analyze a dossier's structural health against its template. Returns findings without making changes.",
+    {
+      contact: z.string().describe('Contact name or dossier code'),
+      passes: z.array(z.enum(['misplaced', 'stale', 'duplicates', 'ordering', 'compliance']))
+        .optional()
+        .describe('Which analysis passes to run (default: all)'),
+    },
+    async ({ contact, passes }) => {
+      const err = requireConfigured(config);
+      if (err) return { content: [{ type: 'text' as const, text: err }] };
+      const contactId = resolveContact(store!, contact);
+      if (!contactId) return { content: [{ type: 'text' as const, text: `Contact not found: ${contact}` }] };
+
+      const contactPath = store!.getContactPath(contactId);
+      if (!contactPath) return { content: [{ type: 'text' as const, text: `Contact path not found: ${contactId}` }] };
+
+      const dossierDir = join(config.crmRoot, contactPath);
+      const templateDir = resolveTemplateDir(config.crmRoot, store!, contactId);
+      if (!templateDir) return { content: [{ type: 'text' as const, text: `Template not found for ${contactId}` }] };
+
+      const allPasses: AuditPass[] = passes || ['misplaced', 'stale', 'duplicates', 'ordering', 'compliance'];
+      const result = runAudit(dossierDir, templateDir, allPasses);
+
+      // Cache for crm_repair
+      store!.db.prepare('INSERT OR REPLACE INTO audit_cache (contact_id, audit_json, created_at) VALUES (?, ?, ?)')
+        .run(contactId, JSON.stringify(result), new Date().toISOString());
+
+      return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+    },
+  );
+
+  // ── 14. crm_repair ────────────────────────────────────────────────
+  server.tool(
+    'crm_repair',
+    'Apply specific fixes from a prior audit. Requires crm_audit to be run first.',
+    {
+      contact: z.string().describe('Contact name or dossier code'),
+      fixes: z.array(z.string()).describe("Fix codes from audit (e.g., ['M1', 'S1']) or ['all']"),
+    },
+    async ({ contact, fixes }) => {
+      const err = requireConfigured(config);
+      if (err) return { content: [{ type: 'text' as const, text: err }] };
+      const contactId = resolveContact(store!, contact);
+      if (!contactId) return { content: [{ type: 'text' as const, text: `Contact not found: ${contact}` }] };
+
+      // Load cached audit
+      const cached = store!.db.prepare('SELECT audit_json FROM audit_cache WHERE contact_id = ?').get(contactId) as any;
+      if (!cached) return { content: [{ type: 'text' as const, text: `No audit cache found for ${contactId}. Run crm_audit first.` }] };
+
+      const audit = JSON.parse(cached.audit_json);
+      const contactPath = store!.getContactPath(contactId);
+      if (!contactPath) return { content: [{ type: 'text' as const, text: `Contact path not found: ${contactId}` }] };
+
+      const dossierDir = join(config.crmRoot, contactPath);
+      const templateDir = resolveTemplateDir(config.crmRoot, store!, contactId);
+      if (!templateDir) return { content: [{ type: 'text' as const, text: `Template not found for ${contactId}` }] };
+
+      const result = runRepair(dossierDir, templateDir, audit, fixes);
+
+      // Clear audit cache after repair (stale)
+      store!.db.prepare('DELETE FROM audit_cache WHERE contact_id = ?').run(contactId);
+
+      return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
     },
   );
 
