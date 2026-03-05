@@ -22,6 +22,13 @@ function requireConfigured(config) {
     }
     return null;
 }
+/** Wrap text into an MCP response, appending a token-estimate footer. */
+function respond(text) {
+    const chars = text.length;
+    const tokens = Math.ceil(chars / 4);
+    const footer = `\n<!-- ${chars.toLocaleString()} chars | ~${tokens.toLocaleString()} tokens -->`;
+    return { content: [{ type: 'text', text: text + footer }] };
+}
 /**
  * Resolve a contact identifier — accepts either a dossier code (e.g. "CL-RANMUL-002")
  * or a name fragment, returning the canonical contact ID.
@@ -120,14 +127,14 @@ export function createMcpServer(store, config) {
     }, async ({ query, category, status, profession, limit }) => {
         const err = requireConfigured(config);
         if (err)
-            return { content: [{ type: 'text', text: err }] };
+            return respond(err);
         const results = store.searchContacts({ query, category, status, profession, limit });
         if (results.length === 0)
-            return { content: [{ type: 'text', text: 'No contacts found.' }] };
+            return respond('No contacts found.');
         const header = '| ID | Name | Org | Category | Status | Last Contact |';
         const sep = '|-----|------|-----|----------|--------|-------------|';
         const rows = results.map(r => `| ${r.id} | ${r.name} | ${r.organization || '-'} | ${r.category} | ${r.status} | ${r.lastContact || '-'} |`);
-        return { content: [{ type: 'text', text: [header, sep, ...rows].join('\n') }] };
+        return respond([header, sep, ...rows].join('\n'));
     });
     // ── 2. crm_outline ───────────────────────────────────────────────────
     server.tool('crm_outline', 'Get structural overview of a contact\'s dossier — shows which sections exist, their size, and fill percentage. Use before crm_read to decide which section to read.', {
@@ -135,10 +142,10 @@ export function createMcpServer(store, config) {
     }, async ({ contact }) => {
         const err = requireConfigured(config);
         if (err)
-            return { content: [{ type: 'text', text: err }] };
+            return respond(err);
         const contactId = resolveContact(store, contact);
         if (!contactId)
-            return { content: [{ type: 'text', text: `Contact not found: ${contact}` }] };
+            return respond(`Contact not found: ${contact}`);
         try {
             const outline = store.getOutline(contactId);
             const lines = [`# ${outline.contact.name} (${outline.contact.id})`, ''];
@@ -150,10 +157,10 @@ export function createMcpServer(store, config) {
                 const sizeKb = (s.sizeBytes / 1024).toFixed(1);
                 lines.push(`| ${s.file} | ${sizeKb}KB | ${s.fillPercent}% | ${s.lastUpdated || '-'} |`);
             }
-            return { content: [{ type: 'text', text: lines.join('\n') }] };
+            return respond(lines.join('\n'));
         }
         catch (e) {
-            return { content: [{ type: 'text', text: `Error: ${e.message}` }] };
+            return respond(`Error: ${e.message}`);
         }
     });
     // ── 3. crm_read ──────────────────────────────────────────────────────
@@ -163,16 +170,16 @@ export function createMcpServer(store, config) {
     }, async ({ contact, section }) => {
         const err = requireConfigured(config);
         if (err)
-            return { content: [{ type: 'text', text: err }] };
+            return respond(err);
         const contactId = resolveContact(store, contact);
         if (!contactId)
-            return { content: [{ type: 'text', text: `Contact not found: ${contact}` }] };
+            return respond(`Contact not found: ${contact}`);
         try {
             const content = store.getSection(contactId, section);
-            return { content: [{ type: 'text', text: content }] };
+            return respond(content);
         }
         catch (e) {
-            return { content: [{ type: 'text', text: `Error: ${e.message}` }] };
+            return respond(`Error: ${e.message}`);
         }
     });
     // ── 4. crm_connections ────────────────────────────────────────────────
@@ -182,15 +189,15 @@ export function createMcpServer(store, config) {
     }, async ({ contact, depth }) => {
         const err = requireConfigured(config);
         if (err)
-            return { content: [{ type: 'text', text: err }] };
+            return respond(err);
         const contactId = resolveContact(store, contact);
         if (!contactId)
-            return { content: [{ type: 'text', text: `Contact not found: ${contact}` }] };
+            return respond(`Contact not found: ${contact}`);
         const connections = store.getConnections(contactId, depth);
         if (connections.length === 0)
-            return { content: [{ type: 'text', text: 'No connections found.' }] };
+            return respond('No connections found.');
         const lines = connections.map(c => `- ${c.targetName} (${c.type}) — ${c.context}`);
-        return { content: [{ type: 'text', text: lines.join('\n') }] };
+        return respond(lines.join('\n'));
     });
     // ── 5. crm_recent ────────────────────────────────────────────────────
     server.tool('crm_recent', 'List most recently contacted people, sorted by last contact date.', {
@@ -199,20 +206,20 @@ export function createMcpServer(store, config) {
     }, async ({ limit, category }) => {
         const err = requireConfigured(config);
         if (err)
-            return { content: [{ type: 'text', text: err }] };
+            return respond(err);
         const results = store.getRecent(limit, category);
         if (results.length === 0)
-            return { content: [{ type: 'text', text: 'No recent contacts.' }] };
+            return respond('No recent contacts.');
         const header = '| Name | Category | Status | Last Contact |';
         const sep = '|------|----------|--------|-------------|';
         const rows = results.map(r => `| ${r.name} | ${r.category} | ${r.status} | ${r.lastContact || '-'} |`);
-        return { content: [{ type: 'text', text: [header, sep, ...rows].join('\n') }] };
+        return respond([header, sep, ...rows].join('\n'));
     });
     // ── 6. crm_stats ─────────────────────────────────────────────────────
     server.tool('crm_stats', 'Get CRM-wide statistics: total contacts, by category, stale contacts, average fill rate.', {}, async () => {
         if (!config.crmRoot || !store) {
             const payload = JSON.stringify({ status: 'unconfigured', message: 'Run npx crm-mcp init' });
-            return { content: [{ type: 'text', text: payload }] };
+            return respond(payload);
         }
         const stats = store.getStats();
         const lines = [
@@ -223,7 +230,7 @@ export function createMcpServer(store, config) {
             '**By Category:**',
             ...Object.entries(stats.byCategory).map(([cat, count]) => `  - ${cat}: ${count}`),
         ];
-        return { content: [{ type: 'text', text: lines.join('\n') }] };
+        return respond(lines.join('\n'));
     });
     // ── 7. crm_update ────────────────────────────────────────────────────
     server.tool('crm_update', 'Update a specific field in a contact\'s dossier. Updates YAML frontmatter and invalidates cache.', {
@@ -234,16 +241,16 @@ export function createMcpServer(store, config) {
     }, async ({ contact, section, field, value }) => {
         const err = requireConfigured(config);
         if (err)
-            return { content: [{ type: 'text', text: err }] };
+            return respond(err);
         const contactId = resolveContact(store, contact);
         if (!contactId)
-            return { content: [{ type: 'text', text: `Contact not found: ${contact}` }] };
+            return respond(`Contact not found: ${contact}`);
         try {
             updateField(store, contactId, section, field, value);
-            return { content: [{ type: 'text', text: `Updated ${field} = "${value}" in ${section} for ${contactId}` }] };
+            return respond(`Updated ${field} = "${value}" in ${section} for ${contactId}`);
         }
         catch (e) {
-            return { content: [{ type: 'text', text: `Error: ${e.message}` }] };
+            return respond(`Error: ${e.message}`);
         }
     });
     // ── 8. crm_log ───────────────────────────────────────────────────────
@@ -257,16 +264,16 @@ export function createMcpServer(store, config) {
     }, async ({ contact, date, type, summary, outcome, nextStep }) => {
         const err = requireConfigured(config);
         if (err)
-            return { content: [{ type: 'text', text: err }] };
+            return respond(err);
         const contactId = resolveContact(store, contact);
         if (!contactId)
-            return { content: [{ type: 'text', text: `Contact not found: ${contact}` }] };
+            return respond(`Contact not found: ${contact}`);
         try {
             appendLog(store, contactId, { date, type, summary, outcome, nextStep });
-            return { content: [{ type: 'text', text: `Logged ${type} interaction with ${contactId} on ${date}` }] };
+            return respond(`Logged ${type} interaction with ${contactId} on ${date}`);
         }
         catch (e) {
-            return { content: [{ type: 'text', text: `Error: ${e.message}` }] };
+            return respond(`Error: ${e.message}`);
         }
     });
     // ── 9. crm_vector_search ────────────────────────────────────────────
@@ -276,17 +283,17 @@ export function createMcpServer(store, config) {
     }, async ({ query, limit }) => {
         const err = requireConfigured(config);
         if (err)
-            return { content: [{ type: 'text', text: err }] };
+            return respond(err);
         try {
             const results = await vectorSearch(store, config, query, limit);
             if (results.length === 0) {
-                return { content: [{ type: 'text', text: "No results. Have you run 'crm-mcp embed' to generate embeddings?" }] };
+                return respond("No results. Have you run 'crm-mcp embed' to generate embeddings?");
             }
             const lines = results.map(r => `- **${r.contactName}** (${r.section}) [${(r.score * 100).toFixed(0)}%]: ${r.chunk.substring(0, 150)}...`);
-            return { content: [{ type: 'text', text: lines.join('\n') }] };
+            return respond(lines.join('\n'));
         }
         catch (e) {
-            return { content: [{ type: 'text', text: `Error: ${e.message}` }] };
+            return respond(`Error: ${e.message}`);
         }
     });
     // ── 10. crm_create ─────────────────────────────────────────────────
@@ -299,13 +306,13 @@ export function createMcpServer(store, config) {
     }, async ({ name, category, organization, context, profession }) => {
         const err = requireConfigured(config);
         if (err)
-            return { content: [{ type: 'text', text: err }] };
+            return respond(err);
         try {
             const result = createDossier(store, config.crmRoot, { name, category, organization, context, profession });
-            return { content: [{ type: 'text', text: `Created dossier ${result.id} at ${result.path}` }] };
+            return respond(`Created dossier ${result.id} at ${result.path}`);
         }
         catch (e) {
-            return { content: [{ type: 'text', text: `Error: ${e.message}` }] };
+            return respond(`Error: ${e.message}`);
         }
     });
     // ── 11. crm_bulk_update ─────────────────────────────────────────────
@@ -317,10 +324,10 @@ export function createMcpServer(store, config) {
     }, async ({ category, status, field, value }) => {
         const err = requireConfigured(config);
         if (err)
-            return { content: [{ type: 'text', text: err }] };
+            return respond(err);
         const contacts = store.searchContacts({ category, status, limit: 1000 });
         if (contacts.length === 0)
-            return { content: [{ type: 'text', text: 'No contacts match filter.' }] };
+            return respond('No contacts match filter.');
         let updated = 0;
         let errors = 0;
         for (const c of contacts) {
@@ -332,7 +339,7 @@ export function createMcpServer(store, config) {
                 errors++;
             }
         }
-        return { content: [{ type: 'text', text: `Updated ${updated} contacts.${errors > 0 ? ` ${errors} errors.` : ''}` }] };
+        return respond(`Updated ${updated} contacts.${errors > 0 ? ` ${errors} errors.` : ''}`);
     });
     // ── 12. crm_export ──────────────────────────────────────────────────
     server.tool('crm_export', 'Export contacts as JSON, CSV, or markdown table.', {
@@ -342,12 +349,12 @@ export function createMcpServer(store, config) {
     }, async ({ format, category, status }) => {
         const err = requireConfigured(config);
         if (err)
-            return { content: [{ type: 'text', text: err }] };
+            return respond(err);
         const contacts = store.searchContacts({ category, status, limit: 1000 });
         if (contacts.length === 0)
-            return { content: [{ type: 'text', text: 'No contacts match filter.' }] };
+            return respond('No contacts match filter.');
         const output = formatExport(contacts, format);
-        return { content: [{ type: 'text', text: output }] };
+        return respond(output);
     });
     // ── 13. crm_audit ─────────────────────────────────────────────────
     server.tool('crm_audit', "Analyze a dossier's structural health against its template. Returns findings without making changes.", {
@@ -358,23 +365,23 @@ export function createMcpServer(store, config) {
     }, async ({ contact, passes }) => {
         const err = requireConfigured(config);
         if (err)
-            return { content: [{ type: 'text', text: err }] };
+            return respond(err);
         const contactId = resolveContact(store, contact);
         if (!contactId)
-            return { content: [{ type: 'text', text: `Contact not found: ${contact}` }] };
+            return respond(`Contact not found: ${contact}`);
         const contactPath = store.getContactPath(contactId);
         if (!contactPath)
-            return { content: [{ type: 'text', text: `Contact path not found: ${contactId}` }] };
+            return respond(`Contact path not found: ${contactId}`);
         const dossierDir = join(config.crmRoot, contactPath);
         const templateDir = resolveTemplateDir(config.crmRoot, store, contactId);
         if (!templateDir)
-            return { content: [{ type: 'text', text: `Template not found for ${contactId}` }] };
+            return respond(`Template not found for ${contactId}`);
         const allPasses = passes || ['misplaced', 'stale', 'duplicates', 'ordering', 'compliance'];
         const result = runAudit(dossierDir, templateDir, allPasses);
         // Cache for crm_repair
         store.db.prepare('INSERT OR REPLACE INTO audit_cache (contact_id, audit_json, created_at) VALUES (?, ?, ?)')
             .run(contactId, JSON.stringify(result), new Date().toISOString());
-        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+        return respond(JSON.stringify(result, null, 2));
     });
     // ── 14. crm_repair ────────────────────────────────────────────────
     server.tool('crm_repair', 'Apply specific fixes from a prior audit. Requires crm_audit to be run first.', {
@@ -383,26 +390,26 @@ export function createMcpServer(store, config) {
     }, async ({ contact, fixes }) => {
         const err = requireConfigured(config);
         if (err)
-            return { content: [{ type: 'text', text: err }] };
+            return respond(err);
         const contactId = resolveContact(store, contact);
         if (!contactId)
-            return { content: [{ type: 'text', text: `Contact not found: ${contact}` }] };
+            return respond(`Contact not found: ${contact}`);
         // Load cached audit
         const cached = store.db.prepare('SELECT audit_json FROM audit_cache WHERE contact_id = ?').get(contactId);
         if (!cached)
-            return { content: [{ type: 'text', text: `No audit cache found for ${contactId}. Run crm_audit first.` }] };
+            return respond(`No audit cache found for ${contactId}. Run crm_audit first.`);
         const audit = JSON.parse(cached.audit_json);
         const contactPath = store.getContactPath(contactId);
         if (!contactPath)
-            return { content: [{ type: 'text', text: `Contact path not found: ${contactId}` }] };
+            return respond(`Contact path not found: ${contactId}`);
         const dossierDir = join(config.crmRoot, contactPath);
         const templateDir = resolveTemplateDir(config.crmRoot, store, contactId);
         if (!templateDir)
-            return { content: [{ type: 'text', text: `Template not found for ${contactId}` }] };
+            return respond(`Template not found for ${contactId}`);
         const result = runRepair(dossierDir, templateDir, audit, fixes);
         // Clear audit cache after repair (stale)
         store.db.prepare('DELETE FROM audit_cache WHERE contact_id = ?').run(contactId);
-        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+        return respond(JSON.stringify(result, null, 2));
     });
     // ── 15. crm_templates_list ──────────────────────────────────────────
     server.tool('crm_templates_list', 'List installed and available CRM dossier templates. Shows version, customization status, and available remote templates.', {
@@ -410,7 +417,7 @@ export function createMcpServer(store, config) {
     }, async ({ remote }) => {
         const err = requireConfigured(config);
         if (err)
-            return { content: [{ type: 'text', text: err }] };
+            return respond(err);
         const lines = [];
         const local = listLocalTemplates(config.crmRoot);
         if (local.length > 0) {
@@ -446,7 +453,7 @@ export function createMcpServer(store, config) {
                 lines.push(`(Could not fetch remote templates: ${e.message})`);
             }
         }
-        return { content: [{ type: 'text', text: lines.join('\n') }] };
+        return respond(lines.join('\n'));
     });
     // ── 16. crm_templates_pull ─────────────────────────────────────────
     server.tool('crm_templates_pull', 'Download a template from GitHub to local .templates/. Supports individual categories for composite templates (e.g., "REAL_ESTATE/A_BROKERAGE_SALES"). Will not overwrite customized templates — direct the user to CLI with --force for that.', {
@@ -454,7 +461,7 @@ export function createMcpServer(store, config) {
     }, async ({ name: nameArg }) => {
         const err = requireConfigured(config);
         if (err)
-            return { content: [{ type: 'text', text: err }] };
+            return respond(err);
         const parts = nameArg.split('/');
         const templateName = parts[0];
         const category = parts[1] || undefined;
@@ -492,15 +499,10 @@ export function createMcpServer(store, config) {
             };
             writeManifest(config.crmRoot, manifest);
             const files = countFiles(destDir);
-            return {
-                content: [{
-                        type: 'text',
-                        text: `Installed ${templateName}${category ? '/' + category : ''}: ${files} files written to .templates/${templateName}/`,
-                    }],
-            };
+            return respond(`Installed ${templateName}${category ? '/' + category : ''}: ${files} files written to .templates/${templateName}/`);
         }
         catch (e) {
-            return { content: [{ type: 'text', text: `Error: ${e.message}` }] };
+            return respond(`Error: ${e.message}`);
         }
     });
     return server;
