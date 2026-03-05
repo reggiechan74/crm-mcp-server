@@ -20,4 +20,16 @@ describe('loadConfig', () => {
     const config = loadConfig();
     expect(config.embeddingModel).toBe('Xenova/all-MiniLM-L6-v2');
   });
+
+  it('allows empty crmRoot without crashing', () => {
+    delete process.env.CRM_ROOT;
+    const config = loadConfig();
+    expect(config.crmRoot).toBe('');
+  });
+
+  it('returns templates array from config file', () => {
+    const config = loadConfig();
+    expect(config.templates).toEqual([]);
+    expect(config.defaultTemplate).toBe('simple');
+  });
 });

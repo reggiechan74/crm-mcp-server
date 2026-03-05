@@ -15,6 +15,8 @@ export function loadConfig(): Config {
   const crmRoot = process.env.CRM_ROOT || fileConfig.crmRoot || '';
   const dbPath = process.env.CRM_DB_PATH || fileConfig.dbPath || join(home, '.crm-mcp', 'crm.db');
   const embeddingModel = process.env.CRM_EMBEDDING_MODEL || fileConfig.embeddingModel || 'Xenova/all-MiniLM-L6-v2';
+  const templates = fileConfig.templates || [];
+  const defaultTemplate = fileConfig.defaultTemplate || 'simple';
 
-  return { crmRoot, dbPath, embeddingModel };
+  return { crmRoot, dbPath, embeddingModel, templates, defaultTemplate };
 }

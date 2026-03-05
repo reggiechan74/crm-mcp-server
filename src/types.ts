@@ -63,6 +63,8 @@ export interface Config {
   crmRoot: string;
   dbPath: string;
   embeddingModel: string;
+  templates: string[];       // available template names
+  defaultTemplate: string;   // template to use when none specified
 }
 
 export const DOSSIER_SECTIONS = [
