@@ -320,7 +320,7 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
   // If profession specified, check for profession-specific template first
   if (professionEntry) {
     const userProfTpl = join(crmRoot, '.templates', professionEntry.templateDir);
-    const bundledProfTpl = join(getTemplatesDir(), 're-crm', professionEntry.templateDir);
+    const bundledProfTpl = join(getTemplatesDir(), 'REAL_ESTATE', professionEntry.templateDir);
     if (existsSync(userProfTpl)) {
       templatePath = userProfTpl;
     } else if (existsSync(bundledProfTpl)) {
@@ -356,7 +356,7 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
   const needsCompose = templatePath && !existsSync(join(templatePath, 'INDEX.md'));
   if (needsCompose && professionEntry) {
     // Compose: copy COMMON base files first, then overlay profession-specific files
-    const commonDir = join(getTemplatesDir(), 're-crm', 'COMMON');
+    const commonDir = join(getTemplatesDir(), 'REAL_ESTATE', 'COMMON');
     if (existsSync(commonDir)) {
       cpSync(commonDir, destPath, { recursive: true });
     }

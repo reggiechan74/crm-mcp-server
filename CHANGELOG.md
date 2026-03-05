@@ -22,7 +22,7 @@ RE-CRM profession taxonomy, domain-enriched templates, and category-grouped dire
 - Three-segment intelligence structure: intelligence-profile.md, intelligence-risk.md, intelligence-strategic.md
 
 #### Template Generator
-- `scripts/generate-re-crm-templates.ts` — generates all 167 profession directories from COMMON base + tracking templates
+- `scripts/generate-real-estate-templates.ts` — generates all 167 profession directories from COMMON base + tracking templates
 - `--force` flag for bulk regeneration with category-aware cleanup
 - COMMON directory with shared template files copied to each profession
 

@@ -158,7 +158,7 @@ Templates use `{{variable}}` substitution (name, category, date, etc.) and are f
 
 ### RE-CRM Template Pack (Real Estate)
 
-A profession-specific template pack for real estate professionals, bundled at `templates/re-crm/`:
+A profession-specific template pack for real estate professionals, bundled at `templates/REAL_ESTATE/`:
 
 - **167 profession types** across 18 categories (Brokerage & Sales, Appraisal, Legal, Development, etc.)
 - **3-letter profession codes** (e.g., `BSB` = Sales Broker, `APR` = Residential Appraiser, `LRE` = Real Estate Lawyer)
@@ -167,7 +167,7 @@ A profession-specific template pack for real estate professionals, bundled at `t
 
 **Structure:**
 ```
-templates/re-crm/
+templates/REAL_ESTATE/
 ├── COMMON/                    # Shared base files
 │   ├── INDEX.md
 │   ├── profile.md
@@ -193,7 +193,7 @@ crm_create({ name: "Ross Bratt", category: "Network", profession: "BSB" })
 
 **Regenerate templates** (after editing COMMON or the generator script):
 ```bash
-npx tsx scripts/generate-re-crm-templates.ts --force
+npx tsx scripts/generate-real-estate-templates.ts --force
 ```
 
 ## Configuration

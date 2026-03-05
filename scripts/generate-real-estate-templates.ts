@@ -1,11 +1,11 @@
 /**
  * Generate RE-CRM profession-specific template directories.
  *
- * Each profession gets a directory under templates/re-crm/ containing:
+ * Each profession gets a directory under templates/REAL_ESTATE/ containing:
  * - The COMMON files (INDEX.md, profile.md, intelligence.md, log.md)
  * - A profession-specific tracking file (e.g., deals.md, assignments.md)
  *
- * Usage: npx tsx scripts/generate-re-crm-templates.ts
+ * Usage: npx tsx scripts/generate-real-estate-templates.ts
  */
 
 import { mkdirSync, writeFileSync, cpSync, existsSync, rmSync, readdirSync, statSync } from 'node:fs';
@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { PROFESSIONS, type ProfessionEntry } from '../src/professions.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const TEMPLATES_DIR = join(__dirname, '..', 'templates', 're-crm');
+const TEMPLATES_DIR = join(__dirname, '..', 'templates', 'REAL_ESTATE');
 const COMMON_DIR = join(TEMPLATES_DIR, 'COMMON');
 
 // ── Helper: Leasing-broker profession codes that get the leasing variant of deals.md
