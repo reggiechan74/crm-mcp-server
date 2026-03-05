@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { Store } from './store.js';
 import { appendLog, updateField } from './writer.js';
 import { vectorSearch } from './embeddings.js';
+import { formatExport } from './export.js';
 import type { Config, DossierSection } from './types.js';
 
 /**
@@ -262,32 +263,48 @@ export function createMcpServer(store: Store, config: Config): McpServer {
     },
   );
 
-  // ── 11. crm_bulk_update (stub) ───────────────────────────────────────
+  // ── 11. crm_bulk_update ─────────────────────────────────────────────
   server.tool(
     'crm_bulk_update',
-    'Update multiple contacts matching a filter.',
+    'Update a field across multiple contacts matching a filter.',
     {
-      category: z.string().optional(),
-      status: z.string().optional(),
-      field: z.string(),
-      value: z.string(),
+      category: z.string().optional().describe('Filter by category'),
+      status: z.string().optional().describe('Filter by current status'),
+      field: z.string().describe("YAML field to update (e.g., 'status')"),
+      value: z.string().describe('New value'),
     },
-    async () => {
-      return { content: [{ type: 'text' as const, text: 'Bulk update not yet implemented.' }] };
+    async ({ category, status, field, value }) => {
+      const contacts = store.searchContacts({ category, status, limit: 1000 });
+      if (contacts.length === 0) return { content: [{ type: 'text' as const, text: 'No contacts match filter.' }] };
+
+      let updated = 0;
+      let errors = 0;
+      for (const c of contacts) {
+        try {
+          updateField(store, c.id, 'index', field, value);
+          updated++;
+        } catch {
+          errors++;
+        }
+      }
+      return { content: [{ type: 'text' as const, text: `Updated ${updated} contacts.${errors > 0 ? ` ${errors} errors.` : ''}` }] };
     },
   );
 
-  // ── 12. crm_export (stub) ────────────────────────────────────────────
+  // ── 12. crm_export ──────────────────────────────────────────────────
   server.tool(
     'crm_export',
-    'Export contacts as JSON, CSV, or markdown.',
+    'Export contacts as JSON, CSV, or markdown table.',
     {
-      format: z.enum(['json', 'csv', 'markdown']),
-      category: z.string().optional(),
-      status: z.string().optional(),
+      format: z.enum(['json', 'csv', 'markdown']).describe('Output format'),
+      category: z.string().optional().describe('Filter by category'),
+      status: z.string().optional().describe('Filter by status'),
     },
-    async () => {
-      return { content: [{ type: 'text' as const, text: 'Export not yet implemented.' }] };
+    async ({ format, category, status }) => {
+      const contacts = store.searchContacts({ category, status, limit: 1000 });
+      if (contacts.length === 0) return { content: [{ type: 'text' as const, text: 'No contacts match filter.' }] };
+      const output = formatExport(contacts, format);
+      return { content: [{ type: 'text' as const, text: output }] };
     },
   );
 
