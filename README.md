@@ -5,6 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP Tools](https://img.shields.io/badge/MCP_Tools-16-8B5CF6)](https://modelcontextprotocol.io/)
 [![Tests](https://img.shields.io/badge/Tests-140-2EA043)](test/)
+[![Skills](https://img.shields.io/badge/Skills-19-E879F9)](skills/)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-F97316?logo=anthropic&logoColor=white)](https://claude.ai/code)
 
 A personal CRM system built as an [MCP](https://modelcontextprotocol.io/) server for [Claude Code](https://claude.ai/code). Manage contacts, dossiers, and relationship intelligence through natural conversation — no GUI needed.
@@ -193,6 +194,58 @@ The server exposes 16 MCP tools:
 |------|---------|
 | `crm_templates_list` | List installed and available remote templates |
 | `crm_templates_pull` | Download a template from GitHub to local `.templates/` |
+
+## Skills
+
+The plugin bundles 19 skills that orchestrate MCP tools into higher-level workflows. Skills trigger automatically from natural conversation — just describe what you need.
+
+### Preparation
+
+| Skill | Trigger Examples | Model |
+|-------|-----------------|:-----:|
+| `intel-briefing` | "brief me on [name]", "prep me for meeting with [name]", "what do I know about [name]" | opus |
+| `deal-parties` | "who's involved in [deal]", "map this transaction", "who's missing from this deal" | opus |
+| `event-prep` | "prep me for [event]", "who do I know there", "networking game plan" | opus |
+
+### Maintenance
+
+| Skill | Trigger Examples | Model |
+|-------|-----------------|:-----:|
+| `post-meeting` | "just met with [name]", "debrief [name]", "log meeting with [name]" | opus |
+| `relationship-pulse` | "who should I call", "who am I neglecting", "who's gone cold" | opus |
+| `crm-health` | "audit my CRM", "CRM health check", "dossier quality" | haiku |
+
+### Research
+
+| Skill | Trigger Examples | Model |
+|-------|-----------------|:-----:|
+| `enrich-contact` | "enrich [name]", "fill out [name]'s dossier", "what's missing for [name]" | opus |
+| `find-path` | "who can introduce me to [name]", "warm intro options", "connection path to [org]" | opus |
+| `competitive-intel` | "what do I know about [org]", "competitive intel", "who do I know at [org]" | sonnet |
+
+### Reporting
+
+| Skill | Trigger Examples | Model |
+|-------|-----------------|:-----:|
+| `pipeline-review` | "pipeline review", "what deals are active", "what's in play" | sonnet |
+| `relationship-roi` | "relationship ROI", "most valuable contacts", "where should I spend time" | sonnet |
+| `annual-review` | "annual review", "year-end CRM review", "how did my network perform this year" | sonnet |
+
+### Personal & Family
+
+| Skill | Trigger Examples | Model |
+|-------|-----------------|:-----:|
+| `medical-briefing` | "[name] has a doctor appointment", "prep me for [name]'s appointment" | opus |
+| `family-intel` | "how's [family member] doing", "family update on [name]" | opus |
+| `family-health-dashboard` | "family health check", "any medical follow-ups", "health dashboard" | sonnet |
+| `birthday-and-dates` | "any birthdays coming up", "key dates", "important dates" | haiku |
+| `education-tracker` | "how's Izzy doing at school", "education update", "school progress" | opus |
+| `gift-intel` | "what should I get [name]", "gift ideas for [name]", "gift history" | haiku |
+| `life-event-support` | "[name] got promoted", "[name]'s [relative] passed away", "how should I respond" | opus |
+
+### Shared Conventions
+
+All skills follow conventions defined in `skills/_shared/conventions.md`: consistent output format (summary → tables → recommended next actions), token-aware progressive disclosure (index-level scans before deep reads), and standard contact resolution (search → disambiguate → read).
 
 ## Dossier Structure
 
