@@ -93,3 +93,57 @@ describe('runAudit — compliance pass', () => {
     expect(Array.isArray(result.findings.missing)).toBe(true);
   });
 });
+
+describe('runAudit — misplaced pass', () => {
+  it('detects content in wrong file', () => {
+    const dossierDir = join(tempDir, 'Network', 'MISPLACED_Test');
+    mkdirSync(join(dossierDir, 'intelligence'), { recursive: true });
+    writeFileSync(join(dossierDir, 'INDEX.md'), '---\nname: Test\n---\n# Test\n## I. EXECUTIVE SUMMARY\n');
+    writeFileSync(join(dossierDir, 'profile.md'), '---\n---\n## III. PROFESSIONAL BACKGROUND\nSome content\n');
+    writeFileSync(join(dossierDir, 'log.md'), '---\n---\n## II. CONTACT INFORMATION\nMisplaced!\n## XII. INTERACTION LOG\n');
+    writeFileSync(join(dossierDir, 'intelligence', 'intelligence-profile.md'), '---\n---\n## VII. PSYCHOLOGICAL PROFILE\n');
+
+    const result = runAudit(dossierDir, join(tempDir, '.templates', 'professional'), ['misplaced']);
+    expect(result.findings.misplaced.length).toBe(1);
+    expect(result.findings.misplaced[0].currentFile).toBe('log.md');
+    expect(result.findings.misplaced[0].correctFile).toBe('profile.md');
+  });
+});
+
+describe('runAudit — stale pass', () => {
+  it('detects stale lastContactDate', () => {
+    const dossierDir = join(tempDir, 'Network', 'STALE_Test');
+    mkdirSync(dossierDir, { recursive: true });
+    writeFileSync(join(dossierDir, 'INDEX.md'), '---\nname: Test\nlastContactDate: 2025-01-01\n---\n# Test\n');
+    writeFileSync(join(dossierDir, 'log.md'),
+      '---\n---\n## XII. INTERACTION LOG\n| Date | Type | Summary | Outcome | Next Step |\n|------|------|---------|---------|---|\n| 2026-02-15 | Call | Catchup | Good | Follow up |\n');
+
+    const result = runAudit(dossierDir, join(tempDir, '.templates', 'professional'), ['stale']);
+    expect(result.findings.stale.length).toBe(1);
+    expect(result.findings.stale[0].field).toBe('lastContactDate');
+    expect(result.findings.stale[0].suggested).toBe('2026-02-15');
+  });
+});
+
+describe('runAudit — duplicates pass', () => {
+  it('detects duplicate sections across files', () => {
+    const dossierDir = join(tempDir, 'Network', 'DUP_Test');
+    mkdirSync(dossierDir, { recursive: true });
+    writeFileSync(join(dossierDir, 'INDEX.md'), '---\nname: Test\n---\n# Test\n## Next Actions\n- Call Bob\n- Email Sue\n');
+    writeFileSync(join(dossierDir, 'log.md'), '---\n---\n## XIII. NEXT ACTIONS\n- Call Bob\n- Email Sue\n## XII. INTERACTION LOG\n');
+
+    const result = runAudit(dossierDir, join(tempDir, '.templates', 'professional'), ['duplicates']);
+    expect(result.findings.duplicates.length).toBeGreaterThan(0);
+  });
+});
+
+describe('runAudit — ordering pass', () => {
+  it('detects out-of-order sections', () => {
+    const dossierDir = join(tempDir, 'Network', 'ORDER_Test');
+    mkdirSync(dossierDir, { recursive: true });
+    writeFileSync(join(dossierDir, 'profile.md'), '---\n---\n## III. PROFESSIONAL BACKGROUND\n## II. CONTACT INFORMATION\n');
+
+    const result = runAudit(dossierDir, join(tempDir, '.templates', 'professional'), ['ordering']);
+    expect(result.findings.ordering.length).toBe(1);
+  });
+});
