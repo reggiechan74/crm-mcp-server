@@ -160,20 +160,74 @@ describe('profession workflow', () => {
     expect(content).toContain('BSB');
   });
 
+  it('reads profession-specific tracking file via getSection', () => {
+    // Create a profession dossier (BSB gets deals.md)
+    createDossier(profStore, tempDir, {
+      name: 'Deal Maker',
+      category: 'Network',
+      profession: 'BSB',
+    });
+
+    // Write some identifiable content into deals.md
+    const dealsPath = join(tempDir, 'Network', 'MAKER_Deal', 'deals.md');
+    const content = readFileSync(dealsPath, 'utf-8');
+    writeFileSync(dealsPath, content.replace('| Total Deals Tracked | |', '| Total Deals Tracked | 47 |'));
+
+    // Re-index so FTS picks it up
+    profStore.indexAll();
+
+    // Read the tracking section via resolveSectionFile fallback
+    const section = profStore.getSection('BSB-DEAMAK-001', 'deals');
+    expect(section).toContain('47');
+    expect(section).toContain('DEAL TRACKING');
+  });
+
+  it('finds tracking file content via full-text search', () => {
+    // Create profession dossier and add searchable content
+    createDossier(profStore, tempDir, {
+      name: 'Search Target',
+      category: 'Client',
+      profession: 'VAP',
+    });
+
+    const assignmentsPath = join(tempDir, 'Clients', 'TARGET_Search', 'assignments.md');
+    const content = readFileSync(assignmentsPath, 'utf-8');
+    writeFileSync(assignmentsPath, content.replace('| Total Assignments Tracked | |', '| Total Assignments Tracked | UniqueAppraisalTerm |'));
+
+    profStore.indexAll();
+
+    const ftsResults = profStore.fullTextSearch('UniqueAppraisalTerm');
+    expect(ftsResults.length).toBeGreaterThan(0);
+    expect(ftsResults[0].section).toBe('assignments');
+  });
+
+  it('outline includes profession-specific tracking file', () => {
+    createDossier(profStore, tempDir, {
+      name: 'Outline Test',
+      category: 'Network',
+      profession: 'BSB',
+    });
+
+    const outline = profStore.getOutline('BSB-OUTTES-001');
+    const dealsSection = outline.sections.find(s => s.file === 'deals.md');
+    expect(dealsSection).toBeDefined();
+    expect(dealsSection!.sizeBytes).toBeGreaterThan(0);
+  });
+
   it('existing 2-letter contacts coexist with 3-letter profession contacts', () => {
     // Original fixture contact
     const oldResults = profStore.searchContacts({ query: 'Test Contact' });
     expect(oldResults.length).toBe(1);
     expect(oldResults[0].id).toBe('NE-TESCON-001');
 
-    // New profession contact
+    // New profession contacts (includes Ross Bratt + others created in earlier tests)
     const newResults = profStore.searchContacts({ profession: 'BSB' });
-    expect(newResults.length).toBe(1);
-    expect(newResults[0].id).toBe('BSB-ROSBRA-001');
+    expect(newResults.length).toBeGreaterThanOrEqual(1);
+    expect(newResults.some(r => r.id === 'BSB-ROSBRA-001')).toBe(true);
 
-    // Total should include both
+    // Total should include all created contacts
     const stats = profStore.getStats();
-    expect(stats.totalContacts).toBeGreaterThanOrEqual(2);
+    expect(stats.totalContacts).toBeGreaterThanOrEqual(5);
   });
 });
 

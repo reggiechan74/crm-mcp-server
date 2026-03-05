@@ -30,7 +30,7 @@ export const PROFESSIONS: Record<string, ProfessionEntry> = {
   // ── Category B: Valuation & Advisory (8) ────────────────────────────
   VAP: { code: 'VAP', name: 'Appraiser (General)', category: 'Valuation & Advisory', categoryLetter: 'B', templateDir: 'APPRAISER', trackingFile: 'assignments.md' },
   VRA: { code: 'VRA', name: 'Review Appraiser', category: 'Valuation & Advisory', categoryLetter: 'B', templateDir: 'REVIEW_APPRAISER', trackingFile: 'assignments.md' },
-  VCN: { code: 'VCN', name: 'Consultant/Advisor', category: 'Valuation & Advisory', categoryLetter: 'B', templateDir: 'CONSULTANT', trackingFile: 'assignments.md' },
+  VCN: { code: 'VCN', name: 'Consultant/Advisor', category: 'Valuation & Advisory', categoryLetter: 'B', templateDir: 'CONSULTANT', trackingFile: 'engagements.md' },
   VMR: { code: 'VMR', name: 'Market Research Analyst', category: 'Valuation & Advisory', categoryLetter: 'B', templateDir: 'MARKET_RESEARCH', trackingFile: 'assignments.md' },
   VDD: { code: 'VDD', name: 'Due Diligence Specialist', category: 'Valuation & Advisory', categoryLetter: 'B', templateDir: 'DUE_DILIGENCE', trackingFile: 'assignments.md' },
   VVS: { code: 'VVS', name: 'Valuation Services (Big 4)', category: 'Valuation & Advisory', categoryLetter: 'B', templateDir: 'VALUATION_SERVICES', trackingFile: 'assignments.md' },
@@ -40,7 +40,7 @@ export const PROFESSIONS: Record<string, ProfessionEntry> = {
   // ── Category C: Development & Construction (14) ─────────────────────
   DDV: { code: 'DDV', name: 'Developer/Principal', category: 'Development & Construction', categoryLetter: 'C', templateDir: 'DEVELOPER', trackingFile: 'projects.md' },
   DDM: { code: 'DDM', name: 'Development Manager', category: 'Development & Construction', categoryLetter: 'C', templateDir: 'DEV_MANAGER', trackingFile: 'projects.md' },
-  DLA: { code: 'DLA', name: 'Land Agent/ROW Specialist', category: 'Development & Construction', categoryLetter: 'C', templateDir: 'LAND_AGENT', trackingFile: 'projects.md' },
+  DLA: { code: 'DLA', name: 'Land Agent/ROW Specialist', category: 'Development & Construction', categoryLetter: 'C', templateDir: 'LAND_AGENT', trackingFile: 'acquisitions.md' },
   DAR: { code: 'DAR', name: 'Architect', category: 'Development & Construction', categoryLetter: 'C', templateDir: 'ARCHITECT', trackingFile: 'projects.md' },
   DGC: { code: 'DGC', name: 'General Contractor', category: 'Development & Construction', categoryLetter: 'C', templateDir: 'CONTRACTOR', trackingFile: 'projects.md' },
   DEN: { code: 'DEN', name: 'Engineer (Civil/Structural)', category: 'Development & Construction', categoryLetter: 'C', templateDir: 'ENGINEER', trackingFile: 'projects.md' },
@@ -68,8 +68,8 @@ export const PROFESSIONS: Record<string, ProfessionEntry> = {
   MCO: { code: 'MCO', name: 'Concierge/Luxury Services', category: 'Property & Asset Management', categoryLetter: 'D', templateDir: 'CONCIERGE', trackingFile: 'portfolio.md' },
 
   // ── Category E: Finance & Capital Markets (16) ──────────────────────
-  FMB: { code: 'FMB', name: 'Mortgage Broker', category: 'Finance & Capital Markets', categoryLetter: 'E', templateDir: 'MORTGAGE_BROKER', trackingFile: 'deals.md' },
-  FLO: { code: 'FLO', name: 'Loan Officer/Originator', category: 'Finance & Capital Markets', categoryLetter: 'E', templateDir: 'LOAN_OFFICER', trackingFile: 'deals.md' },
+  FMB: { code: 'FMB', name: 'Mortgage Broker', category: 'Finance & Capital Markets', categoryLetter: 'E', templateDir: 'MORTGAGE_BROKER', trackingFile: 'loans.md' },
+  FLO: { code: 'FLO', name: 'Loan Officer/Originator', category: 'Finance & Capital Markets', categoryLetter: 'E', templateDir: 'LOAN_OFFICER', trackingFile: 'loans.md' },
   FUW: { code: 'FUW', name: 'Underwriter (Mortgage/CMBS)', category: 'Finance & Capital Markets', categoryLetter: 'E', templateDir: 'UNDERWRITER', trackingFile: 'deals.md' },
   FLS: { code: 'FLS', name: 'Loan Servicer', category: 'Finance & Capital Markets', categoryLetter: 'E', templateDir: 'LOAN_SERVICER', trackingFile: 'deals.md' },
   FSS: { code: 'FSS', name: 'Special Servicer/Workout', category: 'Finance & Capital Markets', categoryLetter: 'E', templateDir: 'SPECIAL_SERVICER', trackingFile: 'deals.md' },
@@ -87,7 +87,7 @@ export const PROFESSIONS: Record<string, ProfessionEntry> = {
 
   // ── Category F: Legal & Compliance (8) ──────────────────────────────
   LRE: { code: 'LRE', name: 'Real Estate Lawyer', category: 'Legal & Compliance', categoryLetter: 'F', templateDir: 'LAWYER', trackingFile: 'matters.md' },
-  LTE: { code: 'LTE', name: 'Title/Escrow Officer', category: 'Legal & Compliance', categoryLetter: 'F', templateDir: 'TITLE_ESCROW', trackingFile: 'matters.md' },
+  LTE: { code: 'LTE', name: 'Title/Escrow Officer', category: 'Legal & Compliance', categoryLetter: 'F', templateDir: 'TITLE_ESCROW', trackingFile: 'closings.md' },
   LTI: { code: 'LTI', name: 'Title Insurance Underwriter', category: 'Legal & Compliance', categoryLetter: 'F', templateDir: 'TITLE_INSURANCE', trackingFile: 'matters.md' },
   LCO: { code: 'LCO', name: 'Compliance Officer', category: 'Legal & Compliance', categoryLetter: 'F', templateDir: 'COMPLIANCE', trackingFile: 'matters.md' },
   LZA: { code: 'LZA', name: 'Zoning/Land Use Attorney', category: 'Legal & Compliance', categoryLetter: 'F', templateDir: 'ZONING_ATTORNEY', trackingFile: 'matters.md' },
@@ -172,7 +172,7 @@ export const PROFESSIONS: Record<string, ProfessionEntry> = {
   MAU: { code: 'MAU', name: 'Auditor (Internal/External)', category: 'Accounting & Finance', categoryLetter: 'M', templateDir: 'AUDITOR', trackingFile: 'entities.md' },
 
   // ── Category N: Investment & Principal (7) ──────────────────────────
-  NPI: { code: 'NPI', name: 'Principal/Owner', category: 'Investment & Principal', categoryLetter: 'N', templateDir: 'PRINCIPAL', trackingFile: 'holdings.md' },
+  NPI: { code: 'NPI', name: 'Principal/Owner', category: 'Investment & Principal', categoryLetter: 'N', templateDir: 'PRINCIPAL', trackingFile: 'investments.md' },
   NLP: { code: 'NLP', name: 'Limited Partner/Investor', category: 'Investment & Principal', categoryLetter: 'N', templateDir: 'LP_INVESTOR', trackingFile: 'holdings.md' },
   NFO: { code: 'NFO', name: 'Family Office', category: 'Investment & Principal', categoryLetter: 'N', templateDir: 'FAMILY_OFFICE', trackingFile: 'holdings.md' },
   NHN: { code: 'NHN', name: 'High Net Worth Individual', category: 'Investment & Principal', categoryLetter: 'N', templateDir: 'HNWI', trackingFile: 'holdings.md' },

@@ -15,7 +15,7 @@ import {
   type DossierSection,
 } from './types.js';
 import fg from 'fast-glob';
-import { readFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 
@@ -230,6 +230,33 @@ export function createStore(dbPath: string, crmRoot: string): Store {
               now,
             );
           }
+
+          // Index extra .md files not in SECTION_FILES (profession-specific tracking files)
+          const knownFiles = new Set(Object.values(SECTION_FILES));
+          for (const entry of readdirSync(dossierPath)) {
+            if (!entry.endsWith('.md')) continue;
+            if (knownFiles.has(entry)) continue;
+            const filePath = join(dossierPath, entry);
+            if (!statSync(filePath).isFile()) continue;
+
+            const sectionKey = entry.replace(/\.md$/, '');
+            const raw = readFileSync(filePath, 'utf-8');
+            const hash = createHash('sha256').update(raw).digest('hex');
+            const cleaned = stripBoilerplate(raw);
+            const now = new Date().toISOString();
+
+            db.prepare(
+              'INSERT INTO content_fts (contact_id, section, content) VALUES (?, ?, ?)',
+            ).run(contact.id, sectionKey, cleaned);
+
+            stmts.insertContentCache.run(
+              contact.id,
+              sectionKey,
+              hash,
+              cleaned,
+              now,
+            );
+          }
         } catch (err) {
           // Skip dossiers that fail to parse
           console.error(`Failed to index ${relPath}:`, err);
@@ -292,11 +319,13 @@ export function createStore(dbPath: string, crmRoot: string): Store {
           WHERE content_fts MATCH ?
           ${category ? 'AND c.category = ?' : ''}
           ${status ? 'AND c.status = ?' : ''}
+          ${profession ? 'AND c.profession = ?' : ''}
           LIMIT ?
         `;
         const ftsParams: any[] = [ftsQuery];
         if (category) ftsParams.push(category);
         if (status) ftsParams.push(status);
+        if (profession) ftsParams.push(profession);
         ftsParams.push(limit);
 
         const ftsRows = db.prepare(ftsSql).all(...ftsParams);

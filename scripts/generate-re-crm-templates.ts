@@ -1075,6 +1075,520 @@ lastUpdated: {{date}}
 `,
 
   // ════════════════════════════════════════════════════════════════════════
+  // loans.md — Mortgage Broker / Loan Officer (ENRICHED)
+  // ════════════════════════════════════════════════════════════════════════
+  'loans.md': (p) => `---
+contactName: "{{name}}"
+dossierCode: "{{dossierCode}}"
+profession: "${p.code}"
+tier: loans
+lastUpdated: {{date}}
+---
+
+# {{name}} - Loan Pipeline & History
+
+## XVI. LOAN TRACKING
+
+### A. Originator Profile
+
+| Metric | Value |
+|--------|-------|
+| Total Loans Tracked | |
+| Primary Loan Types | |
+| Firm/Company | |
+| NMLS # | |
+| Avg. Loan Size | |
+| Primary Market | |
+
+### B. Active Loan Pipeline
+
+| Borrower | Property | Loan Type | Amount | Rate | LTV | Status | Est. Close |
+|----------|----------|-----------|--------|------|-----|--------|------------|
+| | | | | | | | |
+
+### C. Closed Loans (Last 24 Months)
+
+| Close Date | Borrower | Property | Loan Type | Amount | Rate | Term | My Involvement |
+|------------|----------|----------|-----------|--------|------|------|----------------|
+| | | | | | | | |
+
+### D. Lost/Declined Loans
+
+| Date | Borrower | Reason | Lessons |
+|------|----------|--------|---------|
+| | | | |
+
+---
+
+## XVII. PRODUCT & RATE ANALYSIS
+
+### A. Product Specialization
+
+| Loan Product | Experience Level | # Deals | Avg. Size | Notes |
+|--------------|------------------|---------|-----------|-------|
+| Conventional | | | | |
+| FHA/VA | | | | |
+| Commercial | | | | |
+| CMBS | | | | |
+| Bridge/Hard Money | | | | |
+| Construction | | | | |
+| SBA | | | | |
+
+### B. Rate Competitiveness
+
+| Product | Typical Rate Spread | Market Position | Notes |
+|---------|---------------------|-----------------|-------|
+| | | | |
+
+### C. Turnaround & Performance
+
+| Dimension | Assessment | Evidence |
+|-----------|------------|----------|
+| Application to Close Time | | |
+| Approval Rate | | |
+| Lock Accuracy | | |
+| Communication During Process | | |
+
+---
+
+## XVIII. LENDER RELATIONSHIPS
+
+### A. Wholesale Lender Relationships
+
+| Lender | Products | Volume | Relationship | AE Contact |
+|--------|----------|--------|--------------|------------|
+| | | | | |
+
+### B. Bank/Credit Union Relationships
+
+| Institution | Products | Approval Flexibility | Relationship | Notes |
+|-------------|----------|---------------------|--------------|-------|
+| | | | | |
+
+### C. Investor/Private Lender Network
+
+| Lender | Type | Typical Terms | Relationship | My Referral Value |
+|--------|------|---------------|--------------|-------------------|
+| | | | | |
+
+---
+
+## XIX. REFERRAL TRACKING
+
+### A. Referrals FROM This Contact
+
+| Date | Referral Type | Who/What Referred | Outcome | Fee/Thank You |
+|------|---------------|-------------------|---------|---------------|
+| | | | | |
+
+### B. Referrals TO This Contact
+
+| Date | Referral Type | Who/What Referred | Outcome | Quality |
+|------|---------------|-------------------|---------|---------|
+| | | | | |
+
+### C. Referral Balance
+
+| Direction | Count | Value | Net Position |
+|-----------|-------|-------|--------------|
+| FROM them to me | | | |
+| TO them from me | | | |
+| **Net** | | | |
+`,
+
+  // ════════════════════════════════════════════════════════════════════════
+  // acquisitions.md — Land Agent / ROW Specialist (ENRICHED)
+  // ════════════════════════════════════════════════════════════════════════
+  'acquisitions.md': (p) => `---
+contactName: "{{name}}"
+dossierCode: "{{dossierCode}}"
+profession: "${p.code}"
+tier: acquisitions
+lastUpdated: {{date}}
+---
+
+# {{name}} - Land Acquisition History
+
+## XVI. ACQUISITION TRACKING
+
+### A. Agent Profile
+
+| Metric | Value |
+|--------|-------|
+| Total Acquisitions Tracked | |
+| Primary Acquisition Type | |
+| Organization/Utility | |
+| Geographic Coverage | |
+| Primary Project Types | |
+| Certification/Designation | |
+
+### B. Active Acquisitions
+
+| Parcel/Owner | Project | Location | Type | Acreage | Offer | Status | Est. Close |
+|--------------|---------|----------|------|---------|-------|--------|------------|
+| | | | | | | | |
+
+### C. Completed Acquisitions (Last 24 Months)
+
+| Close Date | Parcel/Owner | Project | Type | Acreage | Compensation | My Involvement |
+|------------|--------------|---------|------|---------|--------------|----------------|
+| | | | | | | |
+
+### D. Stalled/Disputed Parcels
+
+| Parcel/Owner | Project | Issue | Status | Resolution Strategy |
+|--------------|---------|-------|--------|---------------------|
+| | | | | |
+
+---
+
+## XVII. SPECIALIZATION ANALYSIS
+
+### A. Acquisition Type Experience
+
+| Acquisition Type | Experience Level | # Deals | Notes |
+|------------------|------------------|---------|-------|
+| Fee Simple Purchase | | | |
+| Easement/ROW | | | |
+| Temporary Construction | | | |
+| Expropriation/Eminent Domain | | | |
+| Lease/License | | | |
+| Option Agreement | | | |
+
+### B. Project Type Experience
+
+| Project Type | # Assignments | Notable Projects | Notes |
+|--------------|---------------|------------------|-------|
+| Transmission Lines | | | |
+| Pipelines | | | |
+| Highway/Road | | | |
+| Rail | | | |
+| Renewable Energy | | | |
+| Telecommunications | | | |
+
+### C. Landowner Negotiation Approach
+
+| Dimension | Assessment | Evidence |
+|-----------|------------|----------|
+| Rapport Building | | |
+| Compensation Fairness | | |
+| Deadline Management | | |
+| Dispute Resolution | | |
+| Community Relations | | |
+
+---
+
+## XVIII. CLIENT & PROJECT RELATIONSHIPS
+
+### A. Key Clients (Utilities/Agencies)
+
+| Client | Type | # Projects | Relationship | Primary Contact |
+|--------|------|------------|--------------|-----------------|
+| | | | | |
+
+### B. Landowner Relationship Patterns
+
+| Pattern | Assessment | Evidence |
+|---------|------------|----------|
+| Repeat Landowner Success | | |
+| Dispute Rate | | |
+| Average Settlement Time | | |
+| Community Reputation | | |
+
+---
+
+## XIX. REFERRAL TRACKING
+
+### A. Referrals FROM This Contact
+
+| Date | Referral Type | Who/What Referred | Outcome | Acknowledgment |
+|------|---------------|-------------------|---------|----------------|
+| | | | | |
+
+### B. Referrals TO This Contact
+
+| Date | Referral Type | Who/What Referred | Outcome | Quality |
+|------|---------------|-------------------|---------|---------|
+| | | | | |
+
+### C. Referral Balance
+
+| Direction | Count | Value | Net Position |
+|-----------|-------|-------|--------------|
+| FROM them to me | | | |
+| TO them from me | | | |
+| **Net** | | | |
+`,
+
+  // ════════════════════════════════════════════════════════════════════════
+  // closings.md — Title/Escrow Officer (ENRICHED)
+  // ════════════════════════════════════════════════════════════════════════
+  'closings.md': (p) => `---
+contactName: "{{name}}"
+dossierCode: "{{dossierCode}}"
+profession: "${p.code}"
+tier: closings
+lastUpdated: {{date}}
+---
+
+# {{name}} - Closing & Title History
+
+## XVI. CLOSING TRACKING
+
+### A. Officer Profile
+
+| Metric | Value |
+|--------|-------|
+| Total Closings Tracked | |
+| Company | |
+| Primary Transaction Types | |
+| Geographic Coverage | |
+| Avg. Turnaround Time | |
+| Typical Deal Size | |
+
+### B. Active Closings Pipeline
+
+| Transaction | Property | Type | Buyer/Seller | Amount | Status | Est. Close | My Role |
+|-------------|----------|------|--------------|--------|--------|------------|---------|
+| | | | | | | | |
+
+### C. Completed Closings (Last 24 Months)
+
+| Close Date | Transaction | Property | Type | Amount | Turnaround | Issues | My Involvement |
+|------------|-------------|----------|------|--------|------------|--------|----------------|
+| | | | | | | | |
+
+### D. Problem Closings / Delays
+
+| Date | Transaction | Issue | Resolution | Time to Resolve | Lessons |
+|------|-------------|-------|------------|-----------------|---------|
+| | | | | | |
+
+---
+
+## XVII. CAPABILITY ANALYSIS
+
+### A. Transaction Type Experience
+
+| Transaction Type | Experience Level | # Closings | Notes |
+|------------------|------------------|------------|-------|
+| Residential Resale | | | |
+| Commercial Sale | | | |
+| Refinance | | | |
+| New Construction | | | |
+| 1031 Exchange | | | |
+| Short Sale/REO | | | |
+| Bulk/Portfolio | | | |
+
+### B. Title Issue Resolution
+
+| Issue Type | Experience | Resolution Approach | Success Rate |
+|------------|------------|---------------------|--------------|
+| Chain of Title Defects | | | |
+| Lien Resolution | | | |
+| Survey Discrepancies | | | |
+| Judgment/Tax Issues | | | |
+| Estate/Probate | | | |
+| Boundary Disputes | | | |
+
+### C. Performance Metrics
+
+| Dimension | Assessment | Evidence |
+|-----------|------------|----------|
+| Turnaround Time | | |
+| Error Rate | | |
+| Communication Quality | | |
+| Proactive Issue Detection | | |
+| After-Hours Availability | | |
+
+---
+
+## XVIII. UNDERWRITER & LENDER RELATIONSHIPS
+
+### A. Title Insurance Underwriters
+
+| Underwriter | Products | Volume | Relationship | Key Contact |
+|-------------|----------|--------|--------------|-------------|
+| | | | | |
+
+### B. Lender Relationships
+
+| Lender | # Closings | Preferred Status | Notes |
+|--------|------------|------------------|-------|
+| | | | |
+
+### C. Attorney/Notary Network
+
+| Professional | Type | Jurisdiction | Relationship | Notes |
+|--------------|------|-------------|--------------|-------|
+| | | | | |
+
+---
+
+## XIX. REFERRAL TRACKING
+
+### A. Referrals FROM This Contact
+
+| Date | Referral Type | Who/What Referred | Outcome | Acknowledgment |
+|------|---------------|-------------------|---------|----------------|
+| | | | | |
+
+### B. Referrals TO This Contact
+
+| Date | Referral Type | Who/What Referred | Outcome | Quality |
+|------|---------------|-------------------|---------|---------|
+| | | | | |
+
+### C. Referral Balance
+
+| Direction | Count | Value | Net Position |
+|-----------|-------|-------|--------------|
+| FROM them to me | | | |
+| TO them from me | | | |
+| **Net** | | | |
+`,
+
+  // ════════════════════════════════════════════════════════════════════════
+  // investments.md — Investor / Principal (ENRICHED)
+  // ════════════════════════════════════════════════════════════════════════
+  'investments.md': (p) => `---
+contactName: "{{name}}"
+dossierCode: "{{dossierCode}}"
+profession: "${p.code}"
+tier: investments
+lastUpdated: {{date}}
+---
+
+# {{name}} - Investment Portfolio & History
+
+## XVI. INVESTMENT TRACKING
+
+### A. Investor Profile
+
+| Metric | Value |
+|--------|-------|
+| Investor Type | |
+| Total Investments Tracked | |
+| Estimated AUM | |
+| Primary Asset Classes | |
+| Geographic Focus | |
+| Investment Style | |
+| Capital Available for New Deals | |
+| LP/GP Status | |
+
+### B. Current Portfolio Holdings
+
+| Property/Fund | Location | Asset Class | Size | Acquisition Date | Basis | Est. Current Value | Ownership % |
+|--------------|----------|-------------|------|------------------|-------|-------------------|-------------|
+| | | | | | | | |
+
+### C. Recent Dispositions (Last 24 Months)
+
+| Sale Date | Property/Fund | Asset Class | Hold Period | Sale Price | IRR | Equity Multiple | My Involvement |
+|-----------|--------------|-------------|-------------|------------|-----|-----------------|----------------|
+| | | | | | | | |
+
+### D. Active Acquisition Pipeline
+
+| Target | Location | Asset Class | Size | Underwritten Price | Target IRR | Stage | My Opportunity |
+|--------|----------|-------------|------|-------------------|------------|-------|----------------|
+| | | | | | | | |
+
+---
+
+## XVII. INVESTMENT STRATEGY ANALYSIS
+
+### A. Investment Criteria
+
+| Dimension | Criteria |
+|-----------|----------|
+| Target Returns (IRR) | |
+| Equity Multiple Expectation | |
+| Preferred Hold Period | |
+| Leverage Preference | |
+| Minimum Deal Size | |
+| Maximum Deal Size | |
+| Risk Profile | |
+| Value-Add vs. Core | |
+
+### B. Asset Class Preferences
+
+| Asset Class | # Investments | Total Value | Avg. Hold Period | Performance | Notes |
+|-------------|---------------|-------------|------------------|-------------|-------|
+| Office | | | | | |
+| Industrial | | | | | |
+| Retail | | | | | |
+| Multifamily | | | | | |
+| Land | | | | | |
+| Specialty | | | | | |
+
+### C. Capital Structure Patterns
+
+| Dimension | Pattern | Evidence |
+|-----------|---------|----------|
+| Equity Source | | |
+| Typical Leverage | | |
+| Preferred Debt Structure | | |
+| Co-Investment Approach | | |
+
+---
+
+## XVIII. LP/GP RELATIONSHIPS
+
+### A. If GP — LP Relationships
+
+| LP/Investor | Type | Commitment | # Deals | Relationship | Notes |
+|-------------|------|------------|---------|--------------|-------|
+| | | | | | |
+
+### B. If LP — GP/Sponsor Relationships
+
+| GP/Sponsor | Type | # Investments | Total Committed | Performance | Relationship |
+|------------|------|---------------|-----------------|-------------|--------------|
+| | | | | | |
+
+### C. Advisory Team
+
+| Advisor | Role | Firm | Influence Level |
+|---------|------|------|-----------------|
+| | | | |
+
+### D. Service Provider Preferences
+
+| Service | Current Provider | Satisfaction | My Opportunity |
+|---------|------------------|--------------|----------------|
+| Brokerage | | | |
+| Legal | | | |
+| Appraisal | | | |
+| Property Management | | | |
+| Accounting/Tax | | | |
+
+---
+
+## XIX. REFERRAL TRACKING
+
+### A. Referrals FROM This Contact
+
+| Date | Referral Type | Who/What Referred | Outcome | Acknowledgment |
+|------|---------------|-------------------|---------|----------------|
+| | | | | |
+
+### B. Referrals TO This Contact
+
+| Date | Referral Type | Who/What Referred | Outcome | Quality |
+|------|---------------|-------------------|---------|---------|
+| | | | | |
+
+### C. Referral Balance
+
+| Direction | Count | Value | Net Position |
+|-----------|-------|-------|--------------|
+| FROM them to me | | | |
+| TO them from me | | | |
+| **Net** | | | |
+`,
+
+  // ════════════════════════════════════════════════════════════════════════
   // programs.md — Affordable & Public Housing (ENRICHED)
   // ════════════════════════════════════════════════════════════════════════
   'programs.md': (p) => `---
