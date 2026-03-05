@@ -1,14 +1,18 @@
 import { loadConfig } from './config.js';
 import { createStore } from './store.js';
-import { startMcpServer } from './server.js';
+import { startMcpServer, startMcpServerUnconfigured } from './server.js';
 
 const command = process.argv[2];
 
 if (command === 'mcp') {
   const config = loadConfig();
-  const store = createStore(config.dbPath, config.crmRoot);
-  store.indexAll();
-  await startMcpServer(store, config);
+  if (config.crmRoot) {
+    const store = createStore(config.dbPath, config.crmRoot);
+    store.indexAll();
+    await startMcpServer(store, config);
+  } else {
+    await startMcpServerUnconfigured(config);
+  }
 } else if (command === 'reindex') {
   const config = loadConfig();
   const store = createStore(config.dbPath, config.crmRoot);

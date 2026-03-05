@@ -8,6 +8,18 @@ import { formatExport } from './export.js';
 import type { Config, DossierSection } from './types.js';
 
 /**
+ * Guard: returns an error message when crmRoot is empty (unconfigured),
+ * null when properly configured.  Apply at the top of every tool handler
+ * EXCEPT crm_stats.
+ */
+function requireConfigured(config: Config): string | null {
+  if (!config.crmRoot) {
+    return 'CRM not initialized. Run \'npx crm-mcp init\' to set up your contact directory.';
+  }
+  return null;
+}
+
+/**
  * Resolve a contact identifier — accepts either a dossier code (e.g. "CL-RANMUL-002")
  * or a name fragment, returning the canonical contact ID.
  * Returns null if not found.
@@ -24,8 +36,20 @@ function resolveContact(store: Store, contact: string): string | null {
 
 /**
  * Build dynamic instructions string from CRM state for the MCP server.
+ * When store is null (unconfigured), returns setup instructions instead.
  */
-function buildInstructions(store: Store): string {
+function buildInstructions(store: Store | null, config: Config): string {
+  if (!config.crmRoot || !store) {
+    return [
+      'CRM MCP Server is installed but not yet configured.',
+      '',
+      'Ask the user to run: npx crm-mcp init',
+      '',
+      'This will set up their contact directory, choose templates,',
+      'and configure the server for first use.',
+    ].join('\n');
+  }
+
   const stats = store.getStats();
   const lines: string[] = [];
   lines.push(`CRM Intelligence System with ${stats.totalContacts} contacts.`);
@@ -49,10 +73,10 @@ function buildInstructions(store: Store): string {
   return lines.join('\n');
 }
 
-export function createMcpServer(store: Store, config: Config): McpServer {
+export function createMcpServer(store: Store | null, config: Config): McpServer {
   const server = new McpServer(
     { name: 'crm', version: '0.1.0' },
-    { instructions: buildInstructions(store) },
+    { instructions: buildInstructions(store, config) },
   );
 
   // ── 1. crm_search ────────────────────────────────────────────────────
@@ -66,7 +90,9 @@ export function createMcpServer(store: Store, config: Config): McpServer {
       limit: z.number().optional().default(20).describe('Max results (default 20)'),
     },
     async ({ query, category, status, limit }) => {
-      const results = store.searchContacts({ query, category, status, limit });
+      const err = requireConfigured(config);
+      if (err) return { content: [{ type: 'text' as const, text: err }] };
+      const results = store!.searchContacts({ query, category, status, limit });
       if (results.length === 0) return { content: [{ type: 'text' as const, text: 'No contacts found.' }] };
       const header = '| ID | Name | Org | Category | Status | Last Contact |';
       const sep = '|-----|------|-----|----------|--------|-------------|';
@@ -83,10 +109,12 @@ export function createMcpServer(store: Store, config: Config): McpServer {
       contact: z.string().describe('Contact name or dossier code (e.g., \'Ranjit\' or \'CL-RANMUL-002\')'),
     },
     async ({ contact }) => {
-      const contactId = resolveContact(store, contact);
+      const err = requireConfigured(config);
+      if (err) return { content: [{ type: 'text' as const, text: err }] };
+      const contactId = resolveContact(store!, contact);
       if (!contactId) return { content: [{ type: 'text' as const, text: `Contact not found: ${contact}` }] };
       try {
-        const outline = store.getOutline(contactId);
+        const outline = store!.getOutline(contactId);
         const lines = [`# ${outline.contact.name} (${outline.contact.id})`, ''];
         lines.push(`**Status:** ${outline.contact.status} | **Org:** ${outline.contact.organization || '-'} | **Last Contact:** ${outline.contact.lastContact || '-'}`);
         lines.push('');
@@ -112,10 +140,12 @@ export function createMcpServer(store: Store, config: Config): McpServer {
       section: z.enum(['index', 'profile', 'log', 'intelligence-profile', 'intelligence-strategic', 'intelligence-risk', 'medical', 'education']).describe('Which section to read'),
     },
     async ({ contact, section }) => {
-      const contactId = resolveContact(store, contact);
+      const err = requireConfigured(config);
+      if (err) return { content: [{ type: 'text' as const, text: err }] };
+      const contactId = resolveContact(store!, contact);
       if (!contactId) return { content: [{ type: 'text' as const, text: `Contact not found: ${contact}` }] };
       try {
-        const content = store.getSection(contactId, section as DossierSection);
+        const content = store!.getSection(contactId, section as DossierSection);
         return { content: [{ type: 'text' as const, text: content }] };
       } catch (e: any) {
         return { content: [{ type: 'text' as const, text: `Error: ${e.message}` }] };
@@ -132,9 +162,11 @@ export function createMcpServer(store: Store, config: Config): McpServer {
       depth: z.number().optional().default(1).describe('How many hops to traverse (default 1)'),
     },
     async ({ contact, depth }) => {
-      const contactId = resolveContact(store, contact);
+      const err = requireConfigured(config);
+      if (err) return { content: [{ type: 'text' as const, text: err }] };
+      const contactId = resolveContact(store!, contact);
       if (!contactId) return { content: [{ type: 'text' as const, text: `Contact not found: ${contact}` }] };
-      const connections = store.getConnections(contactId, depth);
+      const connections = store!.getConnections(contactId, depth);
       if (connections.length === 0) return { content: [{ type: 'text' as const, text: 'No connections found.' }] };
       const lines = connections.map(c => `- ${c.targetName} (${c.type}) — ${c.context}`);
       return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
@@ -150,7 +182,9 @@ export function createMcpServer(store: Store, config: Config): McpServer {
       category: z.string().optional().describe('Filter by category'),
     },
     async ({ limit, category }) => {
-      const results = store.getRecent(limit, category);
+      const err = requireConfigured(config);
+      if (err) return { content: [{ type: 'text' as const, text: err }] };
+      const results = store!.getRecent(limit, category);
       if (results.length === 0) return { content: [{ type: 'text' as const, text: 'No recent contacts.' }] };
       const header = '| Name | Category | Status | Last Contact |';
       const sep = '|------|----------|--------|-------------|';
@@ -165,6 +199,10 @@ export function createMcpServer(store: Store, config: Config): McpServer {
     'Get CRM-wide statistics: total contacts, by category, stale contacts, average fill rate.',
     {},
     async () => {
+      if (!config.crmRoot || !store) {
+        const payload = JSON.stringify({ status: 'unconfigured', message: 'Run npx crm-mcp init' });
+        return { content: [{ type: 'text' as const, text: payload }] };
+      }
       const stats = store.getStats();
       const lines = [
         `**Total Contacts:** ${stats.totalContacts}`,
@@ -189,10 +227,12 @@ export function createMcpServer(store: Store, config: Config): McpServer {
       value: z.string().describe('New value for the field'),
     },
     async ({ contact, section, field, value }) => {
-      const contactId = resolveContact(store, contact);
+      const err = requireConfigured(config);
+      if (err) return { content: [{ type: 'text' as const, text: err }] };
+      const contactId = resolveContact(store!, contact);
       if (!contactId) return { content: [{ type: 'text' as const, text: `Contact not found: ${contact}` }] };
       try {
-        updateField(store, contactId, section as DossierSection, field, value);
+        updateField(store!, contactId, section as DossierSection, field, value);
         return { content: [{ type: 'text' as const, text: `Updated ${field} = "${value}" in ${section} for ${contactId}` }] };
       } catch (e: any) {
         return { content: [{ type: 'text' as const, text: `Error: ${e.message}` }] };
@@ -213,10 +253,12 @@ export function createMcpServer(store: Store, config: Config): McpServer {
       nextStep: z.string().optional().describe('What should happen next'),
     },
     async ({ contact, date, type, summary, outcome, nextStep }) => {
-      const contactId = resolveContact(store, contact);
+      const err = requireConfigured(config);
+      if (err) return { content: [{ type: 'text' as const, text: err }] };
+      const contactId = resolveContact(store!, contact);
       if (!contactId) return { content: [{ type: 'text' as const, text: `Contact not found: ${contact}` }] };
       try {
-        appendLog(store, contactId, { date, type, summary, outcome, nextStep });
+        appendLog(store!, contactId, { date, type, summary, outcome, nextStep });
         return { content: [{ type: 'text' as const, text: `Logged ${type} interaction with ${contactId} on ${date}` }] };
       } catch (e: any) {
         return { content: [{ type: 'text' as const, text: `Error: ${e.message}` }] };
@@ -233,8 +275,10 @@ export function createMcpServer(store: Store, config: Config): McpServer {
       limit: z.number().optional().default(5).describe('Max results'),
     },
     async ({ query, limit }) => {
+      const err = requireConfigured(config);
+      if (err) return { content: [{ type: 'text' as const, text: err }] };
       try {
-        const results = await vectorSearch(store, config, query, limit);
+        const results = await vectorSearch(store!, config, query, limit);
         if (results.length === 0) {
           return { content: [{ type: 'text' as const, text: "No results. Have you run 'crm-mcp embed' to generate embeddings?" }] };
         }
@@ -259,8 +303,10 @@ export function createMcpServer(store: Store, config: Config): McpServer {
       context: z.string().optional().describe('How you met or relationship context'),
     },
     async ({ name, category, organization, context }) => {
+      const err = requireConfigured(config);
+      if (err) return { content: [{ type: 'text' as const, text: err }] };
       try {
-        const result = createDossier(store, config.crmRoot, { name, category, organization, context });
+        const result = createDossier(store!, config.crmRoot, { name, category, organization, context });
         return { content: [{ type: 'text' as const, text: `Created dossier ${result.id} at ${result.path}` }] };
       } catch (e: any) {
         return { content: [{ type: 'text' as const, text: `Error: ${e.message}` }] };
@@ -279,14 +325,16 @@ export function createMcpServer(store: Store, config: Config): McpServer {
       value: z.string().describe('New value'),
     },
     async ({ category, status, field, value }) => {
-      const contacts = store.searchContacts({ category, status, limit: 1000 });
+      const err = requireConfigured(config);
+      if (err) return { content: [{ type: 'text' as const, text: err }] };
+      const contacts = store!.searchContacts({ category, status, limit: 1000 });
       if (contacts.length === 0) return { content: [{ type: 'text' as const, text: 'No contacts match filter.' }] };
 
       let updated = 0;
       let errors = 0;
       for (const c of contacts) {
         try {
-          updateField(store, c.id, 'index', field, value);
+          updateField(store!, c.id, 'index', field, value);
           updated++;
         } catch {
           errors++;
@@ -306,7 +354,9 @@ export function createMcpServer(store: Store, config: Config): McpServer {
       status: z.string().optional().describe('Filter by status'),
     },
     async ({ format, category, status }) => {
-      const contacts = store.searchContacts({ category, status, limit: 1000 });
+      const err = requireConfigured(config);
+      if (err) return { content: [{ type: 'text' as const, text: err }] };
+      const contacts = store!.searchContacts({ category, status, limit: 1000 });
       if (contacts.length === 0) return { content: [{ type: 'text' as const, text: 'No contacts match filter.' }] };
       const output = formatExport(contacts, format);
       return { content: [{ type: 'text' as const, text: output }] };
@@ -318,6 +368,12 @@ export function createMcpServer(store: Store, config: Config): McpServer {
 
 export async function startMcpServer(store: Store, config: Config): Promise<void> {
   const server = createMcpServer(store, config);
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+}
+
+export async function startMcpServerUnconfigured(config: Config): Promise<void> {
+  const server = createMcpServer(null, config);
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
