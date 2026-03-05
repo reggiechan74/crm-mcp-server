@@ -15,25 +15,35 @@ Instead of loading entire dossier files (thousands of tokens), the server strips
 
 ## Quick Start
 
-### 1. Install
+### Option A: Claude Code Plugin (Recommended)
+
+Install directly from Claude Code:
+
+```
+/install-plugin https://github.com/reggiechan74/crm-mcp-server
+```
+
+This clones the repo, builds it, and registers the MCP server automatically. Then initialize your CRM:
 
 ```bash
+crm-mcp init
+```
+
+The init wizard walks you through choosing a directory, selecting templates, and building your first index.
+
+### Option B: Manual Install
+
+```bash
+# Clone and build
 git clone https://github.com/reggiechan74/crm-mcp-server.git
 cd crm-mcp-server
 npm install && npm run build
-```
 
-### 2. Initialize
-
-```bash
+# Initialize your CRM
 npx crm-mcp init
+
+# Register with Claude Code — add to your project's .mcp.json:
 ```
-
-This creates your CRM directory structure with templates and a config file at `~/.crm-mcp.json`.
-
-### 3. Register with Claude Code
-
-Add to your project's `.mcp.json`:
 
 ```json
 {
@@ -46,9 +56,8 @@ Add to your project's `.mcp.json`:
 }
 ```
 
-### 4. Index Your Contacts
-
 ```bash
+# Index your contacts
 npx crm-mcp reindex
 ```
 
