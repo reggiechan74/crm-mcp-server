@@ -2,24 +2,94 @@
 contactName: "{{name}}"
 dossierCode: "{{dossierCode}}"
 profession: "BTR"
+tier: deals
 lastUpdated: {{date}}
 ---
 
-# {{name}} - Deal Tracker
+# {{name}} - Lease Deal History
 
-## Active Deals
+## XVI. LEASE DEAL TRACKING
 
-| Date | Property/Asset | Role | Status | Value | Notes |
-|------|---------------|------|--------|-------|-------|
+### A. Deal Summary
 
-## Closed Deals
+| Metric | Value |
+|--------|-------|
+| Total Deals Tracked | |
+| Total SF Leased | |
+| Avg. Deal Size | |
+| Primary Asset Class | |
+| Primary Role | |
 
-| Date | Property/Asset | Role | Status | Value | Notes |
-|------|---------------|------|--------|-------|-------|
+### B. Active Lease Deals
 
-## Deal Preferences
+| Tenant/Landlord | Property | Size (SF) | Asking Rate | Role | Status | Est. Execution |
+|-----------------|----------|-----------|-------------|------|--------|----------------|
+| | | | | | | |
 
-- **Asset Types:** [TO BE POPULATED]
-- **Markets:** [TO BE POPULATED]
-- **Deal Size Range:** [TO BE POPULATED]
-- **Investment Criteria:** [TO BE POPULATED]
+### C. Executed Leases (Last 24 Months)
+
+| Execution Date | Tenant | Property | Size (SF) | Term | Rate | Role | My Involvement |
+|----------------|--------|----------|-----------|------|------|------|----------------|
+| | | | | | | | |
+
+### D. Lease Expirations They're Tracking
+
+| Tenant | Property | Lease Expiry | Size (SF) | Renewal Likelihood | My Opportunity |
+|--------|----------|--------------|-----------|-------------------|----------------|
+| | | | | | |
+
+---
+
+## XVII. PORTFOLIO & ASSIGNMENTS
+
+### A. Exclusive Listings (If Landlord Rep)
+
+| Property | Address | Total SF | Available SF | Asking Rate | Assignment Expiry |
+|----------|---------|----------|--------------|-------------|-------------------|
+| | | | | | |
+
+### B. Active Tenant Rep Assignments
+
+| Tenant | Requirement | Size Range | Market | Status |
+|--------|-------------|------------|--------|--------|
+| | | | | |
+
+---
+
+## XVIII. LANDLORD/TENANT RELATIONSHIPS
+
+### A. Key Landlord Relationships
+
+| Landlord/Owner | Properties | Total SF | Relationship Type | Exclusivity |
+|----------------|------------|----------|-------------------|-------------|
+| | | | | |
+
+### B. Key Tenant Relationships
+
+| Tenant | Industry | Typical Size | Relationship Type | Last Served |
+|--------|----------|--------------|-------------------|-------------|
+| | | | | |
+
+---
+
+## XIX. REFERRAL TRACKING
+
+### A. Referrals FROM This Contact
+
+| Date | Referral Type | Deal/Client Referred | Outcome | Fee/Thank You |
+|------|---------------|---------------------|---------|---------------|
+| | | | | |
+
+### B. Referrals TO This Contact
+
+| Date | Referral Type | Deal/Client Referred | Outcome | Reciprocation |
+|------|---------------|---------------------|---------|---------------|
+| | | | | |
+
+### C. Referral Balance
+
+| Direction | Count | Value | Net Position |
+|-----------|-------|-------|--------------|
+| FROM them to me | | | |
+| TO them from me | | | |
+| **Net** | | | |

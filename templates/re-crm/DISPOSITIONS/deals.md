@@ -2,24 +2,88 @@
 contactName: "{{name}}"
 dossierCode: "{{dossierCode}}"
 profession: "FDS"
+tier: deals
 lastUpdated: {{date}}
 ---
 
-# {{name}} - Deal Tracker
+# {{name}} - Deal History
 
-## Active Deals
+## XVI. DEAL TRACKING
 
-| Date | Property/Asset | Role | Status | Value | Notes |
-|------|---------------|------|--------|-------|-------|
+### A. Deal Summary
 
-## Closed Deals
+| Metric | Value |
+|--------|-------|
+| Total Deals Tracked | |
+| Total Volume | |
+| Avg. Deal Size | |
+| Primary Asset Class | |
+| Primary Role | |
 
-| Date | Property/Asset | Role | Status | Value | Notes |
-|------|---------------|------|--------|-------|-------|
+### B. Active Deals
 
-## Deal Preferences
+| Property/Deal Name | Address | Asset Class | Role | List Price | Status | Est. Close |
+|-------------------|---------|-------------|------|------------|--------|------------|
+| | | | | | | |
 
-- **Asset Types:** [TO BE POPULATED]
-- **Markets:** [TO BE POPULATED]
-- **Deal Size Range:** [TO BE POPULATED]
-- **Investment Criteria:** [TO BE POPULATED]
+### C. Closed Deals (Last 24 Months)
+
+| Close Date | Property | Address | Asset Class | Role | Sale Price | My Involvement |
+|------------|----------|---------|-------------|------|------------|----------------|
+| | | | | | | |
+
+### D. Lost/Dead Deals
+
+| Date | Property | Reason Lost | Lessons |
+|------|----------|-------------|---------|
+| | | | |
+
+---
+
+## XVII. DEAL PATTERNS
+
+### A. Specialization Analysis
+
+| Asset Class | # Deals | Volume | Avg. Size | Notes |
+|-------------|---------|--------|-----------|-------|
+| Office | | | | |
+| Industrial | | | | |
+| Retail | | | | |
+| Multifamily | | | | |
+| Land | | | | |
+
+### B. Client Relationships
+
+| Client Name | Client Type | # Deals | Total Volume | Relationship |
+|-------------|-------------|---------|--------------|--------------|
+| | | | | |
+
+### C. Co-Brokerage History
+
+| Partner | # Deals Together | Total Volume | Working Style | Would Repeat? |
+|---------|-----------------|--------------|---------------|---------------|
+| | | | | |
+
+---
+
+## XVIII. REFERRAL TRACKING
+
+### A. Referrals FROM This Contact
+
+| Date | Referral Type | Deal/Client Referred | Outcome | Fee/Thank You |
+|------|---------------|---------------------|---------|---------------|
+| | | | | |
+
+### B. Referrals TO This Contact
+
+| Date | Referral Type | Deal/Client Referred | Outcome | Reciprocation |
+|------|---------------|---------------------|---------|---------------|
+| | | | | |
+
+### C. Referral Balance
+
+| Direction | Count | Value | Net Position |
+|-----------|-------|-------|--------------|
+| FROM them to me | | | |
+| TO them from me | | | |
+| **Net** | | | |

@@ -2,24 +2,106 @@
 contactName: "{{name}}"
 dossierCode: "{{dossierCode}}"
 profession: "MHO"
+tier: portfolio
 lastUpdated: {{date}}
 ---
 
-# {{name}} - Portfolio Tracker
+# {{name}} - Property Management Portfolio
 
-## Current Portfolio
+## XVI. PORTFOLIO TRACKING
 
-| Property | Type | Role | Status | Notes |
-|----------|------|------|--------|-------|
+### A. Manager Profile
 
-## Performance Metrics
+| Metric | Value |
+|--------|-------|
+| Company | |
+| Portfolio Size | |
+| Primary Asset Class | |
+| Geographic Coverage | |
+| Owner Type | |
 
-- **AUM/SF Managed:** [TO BE POPULATED]
-- **Occupancy:** [TO BE POPULATED]
-- **NOI Performance:** [TO BE POPULATED]
+### B. Properties They Manage
 
-## Capabilities
+| Property | Address | Type | Size | Owner | My Relationship |
+|----------|---------|------|------|-------|-----------------|
+| | | | | | |
 
-- **Property Types:** [TO BE POPULATED]
-- **Markets:** [TO BE POPULATED]
-- **Certifications:** [TO BE POPULATED]
+### C. Recent Portfolio Changes
+
+| Date | Change Type | Property | Details | Opportunity |
+|------|-------------|----------|---------|-------------|
+| | | | | |
+
+---
+
+## XVII. MANAGEMENT CAPABILITIES
+
+### A. Asset Class Experience
+
+| Asset Class | Portfolio Size | Experience Level | Quality Assessment |
+|-------------|----------------|------------------|-------------------|
+| Office | | | |
+| Industrial | | | |
+| Retail | | | |
+| Multifamily | | | |
+
+### B. Service Capabilities
+
+| Service | Offered | Quality | Notes |
+|---------|---------|---------|-------|
+| Leasing | | | |
+| Construction Management | | | |
+| Financial Reporting | | | |
+| Tenant Relations | | | |
+| Capital Projects | | | |
+
+---
+
+## XVIII. OWNER RELATIONSHIPS
+
+### A. Key Owners They Serve
+
+| Owner | # Properties | Relationship Type | Decision Maker |
+|-------|--------------|-------------------|----------------|
+| | | | |
+
+### B. Owner Satisfaction Intel
+
+| Owner | Satisfaction | Contract Status | Vulnerability |
+|-------|--------------|-----------------|---------------|
+| | | | |
+
+---
+
+## XIX. TENANT RELATIONSHIPS
+
+### A. Key Tenants in Their Portfolio
+
+| Tenant | Property | Size | Lease Expiry | My Interest |
+|--------|----------|------|--------------|-------------|
+| | | | | |
+
+### B. Vacancy & Leasing Activity
+
+| Property | Vacancy | Active Prospects | Broker Involved | My Opportunity |
+|----------|---------|------------------|-----------------|----------------|
+| | | | | |
+
+---
+
+## XX. REFERRAL & BUSINESS DEVELOPMENT
+
+### A. Their Vendor Network
+
+| Service | Preferred Vendor | My Opportunity |
+|---------|------------------|----------------|
+| Brokerage | | |
+| Appraisal | | |
+| Legal | | |
+| Construction | | |
+
+### B. Referral History
+
+| Date | Type | Details | Outcome |
+|------|------|---------|---------|
+| | | | |

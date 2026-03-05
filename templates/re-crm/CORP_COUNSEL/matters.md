@@ -2,23 +2,119 @@
 contactName: "{{name}}"
 dossierCode: "{{dossierCode}}"
 profession: "LCC"
+tier: matters
 lastUpdated: {{date}}
 ---
 
-# {{name}} - Matter Tracker
+# {{name}} - Legal Matter History
 
-## Active Matters
+## XVI. MATTER TRACKING
 
-| Date | Matter | Type | Status | Client | Notes |
-|------|--------|------|--------|--------|-------|
+### A. Practice Summary
 
-## Completed Matters
+| Metric | Value |
+|--------|-------|
+| Total Matters Tracked | |
+| Primary Practice Areas | |
+| Firm | |
+| Partnership Level | |
+| Hourly Rate | |
+| Billing Style | |
 
-| Date | Matter | Type | Status | Client | Notes |
-|------|--------|------|--------|--------|-------|
+### B. Active Matters (Involving Me)
 
-## Practice Areas
+| Matter Name | Type | My Role | Their Role | Status | Key Dates |
+|-------------|------|---------|------------|--------|-----------|
+| | | | | | |
 
-- **Specialties:** [TO BE POPULATED]
-- **Jurisdictions:** [TO BE POPULATED]
-- **Bar Admissions:** [TO BE POPULATED]
+### C. Closed Matters (Last 24 Months)
+
+| Close Date | Matter | Type | My Role | Their Role | Outcome | Notes |
+|------------|--------|------|---------|------------|---------|-------|
+| | | | | | | |
+
+---
+
+## XVII. PRACTICE AREA ANALYSIS
+
+### A. Transaction Experience
+
+| Transaction Type | Experience Level | Notable Matters | Strengths |
+|------------------|------------------|-----------------|-----------|
+| Purchase/Sale | | | |
+| Commercial Leasing | | | |
+| Financing | | | |
+| Joint Ventures | | | |
+| Development | | | |
+
+### B. Litigation Experience
+
+| Litigation Type | Experience Level | Notable Cases | Approach |
+|-----------------|------------------|---------------|----------|
+| Landlord/Tenant | | | |
+| Contract Disputes | | | |
+| Title Issues | | | |
+| Construction | | | |
+| Partnership Disputes | | | |
+
+### C. Regulatory/Land Use Experience
+
+| Area | Experience | Notable Matters |
+|------|------------|-----------------|
+| Zoning | | |
+| Environmental | | |
+| Municipal Law | | |
+| Expropriation | | |
+
+---
+
+## XVIII. WORK QUALITY ASSESSMENT
+
+### A. Performance Metrics
+
+| Dimension | Rating (1-5) | Evidence |
+|-----------|--------------|----------|
+| Legal Analysis Quality | | |
+| Document Drafting | | |
+| Negotiation Skill | | |
+| Responsiveness | | |
+| Cost Efficiency | | |
+| Strategic Thinking | | |
+| Client Communication | | |
+
+### B. Billing Analysis
+
+| Matter | Estimated | Actual | Variance | Value Assessment |
+|--------|-----------|--------|----------|------------------|
+| | | | | |
+
+### C. Opposing Counsel Assessment (If Applicable)
+
+| Dimension | Observation |
+|-----------|-------------|
+| Aggressiveness | |
+| Preparation | |
+| Honesty | |
+| Settlement Orientation | |
+
+---
+
+## XIX. REFERRAL NETWORK
+
+### A. Referrals FROM This Lawyer
+
+| Date | Type | Who/What Referred | Outcome |
+|------|------|-------------------|---------|
+| | | | |
+
+### B. Referrals TO This Lawyer
+
+| Date | Type | Who/What Referred | Outcome | Quality |
+|------|------|-------------------|---------|---------|
+| | | | | |
+
+### C. Related Professionals in Their Network
+
+| Professional | Type | Relationship | My Interest |
+|--------------|------|--------------|-------------|
+| | | | |

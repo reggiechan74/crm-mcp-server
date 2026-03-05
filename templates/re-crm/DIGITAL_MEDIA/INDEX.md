@@ -1,44 +1,59 @@
 ---
 name: "{{name}}"
 dossierCode: "{{dossierCode}}"
+contactName: "{{name}}"
 profession: "{{profession}}"
 organization: "{{organization}}"
 category: "{{category}}"
 status: Active
-lastContactDate: {{date}}
+tier: index
 lastUpdated: {{date}}
+templateVersion: "1.0"
 linkedContacts: []
 ---
 
 # {{name}} - Quick Reference
 
-## Executive Summary
-
-> {{name}} is a {{profession}} professional at {{organization}}.
-> Context: {{context}}
-
-### Quick Reference
+## SNAPSHOT
 
 | Field | Value |
 |-------|-------|
-| **Role** | {{profession}} at {{organization}} |
-| **Relationship Type** | {{category}} |
-| **How We Met** | {{context}} |
+| **Organization** | {{organization}} |
+| **Title** | [TO BE POPULATED] |
+| **Profession** | {{profession}} |
+| **Primary Market** | [TO BE POPULATED] |
+| **Relationship Status** | {{category}} |
+| **Relationship Strength** | [1-10] |
 | **Last Contact** | {{date}} |
-| **Current Status** | Active |
 | **Next Action** | [TO BE POPULATED] |
+| **Next Action Due** | [TO BE POPULATED] |
 
-### Relationship Assessment
+## QUICK CONTACT
 
-| Metric | Rating | Notes |
-|--------|--------|-------|
-| Relationship Strength | /5 | [TO BE POPULATED] |
-| Strategic Value | /5 | [TO BE POPULATED] |
-| Trust Level | | [TO BE POPULATED] |
+| Channel | Value | Preferred |
+|---------|-------|-----------|
+| Mobile | [TO BE POPULATED] | [Y/N] |
+| Email | [TO BE POPULATED] | [Y/N] |
+| Office | [TO BE POPULATED] | [N] |
+| LinkedIn | [TO BE POPULATED] | [N] |
+
+## DEAL VELOCITY (Last 12 Months)
+
+| Metric | Value |
+|--------|-------|
+| Deals Referred | [#] |
+| Deals Closed Together | [#] |
+| Total Volume | [$] |
+| Commission to Me | [$] |
+
+## RELATIONSHIP NOTES
+
+{{name}} is a {{profession}} professional at {{organization}}.
+Context: {{context}}
+
+## RED FLAGS
+
+- None identified
 
 ---
-
-**Full Details:**
-- [profile.md](profile.md) — contact info, background, market expertise
-- [intelligence.md](intelligence.md) — behavioral patterns, negotiation style
-- [log.md](log.md) — interaction history
+*Load profile.md for contact details, intelligence.md for negotiation prep*
