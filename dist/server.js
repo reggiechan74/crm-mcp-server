@@ -109,7 +109,7 @@ function buildInstructions(store, config) {
     return lines.join('\n');
 }
 export function createMcpServer(store, config) {
-    const server = new McpServer({ name: 'crm', version: '0.1.0' }, { instructions: buildInstructions(store, config) });
+    const server = new McpServer({ name: 'crm', version: '0.3.0' }, { instructions: buildInstructions(store, config) });
     // ── 1. crm_search ────────────────────────────────────────────────────
     server.tool('crm_search', 'Search contacts by name, organization, status, category, or keyword. Returns compact results (~50-100 tokens each).', {
         query: z.string().optional().describe('Name, org, or keyword to search for'),

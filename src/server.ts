@@ -124,7 +124,7 @@ function buildInstructions(store: Store | null, config: Config): string {
 
 export function createMcpServer(store: Store | null, config: Config): McpServer {
   const server = new McpServer(
-    { name: 'crm', version: '0.1.0' },
+    { name: 'crm', version: '0.3.0' },
     { instructions: buildInstructions(store, config) },
   );
 
