@@ -86,7 +86,7 @@ export const SECTION_FILES: Record<DossierSection, string> = {
   'intelligence-profile': 'intelligence/intelligence-profile.md',
   'intelligence-strategic': 'intelligence/intelligence-strategic.md',
   'intelligence-risk': 'intelligence/intelligence-risk.md',
-  'medical': 'medical.md',
+  'medical': 'medical/medical.md',
   'medical-genetics': 'medical/medical-genetics.md',
   'medical-pharmacogenomics': 'medical/medical-pharmacogenomics.md',
   'medical-labs': 'medical/medical-labs.md',
