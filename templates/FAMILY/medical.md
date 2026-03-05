@@ -154,13 +154,7 @@ PHARMACOGENOMIC ALERT - [NAME]
 
 | Gene | Variant | Status | Impact |
 |------|---------|--------|--------|
-| **MTHFR C677T** | rs1801133 | [+/+ | +/- | -/-] | [70% | 35% | Normal] function |
-| **MTHFR A1298C** | rs1801131 | [+/+ | +/- | -/-] | [Impact description] |
-| **MTR** | rs1805087 | [STATUS] | [Impact] |
-| **MTRR** | rs1801394 | [STATUS] | [Impact] |
-| **COMT** | rs4680 | [STATUS] | [Impact on neurotransmitter metabolism] |
-| **VDR** | rs731236 | [STATUS] | [Impact on Vitamin D metabolism] |
-| **BHMT** | rs3733890 | [STATUS] | [Impact] |
+| [GENE] | [rs#] | [+/+ | +/- | -/-] | [Impact description] |
 
 **Methylation Guidance:**
 - [Supplement recommendations based on methylation status]
@@ -175,21 +169,13 @@ PHARMACOGENOMIC ALERT - [NAME]
 
 | Gene | Variant | Status | Impact |
 |------|---------|--------|--------|
-| CYP1A2 | rs762551 | [STATUS] | [Caffeine metabolism, medication processing] |
-| CYP1B1 | rs1056836 | [STATUS] | [Estrogen metabolism] |
-| CYP2C9 | rs1799853 | [STATUS] | [NSAID, warfarin metabolism] |
-| CYP2C19 | rs4244285 | [STATUS] | [Clopidogrel, PPIs, antidepressants] |
-| CYP2D6 | rs1065852 | [STATUS] | [Opioids, antidepressants, beta-blockers] |
-| CYP3A4 | rs2740574 | [STATUS] | [50%+ of all drugs] |
+| [GENE] | [rs#] | [STATUS] | [Drug classes affected] |
 
 **PHASE II DETOXIFICATION (Conjugation Enzymes):**
 
 | Gene | Variant | Status | Impact |
 |------|---------|--------|--------|
-| GSTM1 | deletion | [PRESENT/ABSENT] | [Glutathione conjugation] |
-| GSTP1 | rs1695 | [STATUS] | [Heavy metal detox] |
-| NAT2 | multiple | [Rapid/Slow Acetylator] | [Drug acetylation] |
-| SOD2 | rs4880 | [STATUS] | [Mitochondrial antioxidant] |
+| [GENE] | [rs#] | [STATUS] | [Detox pathway affected] |
 
 ---
 
