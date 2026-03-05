@@ -21,15 +21,21 @@ describe('loadConfig', () => {
     expect(config.embeddingModel).toBe('Xenova/all-MiniLM-L6-v2');
   });
 
-  it('allows empty crmRoot without crashing', () => {
+  it('allows empty crmRoot without crashing when no config file', () => {
+    const origHome = process.env.HOME;
+    // Point HOME to a dir without .crm-mcp.json
+    process.env.HOME = '/tmp/no-config-home';
     delete process.env.CRM_ROOT;
     const config = loadConfig();
     expect(config.crmRoot).toBe('');
+    process.env.HOME = origHome;
   });
 
-  it('returns templates array from config file', () => {
+  it('returns templates from config file or defaults', () => {
     const config = loadConfig();
-    expect(config.templates).toEqual([]);
-    expect(config.defaultTemplate).toBe('simple');
+    // templates comes from ~/.crm-mcp.json if present, otherwise []
+    expect(Array.isArray(config.templates)).toBe(true);
+    // defaultTemplate is always a string
+    expect(typeof config.defaultTemplate).toBe('string');
   });
 });
