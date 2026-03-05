@@ -10,6 +10,21 @@
 
 A personal CRM system built as an [MCP](https://modelcontextprotocol.io/) server for [Claude Code](https://claude.ai/code). Manage contacts, dossiers, and relationship intelligence through natural conversation — no GUI needed.
 
+## Table of Contents
+
+- [What It Does](#what-it-does)
+- [Quick Start](#quick-start)
+- [Tools](#tools)
+- [Skills](#skills)
+- [Dossier Structure](#dossier-structure)
+- [Templates](#templates)
+- [Configuration](#configuration)
+- [CLI Commands](#cli-commands)
+- [Audit & Repair](#audit--repair)
+- [Tech Stack](#tech-stack)
+- [Development](#development)
+- [License](#license)
+
 ## What It Does
 
 Store contact intelligence in markdown dossiers, then search, read, and update them through Claude Code with token-optimized progressive disclosure:
