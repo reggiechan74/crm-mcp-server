@@ -23,6 +23,7 @@ export interface Store {
   db: Database;
   crmRoot: string;
   indexAll(): void;
+  indexOne(dossierRelPath: string): void;
   searchContacts(filters: {
     query?: string;
     category?: string;
@@ -155,6 +156,94 @@ export function createStore(dbPath: string, crmRoot: string): Store {
     ),
   };
 
+  /**
+   * Index a single dossier by its relative path (e.g., "Network/DOE_John").
+   * Inserts contact, relationships, and content into the database.
+   */
+  function indexDossier(dossierRelPath: string): void {
+    const dossierPath = join(crmRoot, dossierRelPath);
+
+    const contact = parseIndexYaml(dossierPath);
+    if (!contact.id) return;
+
+    // Insert contact
+    stmts.insertContact.run(
+      contact.id,
+      contact.name,
+      contact.category,
+      contact.organization,
+      contact.status,
+      contact.lastContact,
+      contact.lastUpdated,
+      contact.path,
+      contact.metadataJson,
+      contact.profession ?? null,
+    );
+
+    // Extract and insert relationships
+    const rels = extractRelationships(dossierPath, contact.id);
+    for (const rel of rels) {
+      stmts.insertRelationship.run(
+        rel.sourceId,
+        rel.targetId,
+        rel.targetName,
+        rel.type,
+        rel.context,
+        rel.bidirectional ? 1 : 0,
+      );
+    }
+
+    // Index known section content
+    for (const [sectionKey, sectionFile] of Object.entries(SECTION_FILES)) {
+      const filePath = join(dossierPath, sectionFile);
+      if (!existsSync(filePath)) continue;
+
+      const raw = readFileSync(filePath, 'utf-8');
+      const hash = createHash('sha256').update(raw).digest('hex');
+      const cleaned = stripBoilerplate(raw);
+      const now = new Date().toISOString();
+
+      db.prepare(
+        'INSERT INTO content_fts (contact_id, section, content) VALUES (?, ?, ?)',
+      ).run(contact.id, sectionKey, cleaned);
+
+      stmts.insertContentCache.run(
+        contact.id,
+        sectionKey,
+        hash,
+        cleaned,
+        now,
+      );
+    }
+
+    // Index extra .md files not in SECTION_FILES (profession-specific tracking files)
+    const knownFiles = new Set(Object.values(SECTION_FILES));
+    for (const entry of readdirSync(dossierPath)) {
+      if (!entry.endsWith('.md')) continue;
+      if (knownFiles.has(entry)) continue;
+      const filePath = join(dossierPath, entry);
+      if (!statSync(filePath).isFile()) continue;
+
+      const sectionKey = entry.replace(/\.md$/, '');
+      const raw = readFileSync(filePath, 'utf-8');
+      const hash = createHash('sha256').update(raw).digest('hex');
+      const cleaned = stripBoilerplate(raw);
+      const now = new Date().toISOString();
+
+      db.prepare(
+        'INSERT INTO content_fts (contact_id, section, content) VALUES (?, ?, ?)',
+      ).run(contact.id, sectionKey, cleaned);
+
+      stmts.insertContentCache.run(
+        contact.id,
+        sectionKey,
+        hash,
+        cleaned,
+        now,
+      );
+    }
+  }
+
   const store: Store = {
     db,
     crmRoot,
@@ -170,98 +259,25 @@ export function createStore(dbPath: string, crmRoot: string): Store {
       const indexFiles = fg.sync('*/*/INDEX.md', { cwd: crmRoot });
 
       for (const relPath of indexFiles) {
-        const dossierPath = join(crmRoot, dirname(relPath));
-
         try {
-          // Parse contact metadata
-          const contact = parseIndexYaml(dossierPath);
-          if (!contact.id) continue;
-
-          // Insert contact
-          stmts.insertContact.run(
-            contact.id,
-            contact.name,
-            contact.category,
-            contact.organization,
-            contact.status,
-            contact.lastContact,
-            contact.lastUpdated,
-            contact.path,
-            contact.metadataJson,
-            contact.profession ?? null,
-          );
-
-          // Extract and insert relationships
-          const rels = extractRelationships(dossierPath, contact.id);
-          for (const rel of rels) {
-            stmts.insertRelationship.run(
-              rel.sourceId,
-              rel.targetId,
-              rel.targetName,
-              rel.type,
-              rel.context,
-              rel.bidirectional ? 1 : 0,
-            );
-          }
-
-          // Index section content
-          for (const [sectionKey, sectionFile] of Object.entries(
-            SECTION_FILES,
-          )) {
-            const filePath = join(dossierPath, sectionFile);
-            if (!existsSync(filePath)) continue;
-
-            const raw = readFileSync(filePath, 'utf-8');
-            const hash = createHash('sha256').update(raw).digest('hex');
-            const cleaned = stripBoilerplate(raw);
-            const now = new Date().toISOString();
-
-            // Insert into FTS
-            db.prepare(
-              'INSERT INTO content_fts (contact_id, section, content) VALUES (?, ?, ?)',
-            ).run(contact.id, sectionKey, cleaned);
-
-            // Insert into cache
-            stmts.insertContentCache.run(
-              contact.id,
-              sectionKey,
-              hash,
-              cleaned,
-              now,
-            );
-          }
-
-          // Index extra .md files not in SECTION_FILES (profession-specific tracking files)
-          const knownFiles = new Set(Object.values(SECTION_FILES));
-          for (const entry of readdirSync(dossierPath)) {
-            if (!entry.endsWith('.md')) continue;
-            if (knownFiles.has(entry)) continue;
-            const filePath = join(dossierPath, entry);
-            if (!statSync(filePath).isFile()) continue;
-
-            const sectionKey = entry.replace(/\.md$/, '');
-            const raw = readFileSync(filePath, 'utf-8');
-            const hash = createHash('sha256').update(raw).digest('hex');
-            const cleaned = stripBoilerplate(raw);
-            const now = new Date().toISOString();
-
-            db.prepare(
-              'INSERT INTO content_fts (contact_id, section, content) VALUES (?, ?, ?)',
-            ).run(contact.id, sectionKey, cleaned);
-
-            stmts.insertContentCache.run(
-              contact.id,
-              sectionKey,
-              hash,
-              cleaned,
-              now,
-            );
-          }
+          indexDossier(dirname(relPath));
         } catch (err) {
-          // Skip dossiers that fail to parse
           console.error(`Failed to index ${relPath}:`, err);
         }
       }
+    },
+
+    indexOne(dossierRelPath: string): void {
+      // Remove existing data for this dossier (if re-indexing)
+      const dossierPath = join(crmRoot, dossierRelPath);
+      const contact = parseIndexYaml(dossierPath);
+      if (contact.id) {
+        db.prepare('DELETE FROM contacts WHERE id = ?').run(contact.id);
+        db.prepare('DELETE FROM relationships WHERE source_id = ?').run(contact.id);
+        db.prepare('DELETE FROM content_fts WHERE contact_id = ?').run(contact.id);
+        db.prepare('DELETE FROM content_cache WHERE contact_id = ?').run(contact.id);
+      }
+      indexDossier(dossierRelPath);
     },
 
     searchContacts(filters): SearchResult[] {

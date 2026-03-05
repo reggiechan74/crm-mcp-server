@@ -398,9 +398,9 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
   const updatedIndex = reconstructFile(indexYaml, updatedBody);
   writeFileSync(indexPath, updatedIndex, 'utf-8');
 
-  // 9. Re-index the new dossier
+  // 9. Re-index the new dossier only (O(1) instead of O(N))
   const relPath = `${categoryDir}/${folderName}`;
-  store.indexAll();
+  store.indexOne(relPath);
 
   return { id: dossierCode, path: relPath };
 }
