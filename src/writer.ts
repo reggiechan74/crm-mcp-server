@@ -1,7 +1,8 @@
-import { readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, cpSync, existsSync } from 'node:fs';
+import { join, dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
-import { SECTION_FILES, type DossierSection } from './types.js';
+import { SECTION_FILES, CATEGORY_CODES, CATEGORY_DIRS, type DossierSection, type Category } from './types.js';
 import { stripBoilerplate } from './parser.js';
 import { createHash } from 'node:crypto';
 import type { Store } from './store.js';
@@ -168,5 +169,222 @@ export function updateField(store: Store, contactId: string, section: DossierSec
     }
     // Always update last_updated in contacts table for index changes
     store.db.prepare('UPDATE contacts SET last_updated = ? WHERE id = ?').run(today(), contactId);
+  }
+}
+
+// ── Dossier Creation ────────────────────────────────────────────────────
+
+export interface CreateDossierInput {
+  name: string;          // "First Last"
+  category: string;      // "Network" | "Client" | etc.
+  organization?: string;
+  context?: string;      // How you met
+}
+
+export interface CreateDossierResult {
+  id: string;            // Generated dossier code
+  path: string;          // Relative path to new dossier
+}
+
+// Reverse lookup: Category → 2-letter code
+const CATEGORY_TO_CODE: Record<string, string> = Object.fromEntries(
+  Object.entries(CATEGORY_CODES).map(([code, cat]) => [cat, code]),
+);
+
+/**
+ * Resolve the templates directory — works both in source (src/) and compiled (dist/) layouts.
+ */
+function getTemplatesDir(): string {
+  const thisFile = fileURLToPath(import.meta.url);
+  const thisDir = dirname(thisFile);
+  // Try sibling of src/ first (project root/templates), then relative to dist/
+  const candidates = [
+    resolve(thisDir, '..', 'templates'),
+    resolve(thisDir, '..', '..', 'templates'),
+  ];
+  for (const dir of candidates) {
+    if (existsSync(dir)) return dir;
+  }
+  throw new Error(`Templates directory not found (searched: ${candidates.join(', ')})`);
+}
+
+/**
+ * Generate F3L3 code from a full name.
+ * Rules:
+ *   - Simple (First Last): first 3 chars of each, uppercase
+ *   - Hyphenated surname: first 3 of first name + first 3 of first part of surname
+ *   - Short name (< 3 chars): use available chars
+ * Always uppercase, accents removed.
+ */
+export function generateF3L3(fullName: string): string {
+  // Remove accents
+  const normalized = fullName.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const parts = normalized.trim().split(/\s+/);
+  if (parts.length < 2) {
+    throw new Error(`Name must have at least first and last parts: "${fullName}"`);
+  }
+
+  const firstName = parts.slice(0, -1).join(' ');
+  const lastName = parts[parts.length - 1];
+
+  // For hyphenated surnames, take first part
+  const lastNameBase = lastName.split('-')[0];
+
+  const f3 = firstName.replace(/\s+/g, '').substring(0, 3).toUpperCase();
+  const l3 = lastNameBase.substring(0, 3).toUpperCase();
+
+  return f3 + l3;
+}
+
+/**
+ * Determine the template type for a category.
+ */
+function templateTypeForCategory(category: string): string {
+  if (category === 'Family') return 'FAMILY';
+  if (category === 'Personal') return 'PERSONAL';
+  return 'PROFESSIONAL';
+}
+
+/**
+ * Create a new contact dossier from template.
+ */
+export function createDossier(store: Store, crmRoot: string, input: CreateDossierInput): CreateDossierResult {
+  // 1. Validate category
+  const category = input.category as Category;
+  const categoryDir = CATEGORY_DIRS[category];
+  if (!categoryDir) {
+    throw new Error(`Invalid category: "${input.category}". Valid: ${Object.keys(CATEGORY_DIRS).join(', ')}`);
+  }
+
+  // 2. Category code
+  const catCode = CATEGORY_TO_CODE[category];
+  if (!catCode) {
+    throw new Error(`No code mapping for category: ${category}`);
+  }
+
+  // 3. Generate F3L3
+  const f3l3 = generateF3L3(input.name);
+
+  // 4. Determine next sequence number by scanning existing dossiers
+  const catPath = join(crmRoot, categoryDir);
+  let nextSeq = 1;
+  if (existsSync(catPath)) {
+    const prefix = `${catCode}-${f3l3}-`;
+    const entries = readdirSync(catPath, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      // Check INDEX.md for dossierCode matching our prefix
+      const indexPath = join(catPath, entry.name, 'INDEX.md');
+      if (!existsSync(indexPath)) continue;
+      try {
+        const content = readFileSync(indexPath, 'utf-8');
+        const match = content.match(/dossierCode:\s*"?([^"\n]+)"?/);
+        if (match && match[1].startsWith(prefix)) {
+          const seqStr = match[1].substring(prefix.length);
+          const seq = parseInt(seqStr, 10);
+          if (!isNaN(seq) && seq >= nextSeq) {
+            nextSeq = seq + 1;
+          }
+        }
+      } catch {
+        // skip unreadable
+      }
+    }
+  }
+
+  const dossierCode = `${catCode}-${f3l3}-${String(nextSeq).padStart(3, '0')}`;
+
+  // 5. Create folder name: LASTNAME_Firstname
+  const nameParts = input.name.trim().split(/\s+/);
+  const lastName = nameParts[nameParts.length - 1];
+  const firstName = nameParts.slice(0, -1).join(' ');
+  const folderName = `${lastName.toUpperCase()}_${firstName}`;
+
+  // 6. Copy template
+  const templateType = templateTypeForCategory(input.category);
+  const templatesDir = getTemplatesDir();
+  const templatePath = join(templatesDir, templateType);
+  const destPath = join(crmRoot, categoryDir, folderName);
+
+  if (existsSync(destPath)) {
+    throw new Error(`Dossier folder already exists: ${destPath}`);
+  }
+
+  // Ensure category directory exists
+  mkdirSync(join(crmRoot, categoryDir), { recursive: true });
+  cpSync(templatePath, destPath, { recursive: true });
+
+  // 7. Replace placeholders in all .md files
+  const todayStr = today();
+  replacePlaceholdersRecursive(destPath, {
+    name: input.name,
+    dossierCode,
+    organization: input.organization ?? '',
+    date: todayStr,
+    context: input.context ?? '',
+  });
+
+  // 8. Rewrite INDEX.md with proper YAML frontmatter for parseIndexYaml compatibility
+  const indexPath = join(destPath, 'INDEX.md');
+  const indexContent = readFileSync(indexPath, 'utf-8');
+  const { yaml: indexYaml, body: indexBody } = parseFrontmatterAndBody(indexContent);
+
+  // Overwrite key fields to ensure parseIndexYaml works
+  indexYaml.name = input.name;
+  indexYaml.dossierCode = dossierCode;
+  indexYaml.organization = input.organization ?? '';
+  indexYaml.status = 'Active';
+  indexYaml.lastContactDate = todayStr;
+  indexYaml.lastUpdated = todayStr;
+  if (input.context) {
+    indexYaml.context = input.context;
+  }
+  // Remove template-only fields
+  delete indexYaml.tier;
+
+  // Replace template name in body heading
+  const updatedBody = indexBody
+    .replace(/DOSSIER_TEMPLATE_\w+/g, input.name)
+    .replace(/\[SUBJECT NAME\]/g, input.name)
+    .replace(/\[ORGANIZATION\]/g, input.organization ?? '')
+    .replace(/\[NAME\]/g, input.name);
+
+  const updatedIndex = reconstructFile(indexYaml, updatedBody);
+  writeFileSync(indexPath, updatedIndex, 'utf-8');
+
+  // 9. Re-index the new dossier
+  const relPath = `${categoryDir}/${folderName}`;
+  store.indexAll();
+
+  return { id: dossierCode, path: relPath };
+}
+
+/**
+ * Recursively replace placeholders in all .md files under a directory.
+ */
+function replacePlaceholdersRecursive(
+  dirPath: string,
+  replacements: { name: string; dossierCode: string; organization: string; date: string; context: string },
+): void {
+  const entries = readdirSync(dirPath, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      replacePlaceholdersRecursive(fullPath, replacements);
+    } else if (entry.name.endsWith('.md')) {
+      let content = readFileSync(fullPath, 'utf-8');
+
+      // Replace known placeholder patterns in YAML frontmatter
+      content = content.replace(/contactName:\s*"[^"]*"/g, `contactName: "${replacements.name}"`);
+      content = content.replace(/dossierCode:\s*"[^"]*"/g, `dossierCode: "${replacements.dossierCode}"`);
+
+      // Replace date placeholders in YAML
+      content = content.replace(/lastUpdated:\s*\S+/g, `lastUpdated: ${replacements.date}`);
+
+      // Replace template name references in body
+      content = content.replace(/DOSSIER_TEMPLATE_\w+/g, replacements.name);
+
+      writeFileSync(fullPath, content, 'utf-8');
+    }
   }
 }

@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { join } from 'node:path';
-import { mkdtempSync, cpSync, readFileSync } from 'node:fs';
+import { mkdtempSync, cpSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { createStore, type Store } from '../src/store.js';
-import { appendLog, updateField } from '../src/writer.js';
+import { appendLog, updateField, createDossier, generateF3L3 } from '../src/writer.js';
 
 let store: Store;
 let tempDir: string;
@@ -91,5 +91,107 @@ describe('updateField', () => {
     updateField(store, 'NE-TESCON-001', 'index', 'status', 'DORMANT');
     const content = store.getSection('NE-TESCON-001', 'index');
     expect(content).toContain('DORMANT');
+  });
+});
+
+describe('generateF3L3', () => {
+  it('handles simple first/last name', () => {
+    expect(generateF3L3('Ross Bratt')).toBe('ROSBRA');
+  });
+
+  it('handles hyphenated surname (takes first part)', () => {
+    expect(generateF3L3('Janice Nyarko-Mensah')).toBe('JANNYA');
+  });
+
+  it('handles short name (< 3 chars)', () => {
+    expect(generateF3L3('Ed Chan')).toBe('EDCHA');
+  });
+
+  it('removes accents', () => {
+    expect(generateF3L3('José García')).toBe('JOSGAR');
+  });
+});
+
+describe('createDossier', () => {
+  it('creates a new dossier folder from template', () => {
+    const result = createDossier(store, tempDir, {
+      name: 'New Person',
+      category: 'Network',
+    });
+    expect(result.id).toMatch(/^NE-NEWPER-\d{3}$/);
+    expect(existsSync(join(tempDir, 'Network', 'PERSON_New', 'INDEX.md'))).toBe(true);
+    expect(existsSync(join(tempDir, 'Network', 'PERSON_New', 'profile.md'))).toBe(true);
+    expect(existsSync(join(tempDir, 'Network', 'PERSON_New', 'log.md'))).toBe(true);
+    expect(existsSync(join(tempDir, 'Network', 'PERSON_New', 'intelligence'))).toBe(true);
+  });
+
+  it('creates with organization', () => {
+    const result = createDossier(store, tempDir, {
+      name: 'Jane Smith',
+      category: 'Client',
+      organization: 'Acme Corp',
+    });
+    expect(result.id).toMatch(/^CL-JANSMI-\d{3}$/);
+    // Verify organization was written into INDEX.md
+    const indexContent = readFileSync(join(tempDir, 'Clients', 'SMITH_Jane', 'INDEX.md'), 'utf-8');
+    expect(indexContent).toContain('Acme Corp');
+  });
+
+  it('handles hyphenated surnames', () => {
+    const result = createDossier(store, tempDir, {
+      name: 'Janice Nyarko-Mensah',
+      category: 'Family',
+    });
+    expect(result.id).toMatch(/^FA-JANNYA-\d{3}$/);
+    // Family template should have medical.md and education.md
+    expect(existsSync(join(tempDir, 'Family', 'NYARKO-MENSAH_Janice', 'medical.md'))).toBe(true);
+    expect(existsSync(join(tempDir, 'Family', 'NYARKO-MENSAH_Janice', 'education.md'))).toBe(true);
+  });
+
+  it('generates INDEX.md parseable by the store', () => {
+    createDossier(store, tempDir, {
+      name: 'Alice Wonderland',
+      category: 'Prospect',
+    });
+    // After creation, store.indexAll() was called; the contact should be findable
+    const results = store.searchContacts({ query: 'Alice' });
+    expect(results.length).toBe(1);
+    expect(results[0].name).toBe('Alice Wonderland');
+    expect(results[0].category).toBe('Prospect');
+  });
+
+  it('increments sequence number for duplicate F3L3', () => {
+    const r1 = createDossier(store, tempDir, { name: 'New Person', category: 'Network' });
+    expect(r1.id).toBe('NE-NEWPER-001');
+
+    const r2 = createDossier(store, tempDir, { name: 'Newman Perkins', category: 'Network' });
+    expect(r2.id).toBe('NE-NEWPER-002');
+  });
+
+  it('replaces template placeholders in files', () => {
+    createDossier(store, tempDir, {
+      name: 'Bob Builder',
+      category: 'Client',
+      organization: 'BuildCo',
+    });
+    const profileContent = readFileSync(join(tempDir, 'Clients', 'BUILDER_Bob', 'profile.md'), 'utf-8');
+    // Template name references should be replaced
+    expect(profileContent).not.toContain('DOSSIER_TEMPLATE');
+    expect(profileContent).toContain('Bob Builder');
+  });
+
+  it('throws for invalid category', () => {
+    expect(() => createDossier(store, tempDir, { name: 'Test User', category: 'Invalid' }))
+      .toThrow(/Invalid category/);
+  });
+
+  it('uses Personal template for Personal category', () => {
+    const result = createDossier(store, tempDir, {
+      name: 'Close Friend',
+      category: 'Personal',
+    });
+    expect(result.id).toMatch(/^PE-CLOFRI-\d{3}$/);
+    // Personal template has intelligence-assessment.md, not intelligence-risk.md
+    expect(existsSync(join(tempDir, 'Personal', 'FRIEND_Close', 'intelligence', 'intelligence-assessment.md'))).toBe(true);
   });
 });

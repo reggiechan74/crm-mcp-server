@@ -12,11 +12,38 @@ const DIR_TO_CATEGORY: Record<string, Category> = Object.fromEntries(
 /**
  * Parse YAML frontmatter from a markdown string.
  * Returns the parsed object or null if no frontmatter found.
+ * Uses lenient parsing to handle malformed YAML (e.g., unquoted parentheses in alias arrays).
  */
 function parseFrontmatter(content: string): Record<string, unknown> | null {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!match) return null;
-  return parseYaml(match[1]) as Record<string, unknown>;
+  try {
+    return parseYaml(match[1]) as Record<string, unknown>;
+  } catch {
+    // Fallback: quote unquoted parenthetical content in array items and retry
+    const fixed = match[1].replace(
+      /^(\s*-\s*"[^"]*")\s*(\([^)]*\))/gm,
+      '$1 # $2',
+    );
+    try {
+      return parseYaml(fixed) as Record<string, unknown>;
+    } catch {
+      // Last resort: extract key fields with regex
+      const result: Record<string, unknown> = {};
+      for (const [key, pattern] of [
+        ['name', /^name:\s*"?([^"\n]+)"?/m],
+        ['dossierCode', /^dossierCode:\s*"?([^"\n]+)"?/m],
+        ['organization', /^organization:\s*"?([^"\n]+)"?/m],
+        ['status', /^status:\s*(\S+)/m],
+        ['lastContactDate', /^lastContactDate:\s*(\S+)/m],
+        ['lastUpdated', /^lastUpdated:\s*(\S+)/m],
+      ] as const) {
+        const m = match[1].match(pattern);
+        if (m) result[key] = m[1].trim();
+      }
+      return Object.keys(result).length > 0 ? result : null;
+    }
+  }
 }
 
 /**

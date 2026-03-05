@@ -14,7 +14,7 @@ import {
   type DossierSection,
 } from './types.js';
 import fg from 'fast-glob';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 
@@ -104,6 +104,8 @@ function sanitizeFtsQuery(query: string): string {
 }
 
 export function createStore(dbPath: string, crmRoot: string): Store {
+  // Ensure DB directory exists
+  mkdirSync(dirname(dbPath), { recursive: true });
   const db = openDatabase(dbPath);
   initSchema(db);
 

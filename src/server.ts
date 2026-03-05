@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import type { Store } from './store.js';
-import { appendLog, updateField } from './writer.js';
+import { appendLog, updateField, createDossier } from './writer.js';
 import { vectorSearch } from './embeddings.js';
 import { formatExport } from './export.js';
 import type { Config, DossierSection } from './types.js';
@@ -248,18 +248,23 @@ export function createMcpServer(store: Store, config: Config): McpServer {
     },
   );
 
-  // ── 10. crm_create (stub) ────────────────────────────────────────────
+  // ── 10. crm_create ─────────────────────────────────────────────────
   server.tool(
     'crm_create',
     'Create a new contact dossier from template.',
     {
-      name: z.string(),
-      category: z.string(),
-      organization: z.string().optional(),
-      context: z.string().optional(),
+      name: z.string().describe("Full name (e.g., 'Jane Smith')"),
+      category: z.string().describe('Category: Client, Network, Family, Personal, Prospect, etc.'),
+      organization: z.string().optional().describe('Organization name'),
+      context: z.string().optional().describe('How you met or relationship context'),
     },
-    async () => {
-      return { content: [{ type: 'text' as const, text: 'Dossier creation not yet implemented.' }] };
+    async ({ name, category, organization, context }) => {
+      try {
+        const result = createDossier(store, config.crmRoot, { name, category, organization, context });
+        return { content: [{ type: 'text' as const, text: `Created dossier ${result.id} at ${result.path}` }] };
+      } catch (e: any) {
+        return { content: [{ type: 'text' as const, text: `Error: ${e.message}` }] };
+      }
     },
   );
 
