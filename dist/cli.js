@@ -34,6 +34,71 @@ else if (command === 'embed') {
     console.log(`Done: ${result.indexed} chunks indexed, ${result.skipped} sections skipped.`);
     store.close();
 }
+else if (command === 'benchmark-embed') {
+    const { chunkText } = await import('./embeddings.js');
+    const config = loadConfig();
+    const store = createStore(config.dbPath, config.crmRoot);
+    store.indexAll();
+    const model = config.embeddingModel;
+    console.log(`Model: ${model}`);
+    console.log('Loading model...');
+    const { pipeline } = await import('@huggingface/transformers');
+    const isGemma = model.toLowerCase().includes('gemma');
+    const t0 = Date.now();
+    const pipe = await pipeline('feature-extraction', model, isGemma ? { dtype: 'q8' } : {});
+    const loadTime = (Date.now() - t0) / 1000;
+    console.log(`Model loaded in ${loadTime.toFixed(1)}s`);
+    // Count actual chunks from content_cache
+    const rows = store.db
+        .prepare('SELECT contact_id, section, cleaned_content FROM content_cache')
+        .all();
+    let totalChunks = 0;
+    let skipped = 0;
+    for (const row of rows) {
+        const content = row.cleaned_content?.trim();
+        if (!content || content.length === 0) {
+            skipped++;
+            continue;
+        }
+        totalChunks += chunkText(content).length;
+    }
+    console.log(`Content cache: ${rows.length} sections (${skipped} empty)`);
+    console.log(`Total chunks: ${totalChunks}`);
+    // Benchmark 20 chunks
+    const sampleChunks = [];
+    for (const row of rows) {
+        const content = row.cleaned_content?.trim();
+        if (!content)
+            continue;
+        const chunks = chunkText(content);
+        for (const c of chunks) {
+            sampleChunks.push(c);
+            if (sampleChunks.length >= 20)
+                break;
+        }
+        if (sampleChunks.length >= 20)
+            break;
+    }
+    console.log(`\nBenchmarking ${sampleChunks.length} chunks...`);
+    const t1 = Date.now();
+    for (const c of sampleChunks) {
+        await pipe(c, { pooling: 'mean', normalize: true });
+    }
+    const elapsed = (Date.now() - t1) / 1000;
+    const perChunk = elapsed / sampleChunks.length;
+    const totalEst = perChunk * totalChunks;
+    console.log(`Speed: ${(perChunk * 1000).toFixed(0)}ms/chunk`);
+    console.log(`\nEstimated full embed time: ${formatDuration(totalEst)}`);
+    console.log(`  (${totalChunks} chunks × ${(perChunk * 1000).toFixed(0)}ms + ${loadTime.toFixed(1)}s model load)`);
+    store.close();
+    function formatDuration(secs) {
+        if (secs < 60)
+            return `${secs.toFixed(0)}s`;
+        const m = Math.floor(secs / 60);
+        const s = Math.round(secs % 60);
+        return `${m}m ${s}s`;
+    }
+}
 else if (command === 'init') {
     const { runInit } = await import('./init.js');
     await runInit();
@@ -42,13 +107,14 @@ else if (command === 'templates') {
     await handleTemplatesCommand();
 }
 else {
-    console.log('Usage: crm-mcp <mcp|reindex|embed|init|templates>');
+    console.log('Usage: crm-mcp <mcp|reindex|embed|benchmark-embed|init|templates>');
     console.log('');
     console.log('Commands:');
     console.log('  init                          Initialize a new CRM directory with templates');
     console.log('  mcp                           Start MCP server (stdio transport)');
     console.log('  reindex                       Re-scan and re-index all dossiers');
     console.log('  embed                         Generate vector embeddings for semantic search');
+    console.log('  benchmark-embed               Benchmark embedding speed and estimate full embed time');
     console.log('  templates list                List local and remote templates');
     console.log('  templates pull <name>         Download template from GitHub');
     console.log('  templates update              Check and update installed templates');
