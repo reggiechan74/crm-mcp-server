@@ -66,6 +66,8 @@ export interface Config {
   embeddingModel: string;
   templates: string[];       // available template names
   defaultTemplate: string;   // template to use when none specified
+  templateRepo: string;      // GitHub repo for remote templates (owner/repo)
+  githubToken?: string;      // optional GitHub token for private repos / rate limits
 }
 
 export const DOSSIER_SECTIONS = [

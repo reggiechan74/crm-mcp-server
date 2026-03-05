@@ -3,20 +3,10 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
 import { homedir } from 'node:os';
-
-// ── Template directory resolution ──────────────────────────────────────
+import { getBundledTemplatesDir, installBundledTemplates, installTemplate } from './templates.js';
 
 function getTemplatesDir(): string {
-  const thisFile = fileURLToPath(import.meta.url);
-  const thisDir = dirname(thisFile);
-  const candidates = [
-    resolve(thisDir, '..', 'templates'),
-    resolve(thisDir, '..', '..', 'templates'),
-  ];
-  for (const dir of candidates) {
-    if (existsSync(dir)) return dir;
-  }
-  throw new Error(`Templates directory not found (searched: ${candidates.join(', ')})`);
+  return getBundledTemplatesDir();
 }
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -48,21 +38,12 @@ function substituteVariables(content: string, vars: Record<string, string>): str
 
 export function runInitNonInteractive(opts: InitOptions): void {
   const { crmRoot, templates, customTemplatePath, configPath } = opts;
-  const bundledDir = getTemplatesDir();
 
   // 1. Create CRM root
   mkdirSync(crmRoot, { recursive: true });
 
-  // 2. Copy bundled templates
-  for (const tmpl of templates) {
-    const src = join(bundledDir, tmpl);
-    const dest = join(crmRoot, '.templates', tmpl);
-    if (!existsSync(src)) {
-      throw new Error(`Bundled template "${tmpl}" not found at ${src}`);
-    }
-    mkdirSync(dest, { recursive: true });
-    cpSync(src, dest, { recursive: true });
-  }
+  // 2. Copy bundled templates (with manifest tracking)
+  installBundledTemplates(crmRoot, templates);
 
   // 3. Copy custom templates (subdirectories containing template.json)
   if (customTemplatePath && existsSync(customTemplatePath)) {
@@ -71,9 +52,12 @@ export function runInitNonInteractive(opts: InitOptions): void {
       if (!entry.isDirectory()) continue;
       const templateJsonPath = join(customTemplatePath, entry.name, 'template.json');
       if (!existsSync(templateJsonPath)) continue;
-      const dest = join(crmRoot, '.templates', entry.name);
-      mkdirSync(dest, { recursive: true });
-      cpSync(join(customTemplatePath, entry.name), dest, { recursive: true });
+      installTemplate({
+        crmRoot,
+        templateName: entry.name,
+        sourceDir: join(customTemplatePath, entry.name),
+        source: 'bundled',
+      });
     }
   }
 

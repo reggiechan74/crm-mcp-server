@@ -1,5 +1,6 @@
 {
   "name": "Professional",
+  "version": "1.0.0",
   "description": "Intelligence-grade dossier for business contacts",
   "sections": ["INDEX", "profile", "log", "intelligence-profile", "intelligence-strategic", "intelligence-risk"],
   "variables": ["name", "organization", "category", "context"]

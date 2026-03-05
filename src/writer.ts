@@ -1,6 +1,5 @@
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, cpSync, existsSync } from 'node:fs';
-import { join, dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { SECTION_FILES, CATEGORY_CODES, CATEGORY_DIRS, resolveSectionFile, type DossierSection, type Category } from './types.js';
 import { lookupProfession } from './professions.js';
@@ -192,20 +191,11 @@ const CATEGORY_TO_CODE: Record<string, string> = Object.fromEntries(
 );
 
 /**
- * Resolve the templates directory — works both in source (src/) and compiled (dist/) layouts.
+ * Resolve the templates directory — .templates/ in user's CRM root is the single source of truth.
+ * Bundled templates are only used during init; at runtime we read from .templates/ exclusively.
  */
-function getTemplatesDir(): string {
-  const thisFile = fileURLToPath(import.meta.url);
-  const thisDir = dirname(thisFile);
-  // Try sibling of src/ first (project root/templates), then relative to dist/
-  const candidates = [
-    resolve(thisDir, '..', 'templates'),
-    resolve(thisDir, '..', '..', 'templates'),
-  ];
-  for (const dir of candidates) {
-    if (existsSync(dir)) return dir;
-  }
-  throw new Error(`Templates directory not found (searched: ${candidates.join(', ')})`);
+function getUserTemplatesDir(crmRoot: string): string {
+  return join(crmRoot, '.templates');
 }
 
 /**
@@ -312,34 +302,33 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
   const firstName = nameParts.slice(0, -1).join(' ');
   const folderName = `${lastName.toUpperCase()}_${firstName}`;
 
-  // 6. Determine template source
-  // Priority: profession templateDir (.templates/) > explicit template > category default
+  // 6. Determine template source — .templates/ is the single source of truth
+  const userTemplates = getUserTemplatesDir(crmRoot);
   const templateName = input.template || templateTypeForCategory(input.category);
   let templatePath: string | undefined;
 
   // If profession specified, check for profession-specific template first
   if (professionEntry) {
-    const userProfTpl = join(crmRoot, '.templates', professionEntry.templateDir);
-    const bundledProfTpl = join(getTemplatesDir(), 'REAL_ESTATE', professionEntry.templateDir);
+    const userProfTpl = join(userTemplates, 'REAL_ESTATE', professionEntry.templateDir);
     if (existsSync(userProfTpl)) {
       templatePath = userProfTpl;
-    } else if (existsSync(bundledProfTpl)) {
-      templatePath = bundledProfTpl;
     }
   }
 
   // Fall back to named template or category default
   if (!templatePath) {
-    const userTemplatesDir = join(crmRoot, '.templates', templateName);
-    const bundledTemplatesDir = join(getTemplatesDir(), templateName);
-    const categoryFallbackDir = join(getTemplatesDir(), templateTypeForCategory(input.category));
+    const userTpl = join(userTemplates, templateName);
+    const categoryTpl = join(userTemplates, templateTypeForCategory(input.category));
 
-    if (existsSync(userTemplatesDir)) {
-      templatePath = userTemplatesDir;
-    } else if (existsSync(bundledTemplatesDir)) {
-      templatePath = bundledTemplatesDir;
+    if (existsSync(userTpl)) {
+      templatePath = userTpl;
+    } else if (existsSync(categoryTpl)) {
+      templatePath = categoryTpl;
     } else {
-      templatePath = categoryFallbackDir;
+      throw new Error(
+        `Template "${templateName}" not installed locally. ` +
+        `Run: crm-mcp templates pull ${templateName}`
+      );
     }
   }
 
@@ -356,7 +345,7 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
   const needsCompose = templatePath && !existsSync(join(templatePath, 'INDEX.md'));
   if (needsCompose && professionEntry) {
     // Compose: copy COMMON base files first, then overlay profession-specific files
-    const commonDir = join(getTemplatesDir(), 'REAL_ESTATE', 'COMMON');
+    const commonDir = join(userTemplates, 'REAL_ESTATE', 'COMMON');
     if (existsSync(commonDir)) {
       cpSync(commonDir, destPath, { recursive: true });
     }

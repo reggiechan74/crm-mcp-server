@@ -17,6 +17,8 @@ export function loadConfig(): Config {
   const embeddingModel = process.env.CRM_EMBEDDING_MODEL || fileConfig.embeddingModel || 'Xenova/all-MiniLM-L6-v2';
   const templates = fileConfig.templates || [];
   const defaultTemplate = fileConfig.defaultTemplate || 'simple';
+  const templateRepo = process.env.CRM_TEMPLATE_REPO || fileConfig.templateRepo || 'reggiechan74/crm-mcp-server';
+  const githubToken = process.env.CRM_GITHUB_TOKEN || fileConfig.githubToken || undefined;
 
-  return { crmRoot, dbPath, embeddingModel, templates, defaultTemplate };
+  return { crmRoot, dbPath, embeddingModel, templates, defaultTemplate, templateRepo, githubToken };
 }

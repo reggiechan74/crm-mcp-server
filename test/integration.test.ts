@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { join } from 'node:path';
-import { mkdtempSync, cpSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve, dirname } from 'node:path';
+import { mkdtempSync, cpSync, readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { createStore, type Store } from '../src/store.js';
 import { createDossier } from '../src/writer.js';
 import { runInitNonInteractive } from '../src/init.js';
@@ -116,6 +117,33 @@ describe('recent contacts', () => {
   });
 });
 
+/**
+ * Find the project's bundled templates directory.
+ */
+function getBundledTemplatesDir(): string {
+  const thisDir = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    resolve(thisDir, '..', 'templates'),
+    resolve(thisDir, '..', '..', 'templates'),
+  ];
+  for (const dir of candidates) {
+    if (existsSync(dir)) return dir;
+  }
+  throw new Error('Templates directory not found for tests');
+}
+
+function installTestTemplates(targetDir: string): void {
+  const bundledDir = getBundledTemplatesDir();
+  const templatesDir = join(targetDir, '.templates');
+  mkdirSync(templatesDir, { recursive: true });
+  for (const name of ['simple', 'PROFESSIONAL', 'FAMILY', 'PERSONAL', 'REAL_ESTATE']) {
+    const src = join(bundledDir, name);
+    if (existsSync(src)) {
+      cpSync(src, join(templatesDir, name), { recursive: true });
+    }
+  }
+}
+
 describe('profession workflow', () => {
   let tempDir: string;
   let profStore: Store;
@@ -123,6 +151,7 @@ describe('profession workflow', () => {
   beforeAll(() => {
     tempDir = mkdtempSync(join(tmpdir(), 'crm-prof-test-'));
     cpSync(FIXTURES, tempDir, { recursive: true });
+    installTestTemplates(tempDir);
     profStore = createStore(':memory:', tempDir);
     profStore.indexAll();
   });

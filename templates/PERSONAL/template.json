@@ -1,5 +1,6 @@
 {
   "name": "Personal",
+  "version": "1.0.0",
   "description": "Lighter dossier for personal contacts",
   "sections": ["INDEX", "profile", "log", "intelligence-profile", "intelligence-assessment", "intelligence-relational"],
   "variables": ["name", "organization", "category", "context"]

@@ -11,6 +11,11 @@ import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import type { Config } from './types.js';
 import { lookupProfession, searchProfessions } from './professions.js';
+import {
+  listLocalTemplates, ensureManifest, isCustomized, readTemplateInfo,
+  computeContentHash, writeManifest, countFiles,
+} from './templates.js';
+import { listRemoteTemplates, downloadTemplate } from './github.js';
 
 /**
  * Guard: returns an error message when crmRoot is empty (unconfigured),
@@ -41,7 +46,7 @@ function resolveContact(store: Store, contact: string): string | null {
 
 /**
  * Resolve the template directory for a contact based on their category.
- * Looks for user templates in CRM_ROOT/.templates/ first, falls back to bundled templates.
+ * Uses .templates/ as the single source of truth.
  */
 function resolveTemplateDir(crmRoot: string, store: Store, contactId: string): string | null {
   const outline = store.getOutline(contactId);
@@ -52,14 +57,12 @@ function resolveTemplateDir(crmRoot: string, store: Store, contactId: string): s
   if (category === 'family') templateType = 'FAMILY';
   else if (category === 'personal') templateType = 'PERSONAL';
 
-  // Check user templates first
-  const userTpl = join(crmRoot, '.templates', templateType.toLowerCase());
+  const userTpl = join(crmRoot, '.templates', templateType);
   if (existsSync(userTpl)) return userTpl;
 
-  // Fall back to bundled templates
-  const bundledDir = join(import.meta.dirname, '..', 'templates');
-  const bundled = join(bundledDir, templateType);
-  if (existsSync(bundled)) return bundled;
+  // Also check lowercase (legacy)
+  const userTplLower = join(crmRoot, '.templates', templateType.toLowerCase());
+  if (existsSync(userTplLower)) return userTplLower;
 
   return null;
 }
@@ -477,6 +480,123 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
       store!.db.prepare('DELETE FROM audit_cache WHERE contact_id = ?').run(contactId);
 
       return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+    },
+  );
+
+  // ── 15. crm_templates_list ──────────────────────────────────────────
+  server.tool(
+    'crm_templates_list',
+    'List installed and available CRM dossier templates. Shows version, customization status, and available remote templates.',
+    {
+      remote: z.boolean().optional().default(true).describe('Include available templates from GitHub (default: true)'),
+    },
+    async ({ remote }) => {
+      const err = requireConfigured(config);
+      if (err) return { content: [{ type: 'text' as const, text: err }] };
+
+      const lines: string[] = [];
+      const local = listLocalTemplates(config.crmRoot);
+
+      if (local.length > 0) {
+        lines.push('**Installed:**');
+        for (const t of local) {
+          const status = t.customized ? ' (customized)' : '';
+          const cats = t.categories ? ` [${t.categories.join(', ')}]` : '';
+          lines.push(`  ${t.name}  v${t.version}${status}${cats}`);
+        }
+      } else {
+        lines.push('No templates installed locally.');
+      }
+
+      if (remote) {
+        try {
+          const remoteTemplates = await listRemoteTemplates(config.templateRepo, config.crmRoot, config.githubToken);
+          const localNames = new Set(local.map(t => t.name));
+          const available = remoteTemplates.filter(r => !localNames.has(r.name));
+          if (available.length > 0) {
+            lines.push('');
+            lines.push('**Available on GitHub:**');
+            for (const r of available) {
+              const cats = r.categories ? `  (${r.categories.length} categories)` : '';
+              lines.push(`  ${r.name}  v${r.version}  ${r.description}${cats}`);
+              if (r.categories) {
+                lines.push(`    Categories: ${r.categories.join(', ')}`);
+              }
+            }
+          }
+        } catch (e: any) {
+          lines.push('');
+          lines.push(`(Could not fetch remote templates: ${e.message})`);
+        }
+      }
+
+      return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
+    },
+  );
+
+  // ── 16. crm_templates_pull ─────────────────────────────────────────
+  server.tool(
+    'crm_templates_pull',
+    'Download a template from GitHub to local .templates/. Supports individual categories for composite templates (e.g., "REAL_ESTATE/A_BROKERAGE_SALES"). Will not overwrite customized templates — direct the user to CLI with --force for that.',
+    {
+      name: z.string().describe('Template name (e.g., "REAL_ESTATE" or "REAL_ESTATE/A_BROKERAGE_SALES")'),
+    },
+    async ({ name: nameArg }) => {
+      const err = requireConfigured(config);
+      if (err) return { content: [{ type: 'text' as const, text: err }] };
+
+      const parts = nameArg.split('/');
+      const templateName = parts[0];
+      const category = parts[1] || undefined;
+
+      // Check if already installed and customized
+      const manifest = ensureManifest(config.crmRoot);
+      const existing = manifest.templates[templateName];
+      if (existing) {
+        const customized = isCustomized(config.crmRoot, templateName, manifest);
+        if (customized) {
+          return {
+            content: [{
+              type: 'text' as const,
+              text: `Template "${templateName}" has local customizations. ` +
+                `Use CLI to force update: crm-mcp templates pull ${nameArg} --force`,
+            }],
+          };
+        }
+      }
+
+      try {
+        const destDir = join(config.crmRoot, '.templates', templateName);
+        await downloadTemplate(config.templateRepo, templateName, destDir, config.githubToken, category);
+
+        // Update manifest
+        const info = readTemplateInfo(destDir);
+        const contentHash = computeContentHash(destDir);
+        const now = new Date().toISOString();
+        const existingEntry = manifest.templates[templateName];
+        const existingCategories = existingEntry?.categories || [];
+
+        manifest.templates[templateName] = {
+          version: info?.version || '0.0.0',
+          installedAt: existingEntry?.installedAt || now,
+          updatedAt: now,
+          source: 'github',
+          contentHash,
+          ...(category ? { categories: [...new Set([...existingCategories, category])] } : {}),
+        };
+
+        writeManifest(config.crmRoot, manifest);
+
+        const files = countFiles(destDir);
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `Installed ${templateName}${category ? '/' + category : ''}: ${files} files written to .templates/${templateName}/`,
+          }],
+        };
+      } catch (e: any) {
+        return { content: [{ type: 'text' as const, text: `Error: ${e.message}` }] };
+      }
     },
   );
 

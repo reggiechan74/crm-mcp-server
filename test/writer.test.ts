@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { join } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
 import { mkdtempSync, cpSync, readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { createStore, type Store } from '../src/store.js';
 import { appendLog, updateField, createDossier, generateF3L3 } from '../src/writer.js';
 import { resolveSectionFile } from '../src/types.js';
@@ -9,10 +10,38 @@ import { resolveSectionFile } from '../src/types.js';
 let store: Store;
 let tempDir: string;
 
+/**
+ * Find the project's bundled templates directory.
+ */
+function getBundledTemplatesDir(): string {
+  const thisDir = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    resolve(thisDir, '..', 'templates'),
+    resolve(thisDir, '..', '..', 'templates'),
+  ];
+  for (const dir of candidates) {
+    if (existsSync(dir)) return dir;
+  }
+  throw new Error('Templates directory not found for tests');
+}
+
 beforeEach(() => {
   // Copy fixtures to temp dir so writes don't pollute test data
   tempDir = mkdtempSync(join(tmpdir(), 'crm-test-'));
   cpSync(join(import.meta.dirname, 'fixtures'), tempDir, { recursive: true });
+
+  // Install bundled templates into .templates/ so createDossier can find them
+  const bundledDir = getBundledTemplatesDir();
+  const templatesDir = join(tempDir, '.templates');
+  mkdirSync(templatesDir, { recursive: true });
+  for (const name of ['simple', 'PROFESSIONAL', 'FAMILY', 'PERSONAL', 'REAL_ESTATE']) {
+    const src = join(bundledDir, name);
+    if (existsSync(src)) {
+      const dest = join(templatesDir, name);
+      cpSync(src, dest, { recursive: true });
+    }
+  }
+
   store = createStore(':memory:', tempDir);
   store.indexAll();
 });
