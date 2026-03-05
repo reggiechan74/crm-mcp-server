@@ -17,13 +17,21 @@ Instead of loading entire dossier files (thousands of tokens), the server strips
 
 ### Option A: Claude Code Plugin (Recommended)
 
-Install directly from Claude Code:
+> **Note:** This repository is currently **private**. You need SSH access to `reggiechan74/crm-mcp-server` before installing. See [Private Repository Access](#private-repository-access) below.
+
+**1. Add the marketplace:**
 
 ```
-/install-plugin https://github.com/reggiechan74/crm-mcp-server
+/plugin marketplace add reggiechan74/crm-mcp-server
 ```
 
-This clones the repo, builds it, and registers the MCP server automatically. Then initialize your CRM:
+**2. Install the plugin:**
+
+```
+/plugin install crm@crm-mcp-server
+```
+
+**3. Initialize your CRM:**
 
 ```bash
 crm-mcp init
@@ -35,7 +43,7 @@ The init wizard walks you through choosing a directory, selecting templates, and
 
 ```bash
 # Clone and build
-git clone https://github.com/reggiechan74/crm-mcp-server.git
+git clone git@github.com:reggiechan74/crm-mcp-server.git
 cd crm-mcp-server
 npm install && npm run build
 
@@ -59,6 +67,46 @@ npx crm-mcp init
 ```bash
 # Index your contacts
 npx crm-mcp reindex
+```
+
+### Private Repository Access
+
+This repository is private. Both the marketplace and plugin install use `git clone` over SSH, so you need a valid SSH key with access to `reggiechan74/crm-mcp-server`.
+
+#### Using a deploy key (recommended for CI/Codespaces)
+
+If your environment uses per-repo deploy keys with custom SSH host aliases, configure a git URL rewrite so the plugin installer resolves correctly:
+
+```bash
+# 1. Add a deploy key to the repo (Settings → Deploy keys) with read access
+
+# 2. Configure SSH (~/.ssh/config) with a host alias:
+Host github-crm-mcp-server
+  HostName github.com
+  IdentityFile ~/.ssh/id_crm_mcp_server
+  IdentitiesOnly yes
+
+# 3. Tell git to rewrite the URL for this repo:
+git config --global url."git@github-crm-mcp-server:reggiechan74/crm-mcp-server".insteadOf "git@github.com:reggiechan74/crm-mcp-server"
+```
+
+After this, both `/plugin marketplace add` and `/plugin install` will use the deploy key transparently.
+
+#### Using a personal SSH key
+
+If your default `~/.ssh/id_ed25519` (or `id_rsa`) is added to a GitHub account with access to this repo, no extra configuration is needed — `git clone git@github.com:reggiechan74/crm-mcp-server.git` will just work.
+
+#### Verifying access
+
+```bash
+# Test SSH access (should show your username):
+ssh -T git@github.com
+
+# Or test via the deploy key alias:
+ssh -T git@github-crm-mcp-server
+
+# Test git access (should return a commit SHA):
+git ls-remote git@github.com:reggiechan74/crm-mcp-server.git HEAD
 ```
 
 ## Tools
