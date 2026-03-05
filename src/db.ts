@@ -3,6 +3,10 @@
  * Detects Bun vs Node and loads the appropriate SQLite driver.
  */
 
+import { createRequire } from 'node:module';
+
+const esmRequire = createRequire(import.meta.url);
+
 export const isBun = typeof (globalThis as any).Bun !== 'undefined';
 
 export interface Database {
@@ -22,8 +26,7 @@ export interface Statement {
  */
 export function openDatabase(path: string): Database {
   // Default to better-sqlite3 (Node.js)
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const BetterSqlite3 = require('better-sqlite3');
+  const BetterSqlite3 = esmRequire('better-sqlite3');
   const raw = new BetterSqlite3(path);
 
   // Enable WAL mode for better concurrent read performance
@@ -38,7 +41,7 @@ export function openDatabase(path: string): Database {
  */
 export function loadSqliteVec(db: Database): boolean {
   try {
-    const sqliteVec = require('sqlite-vec');
+    const sqliteVec = esmRequire('sqlite-vec');
     sqliteVec.load(db);
     return true;
   } catch {
