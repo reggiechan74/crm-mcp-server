@@ -69,7 +69,7 @@ The server exposes 14 MCP tools:
 
 | Tool | Purpose | Tokens |
 |------|---------|--------|
-| `crm_search` | Find contacts by name, org, status, category | ~50-100 per result |
+| `crm_search` | Find contacts by name, org, status, category, profession | ~50-100 per result |
 | `crm_outline` | Structural overview — sections, sizes, fill % | ~200-400 |
 | `crm_read` | Read a specific section with boilerplate stripped | Varies |
 
@@ -77,7 +77,7 @@ The server exposes 14 MCP tools:
 
 | Tool | Purpose |
 |------|---------|
-| `crm_create` | Create a new dossier from template |
+| `crm_create` | Create a new dossier from template (supports optional `profession` code) |
 | `crm_update` | Update a YAML field in a dossier |
 | `crm_log` | Append an interaction to the contact's log |
 | `crm_bulk_update` | Update a field across multiple contacts |
@@ -96,12 +96,12 @@ The server exposes 14 MCP tools:
 
 ## Dossier Structure
 
-Each contact is a folder of markdown files:
+Each contact is a folder of markdown files. Dossier codes use 2-letter category prefixes (e.g., `NW-DOEJOH-001`) or 3-letter profession prefixes when a profession is assigned (e.g., `BSB-DOEJOH-001`):
 
 ```
 CRM/
 ├── Network/
-│   └── DOE_John/
+│   └── DOE_John/                           # NW-DOEJOH-001
 │       ├── INDEX.md          # Quick reference, status, next actions
 │       ├── profile.md        # Background, career, relationship history
 │       ├── intelligence/
@@ -110,7 +110,7 @@ CRM/
 │       │   └── intelligence-risk.md        # Key intel, risk factors, threat assessment
 │       └── log.md            # Interaction log, related documents
 ├── Family/
-│   └── DOE_Jane/
+│   └── DOE_Jane/                           # FA-DOEJAH-001
 │       ├── INDEX.md
 │       ├── profile.md
 │       ├── medical.md        # Family-specific
@@ -122,6 +122,26 @@ CRM/
 │       └── log.md
 └── ...
 ```
+
+### Profession-Based Dossiers
+
+When a contact is created with a `profession` code, the dossier uses a 3-letter profession prefix instead of the 2-letter category prefix, and gains a profession-specific tracking file:
+
+```
+CRM/
+└── Network/
+    └── BRATT_Ross/                          # BSB-BRARO-001
+        ├── INDEX.md
+        ├── profile.md
+        ├── intelligence/
+        │   ├── intelligence-profile.md
+        │   ├── intelligence-strategic.md
+        │   └── intelligence-risk.md
+        ├── deals.md           # Profession-specific tracking file
+        └── log.md
+```
+
+The tracking file varies by profession — brokers get `deals.md`, appraisers get `assignments.md`, lawyers get `matters.md`, etc.
 
 ## Templates
 
@@ -135,6 +155,46 @@ Four built-in templates handle different contact types:
 | `personal` | Friends, personal contacts | INDEX.md, profile.md, intelligence/ (3 files), log.md |
 
 Templates use `{{variable}}` substitution (name, category, date, etc.) and are fully customizable. Place custom templates in `<CRM_ROOT>/.templates/<name>/`.
+
+### RE-CRM Template Pack (Real Estate)
+
+A profession-specific template pack for real estate professionals, bundled at `templates/re-crm/`:
+
+- **167 profession types** across 18 categories (Brokerage & Sales, Appraisal, Legal, Development, etc.)
+- **3-letter profession codes** (e.g., `BSB` = Sales Broker, `APR` = Residential Appraiser, `LRE` = Real Estate Lawyer)
+- **15 unique tracking file types** with rich section templates: deals, assignments, projects, portfolio, matters, assessments, jurisdictions, policies, campaigns, entities, holdings, programs, assets, services, engagements
+- **COMMON base templates** shared across all professions: INDEX.md (with deal velocity metrics), profile.md (6 major sections), intelligence/ (3-file split: profile, risk, strategic), log.md (with summary statistics)
+
+**Structure:**
+```
+templates/re-crm/
+├── COMMON/                    # Shared base files
+│   ├── INDEX.md
+│   ├── profile.md
+│   ├── intelligence/
+│   │   ├── intelligence-profile.md    # DISC, decision-making, negotiation
+│   │   ├── intelligence-risk.md       # NATO reliability rating, red flags
+│   │   └── intelligence-strategic.md  # Influence mapping, engagement strategy
+│   └── log.md
+├── BROKER_SALES/deals.md      # Sales-focused deal tracking
+├── BROKER_LEASING/deals.md    # Leasing-focused deal tracking
+├── APPRAISER/assignments.md
+├── LAWYER_RE/matters.md
+├── DEVELOPER/projects.md
+├── PROP_MANAGER/portfolio.md
+└── ... (167 profession directories)
+```
+
+**Usage:** Create a profession-based dossier:
+```
+crm_create({ name: "Ross Bratt", category: "Network", profession: "BSB" })
+→ Creates BSB-BRARO-001 with deals.md tracking file
+```
+
+**Regenerate templates** (after editing COMMON or the generator script):
+```bash
+npx tsx scripts/generate-re-crm-templates.ts --force
+```
 
 ## Configuration
 
@@ -182,7 +242,7 @@ The repair engine applies fixes in dependency order: moves → dedup → orderin
 - **SQLite** via better-sqlite3 (FTS5 for search, content cache)
 - **MCP SDK** (@modelcontextprotocol/sdk)
 - **Transformers.js** for local vector embeddings (optional)
-- **Vitest** for testing (102 tests)
+- **Vitest** for testing (124 tests)
 
 ## Development
 
