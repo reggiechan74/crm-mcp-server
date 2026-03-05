@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { join } from 'node:path';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { createStore, type Store } from '../src/store.js';
+import { runInitNonInteractive } from '../src/init.js';
+import { runAudit } from '../src/audit.js';
+import { runRepair } from '../src/repair.js';
+import { createMcpServer } from '../src/server.js';
+import { loadConfig } from '../src/config.js';
 
 const FIXTURES = join(import.meta.dirname, 'fixtures');
 let store: Store;
@@ -105,5 +112,86 @@ describe('recent contacts', () => {
     expect(recent.length).toBeGreaterThan(0);
     // If multiple contacts existed, they'd be sorted by date
     expect(recent[0].lastContact).toBeDefined();
+  });
+});
+
+describe('plugin integration', () => {
+  let tempDir: string;
+
+  beforeAll(() => {
+    tempDir = mkdtempSync(join(tmpdir(), 'crm-plugin-test-'));
+  });
+
+  it('init creates working CRM that indexes correctly', () => {
+    const crmDir = join(tempDir, 'test-crm');
+    const configPath = join(tempDir, 'test-config.json');
+    runInitNonInteractive({
+      crmRoot: crmDir,
+      templates: ['simple'],
+      customTemplatePath: undefined,
+      configPath,
+    });
+
+    const dbPath = join(tempDir, 'test.db');
+    const initStore = createStore(dbPath, crmDir);
+    initStore.indexAll();
+
+    // The init creates a sample DOE_Jane contact
+    const results = initStore.searchContacts({ query: 'Jane' });
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].name).toContain('Jane');
+    initStore.close();
+  });
+
+  it('audit + repair round-trip works', () => {
+    const crmDir = join(tempDir, 'audit-crm');
+    const configPath = join(tempDir, 'audit-config.json');
+    runInitNonInteractive({
+      crmRoot: crmDir,
+      templates: ['simple'],
+      customTemplatePath: undefined,
+      configPath,
+    });
+
+    // DOE_Jane was created — modify INDEX.md to make lastContactDate stale
+    // and add a newer log entry
+    const janeDir = join(crmDir, 'Network', 'DOE_Jane');
+    const indexPath = join(janeDir, 'INDEX.md');
+    const logPath = join(janeDir, 'log.md');
+
+    // Read and modify INDEX.md to set an old date
+    let indexContent = readFileSync(indexPath, 'utf-8');
+    indexContent = indexContent.replace(/lastContactDate: .+/, 'lastContactDate: 2024-01-01');
+    writeFileSync(indexPath, indexContent);
+
+    // Overwrite log with a single entry newer than 2024-01-01
+    let logContent = readFileSync(logPath, 'utf-8');
+    // Replace the template-generated log entry (which uses today's date) with a known date
+    logContent = logContent.replace(/\| \d{4}-\d{2}-\d{2} \|.*\n?/g, '');
+    logContent += '| 2026-03-01 | Call | Catchup | Good | Follow up |\n';
+    writeFileSync(logPath, logContent);
+
+    // Run audit with stale pass
+    const templateDir = join(crmDir, '.templates', 'simple');
+    const auditResult = runAudit(janeDir, templateDir, ['stale']);
+    expect(auditResult.findings.stale.length).toBe(1);
+    expect(auditResult.findings.stale[0].suggested).toBe('2026-03-01');
+
+    // Run repair
+    const repairResult = runRepair(janeDir, templateDir, auditResult, ['S1']);
+    expect(repairResult.applied).toContain('S1');
+
+    // Verify the fix was applied
+    const updatedIndex = readFileSync(indexPath, 'utf-8');
+    expect(updatedIndex).toContain('lastContactDate: 2026-03-01');
+  });
+
+  it('server starts in unconfigured mode without crashing', () => {
+    const config = loadConfig();
+    // Override crmRoot to empty
+    const unconfiguredConfig = { ...config, crmRoot: '' };
+    const server = createMcpServer(null, unconfiguredConfig);
+    // Server should exist and not throw
+    expect(server).toBeDefined();
   });
 });
