@@ -1,0 +1,6 @@
+{
+  "name": "Simple",
+  "description": "Lightweight contact with notes and interaction log",
+  "sections": ["INDEX", "log"],
+  "variables": ["name", "organization", "category", "context"]
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Family",
+  "description": "Extended dossier with medical, education, and relational intelligence",
+  "sections": ["INDEX", "profile", "log", "medical", "education", "intelligence-profile", "intelligence-health-check", "intelligence-relational"],
+  "variables": ["name", "organization", "category", "context"]
+}
