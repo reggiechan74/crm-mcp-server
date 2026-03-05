@@ -754,12 +754,16 @@ lastUpdated: {{date}}
 
 | Platform/Channel | Experience Level | Notable Campaigns | Notes |
 |------------------|------------------|-------------------|-------|
-| Digital/Social | | | |
-| Print/Collateral | | | |
-| Email/CRM | | | |
-| Events/Experiential | | | |
-| Video/Multimedia | | | |
-| PR/Media Relations | | | |
+| CoStar / LoopNet Listings | | | |
+| Offering Memorandum Design | | | |
+| Property Websites / Landing Pages | | | |
+| Investor Decks / Pitch Materials | | | |
+| Drone / 3D Virtual Tours | | | |
+| Social Media (LinkedIn, IG) | | | |
+| Email / CRM Drip Campaigns | | | |
+| Print / Collateral / Signage | | | |
+| PR / Media Relations | | | |
+| Events / Open Houses | | | |
 
 ### B. Industry Vertical Experience
 
@@ -797,6 +801,23 @@ lastUpdated: {{date}}
 | Budget Management | | |
 | Communication | | |
 
+### C. Creative Portfolio Assessment
+
+| Deliverable Type | Sample Quality (1-5) | Turnaround | Pricing Model | Notes |
+|-----------------|---------------------|-----------|---------------|-------|
+| Offering Memorandum | | | | |
+| Property Photography | | | | |
+| Video / Drone Content | | | | |
+| Website / Landing Page | | | | |
+| Investor Presentation | | | | |
+| Signage / Print Collateral | | | | |
+
+### D. Property Marketing Track Record
+
+| Property | Campaign Type | Days on Market | Absorption Impact | Result | Notes |
+|----------|-------------|----------------|-------------------|--------|-------|
+| | | | | | |
+
 ---
 
 ## XIX. REFERRAL TRACKING
@@ -820,6 +841,28 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Property listing / brokerage | | | |
+| Market data / comp research | | | |
+| Investor outreach strategy | | | |
+| Repositioning / branding | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Developers needing marketing | | |
+| Brokers needing collateral | | |
+| Investors seeking deal flow | | |
+| Other marketing professionals | | |
 `,
 
   // ════════════════════════════════════════════════════════════════════════
@@ -890,6 +933,8 @@ lastUpdated: {{date}}
 | 1031 Exchange Tracking | | |
 | Audit Support | | |
 | Budgeting/Forecasting | | |
+| Transfer Pricing / Cross-Border | | |
+| Withholding Tax (NR) | | |
 
 ### C. Software & Systems
 
@@ -921,6 +966,29 @@ lastUpdated: {{date}}
 | Communication | | |
 | Cost Efficiency | | |
 
+### C. Year-End & Tax Calendar
+
+| Deadline | Entity/Filing | Type | Status | Notes |
+|----------|--------------|------|--------|-------|
+| T1/T2 Corporate Filing | | | | |
+| T3 Trust Returns | | | | |
+| T5013 Partnership Returns | | | | |
+| Estimated Tax Installments | | | | |
+| HST/GST Filing | | | | |
+| Audit / CRA Review Windows | | | | |
+| K-1 / Slip Distribution | | | | |
+
+### D. Lender & Investor Reporting
+
+| Report | Frequency | GAAP vs. Tax Basis | Recipient | Timing | Notes |
+|--------|-----------|-------------------|-----------|--------|-------|
+| Financial Statements | | | | | |
+| Waterfall / Distribution Calcs | | | | | |
+| K-1 / T5013 Slips | | | | | |
+| Covenant Compliance | | | | | |
+| Investor Quarterly Update | | | | | |
+| Annual Audit Package | | | | | |
+
 ---
 
 ## XIX. REFERRAL TRACKING
@@ -944,6 +1012,28 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal (tax / estate) | | | |
+| Brokerage (disposition timing) | | | |
+| Consulting (structure optimization) | | | |
+| Cost segregation studies | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Investors needing tax advice | | |
+| Developers needing entity setup | | |
+| Lawyers (tax / corporate) | | |
+| Other accountants (specialized) | | |
 `,
 
   // ════════════════════════════════════════════════════════════════════════
@@ -984,62 +1074,89 @@ lastUpdated: {{date}}
 |------------------|--------------|-------------|-------------|------------|----------------|
 | | | | | | |
 
-### D. Active Acquisitions Pipeline
+### D. Allocation Strategy & Targets
 
-| Target | Location | Asset Class | Size | Stage | Est. Close | My Opportunity |
-|--------|----------|-------------|------|-------|------------|----------------|
-| | | | | | | |
-
----
-
-## XVII. INVESTMENT STRATEGY ANALYSIS
-
-### A. Asset Class Preferences
-
-| Asset Class | # Holdings | Total Value | Avg. Hold Period | Notes |
-|-------------|-----------|-------------|------------------|-------|
-| Office | | | | |
-| Industrial | | | | |
-| Retail | | | | |
-| Multifamily | | | | |
-| Land | | | | |
-| Specialty | | | | |
-
-### B. Investment Criteria
-
-| Dimension | Criteria |
-|-----------|----------|
-| Target Returns (IRR) | |
-| Equity Multiple | |
-| Hold Period | |
-| Leverage Preference | |
-| Minimum Deal Size | |
-| Maximum Deal Size | |
-| Risk Profile | |
-
-### C. Capital Structure Patterns
-
-| Source | Type | Typical % | Relationship |
-|--------|------|-----------|--------------|
-| | | | |
+| Asset Class | Target % | Current % | Geography | Vintage Preference | Notes |
+|-------------|----------|-----------|-----------|-------------------|-------|
+| Core / Core-Plus | | | | | |
+| Value-Add | | | | | |
+| Opportunistic | | | | | |
+| Debt / Mezzanine | | | | | |
+| Fund Investments | | | | | |
 
 ---
 
-## XVIII. RELATIONSHIPS & CO-INVESTMENT
+## XVII. PORTFOLIO CONSTRUCTION & GOVERNANCE
 
-### A. Co-Investment Partners
+### A. Portfolio Construction Parameters
 
-| Partner | # Deals Together | Total Volume | Structure | Relationship |
-|---------|-----------------|--------------|-----------|--------------|
+| Dimension | Parameters |
+|-----------|-----------|
+| Target Portfolio Size | |
+| Diversification Requirements | |
+| Geographic Constraints | |
+| Vintage Year Targets | |
+| Liquidity Requirements | |
+| Currency / FX Policy | |
+| ESG / Impact Mandate | |
+
+### B. Fund / Vehicle Structure
+
+| Dimension | Detail |
+|-----------|--------|
+| Vehicle Type | open-end / closed-end / separate account |
+| Fund Term | |
+| Distribution Schedule | |
+| Redemption / Liquidity | |
+| Fee Structure (Mgmt / Carry) | |
+| GP Commitment / Co-Invest | |
+
+### C. Reporting & Governance
+
+| Requirement | Frequency | Format | Notes |
+|-------------|-----------|--------|-------|
+| Board / IC Approval Process | | | |
+| Mandate Constraints | | | |
+| NAV / Valuation Reporting | | | |
+| ESG / Impact Reporting | | | |
+| Investor Letters / Updates | | | |
+| Annual Meeting / AGM | | | |
+
+### D. Manager Selection Criteria
+
+| Criterion | Minimum Requirement | Preferred | Notes |
+|-----------|-------------------|-----------|-------|
+| GP Track Record (years) | | | |
+| AUM Threshold | | | |
+| Team Stability | | | |
+| Co-Investment Rights | | | |
+| Separate Account Willingness | | | |
+| Reporting Standards (GIPS/INREV) | | | |
+| ESG Integration | | | |
+
+---
+
+## XVIII. RELATIONSHIPS & ALLOCATIONS
+
+### A. GP / Manager Relationships
+
+| GP / Manager | Strategy | # Allocations | Total Committed | Performance | Relationship |
+|-------------|----------|---------------|-----------------|-------------|--------------|
+| | | | | | |
+
+### B. Co-Investor Network
+
+| Co-Investor | Type | # Deals Together | Total Volume | Relationship |
+|-------------|------|-----------------|--------------|--------------|
 | | | | | |
 
-### B. Advisory Team
+### C. Advisory / Consultant Team
 
-| Advisor | Role | Firm | Relationship Quality |
-|---------|------|------|---------------------|
-| | | | |
+| Advisor | Role | Firm | Influence Level | Relationship Quality |
+|---------|------|------|-----------------|---------------------|
+| | | | | |
 
-### C. Service Provider Preferences
+### D. Service Provider Preferences
 
 | Service | Current Provider | Satisfaction | My Opportunity |
 |---------|------------------|--------------|----------------|
@@ -1047,7 +1164,7 @@ lastUpdated: {{date}}
 | Legal | | | |
 | Appraisal | | | |
 | Property Management | | | |
-| Accounting | | | |
+| Accounting / Fund Admin | | | |
 
 ---
 
@@ -1072,6 +1189,28 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal (portfolio valuation) | | | |
+| Market research / analytics | | | |
+| Consulting (asset strategy) | | | |
+| Brokerage (sourcing / disposition) | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Other allocators / LPs | | |
+| Fund managers / GPs | | |
+| Operating partners | | |
+| Placement agents | | |
 `,
 
   // ════════════════════════════════════════════════════════════════════════
@@ -1136,9 +1275,9 @@ lastUpdated: {{date}}
 
 ### B. Rate Competitiveness
 
-| Product | Typical Rate Spread | Market Position | Notes |
-|---------|---------------------|-----------------|-------|
-| | | | |
+| Product | Typical Rate Spread | Market Position | Last Quoted Date | vs. Market | Notes |
+|---------|---------------------|-----------------|-----------------|------------|-------|
+| | | | | | |
 
 ### C. Turnaround & Performance
 
@@ -1148,6 +1287,17 @@ lastUpdated: {{date}}
 | Approval Rate | | |
 | Lock Accuracy | | |
 | Communication During Process | | |
+
+### D. Regulatory & Compliance
+
+| Requirement | Status | Details |
+|-------------|--------|---------|
+| NMLS Registration | | |
+| State Licensing | | |
+| TRID Compliance | | |
+| RESPA Compliance | | |
+| Continuing Education | | |
+| E&O Insurance | | |
 
 ---
 
@@ -1194,6 +1344,28 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal for lending | | | |
+| Investment advisory | | | |
+| Brokerage referrals | | | |
+| Consulting | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Borrowers needing appraisal | | |
+| Investors seeking financing | | |
+| Developers needing construction loans | | |
+| Other professionals | | |
 `,
 
   // ════════════════════════════════════════════════════════════════════════
@@ -1276,6 +1448,25 @@ lastUpdated: {{date}}
 | Dispute Resolution | | |
 | Community Relations | | |
 
+### D. Regulatory & Legal Context
+
+| Jurisdiction | Governing Act | Expropriation Authority | Key Provisions | Notes |
+|-------------|---------------|------------------------|----------------|-------|
+| Ontario | Expropriations Act | | | |
+| Federal | National Energy Board Act | | | |
+| | | | | |
+
+### E. Subcontractor / Team Network
+
+| Vendor | Service | Relationship | Quality | Notes |
+|--------|---------|--------------|---------|-------|
+| | Surveying | | | |
+| | Environmental Assessment | | | |
+| | Appraisal / Compensation | | | |
+| | Legal (Expropriation) | | | |
+| | Archaeological | | | |
+| | Arborist | | | |
+
 ---
 
 ## XVIII. CLIENT & PROJECT RELATIONSHIPS
@@ -1318,6 +1509,28 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal / compensation valuation | | | |
+| Route optimization consulting | | | |
+| Landowner negotiation support | | | |
+| GIS / mapping services | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Utility / infrastructure clients | | |
+| Other ROW agents | | |
+| Environmental consultants | | |
+| Legal counsel (expropriation) | | |
 `,
 
   // ════════════════════════════════════════════════════════════════════════
@@ -1401,6 +1614,17 @@ lastUpdated: {{date}}
 | Proactive Issue Detection | | |
 | After-Hours Availability | | |
 
+### D. Technology & Process
+
+| Capability | Status | Platform/Tool | Notes |
+|-----------|--------|---------------|-------|
+| E-Closing / Remote Closing | | | |
+| Remote Online Notarization (RON) | | | |
+| Digital Title Search Platform | | | |
+| Automated Title Commitment | | | |
+| Electronic Document Signing | | | |
+| Wire Fraud Prevention Protocol | | | |
+
 ---
 
 ## XVIII. UNDERWRITER & LENDER RELATIONSHIPS
@@ -1446,6 +1670,28 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal for transactions | | | |
+| Brokerage introductions | | | |
+| Consulting (title clearance) | | | |
+| 1031 exchange coordination | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Buyers/Sellers needing title | | |
+| Lenders needing closings | | |
+| Attorneys needing title work | | |
+| Real estate agents | | |
 `,
 
   // ════════════════════════════════════════════════════════════════════════
@@ -1531,6 +1777,28 @@ lastUpdated: {{date}}
 | Preferred Debt Structure | | |
 | Co-Investment Approach | | |
 
+### D. Tax & Structure Strategy
+
+| Strategy | Usage | Evidence | Notes |
+|----------|-------|----------|-------|
+| 1031 Exchange | | | |
+| Opportunity Zones | | | |
+| Cost Segregation / Bonus Depreciation | | | |
+| Delaware Statutory Trust (DST) | | | |
+| Tenancy-in-Common (TIC) | | | |
+| UPREIT Contribution | | | |
+
+### E. Deal Sourcing Patterns
+
+| Source | Frequency | Success Rate | Notes |
+|--------|-----------|--------------|-------|
+| Broker-marketed (on-market) | | | |
+| Off-market / direct | | | |
+| Auction / competitive bid | | | |
+| Distress / workout | | | |
+| Relationship-driven | | | |
+| Platform / marketplace | | | |
+
 ---
 
 ## XVIII. LP/GP RELATIONSHIPS
@@ -1553,15 +1821,16 @@ lastUpdated: {{date}}
 |---------|------|------|-----------------|
 | | | | |
 
-### D. Service Provider Preferences
+### D. My Opportunity Assessment
 
-| Service | Current Provider | Satisfaction | My Opportunity |
-|---------|------------------|--------------|----------------|
-| Brokerage | | | |
-| Legal | | | |
-| Appraisal | | | |
-| Property Management | | | |
-| Accounting/Tax | | | |
+| Service Gap | Current Provider | Satisfaction | My Approach | Status |
+|-------------|------------------|--------------|-------------|--------|
+| Brokerage | | | | |
+| Appraisal / Valuation | | | | |
+| Consulting / Advisory | | | | |
+| Property Management | | | | |
+| Legal | | | | |
+| Accounting/Tax | | | | |
 
 ---
 
@@ -1645,6 +1914,10 @@ lastUpdated: {{date}}
 | State/Municipal Housing | | | |
 | Tax Credit Syndication | | | |
 | Community Development | | | |
+| CMHC Programs (Canada) | | | |
+| Provincial Housing Corp | | | |
+| Co-operative Housing | | | |
+| Inclusionary Zoning | | | |
 
 ### B. Regulatory Knowledge
 
@@ -1661,6 +1934,38 @@ lastUpdated: {{date}}
 | Certification | Status | Expiry | Issuing Body |
 |--------------|--------|--------|--------------|
 | | | | |
+
+### D. Application & Allocation Workflow
+
+| Phase | Typical Timeline | Key Requirements | Pitfalls | Notes |
+|-------|-----------------|------------------|----------|-------|
+| Application Cycle / Intake | | | | |
+| Allocation / Award | | | | |
+| Syndication / Capital Close | | | | |
+| Construction / Rehab | | | | |
+| Placed-in-Service (PIS) | | | | |
+| Initial Compliance Certification | | | | |
+
+### E. Compliance Monitoring Detail
+
+| Requirement | Frequency | Method | Risk Level | Notes |
+|-------------|-----------|--------|------------|-------|
+| Annual Tenant Certification | | | | |
+| IRS Form 8823 Filing | | | | |
+| Tenant File Audits | | | | |
+| Physical Inspection | | | | |
+| Utility Allowance Review | | | | |
+| Income Recertification | | | | |
+
+### F. Political & Community Relations
+
+| Stakeholder | Relationship | Position on Affordable Housing | Influence | Notes |
+|-------------|-------------|-------------------------------|-----------|-------|
+| Municipal Council | | | | |
+| Neighborhood Associations | | | | |
+| Community Benefit Agreements | | | | |
+| NIMBY Opposition Groups | | | | |
+| Supportive Housing Advocates | | | | |
 
 ---
 
@@ -1701,6 +2006,28 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal (LIHTC / affordable) | | | |
+| Market study / rent comparability | | | |
+| Consulting (compliance advisory) | | | |
+| Brokerage (portfolio disposition) | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Developers (affordable housing) | | |
+| Syndicators / tax credit investors | | |
+| Property managers (compliance) | | |
+| Legal counsel (housing law) | | |
 `,
 
   // ════════════════════════════════════════════════════════════════════════
@@ -1781,6 +2108,28 @@ lastUpdated: {{date}}
 |-----------------|-------------|--------------|-------|
 | | | | |
 
+### D. KPI by Asset Type
+
+| Asset Type | Primary KPI | Secondary KPI | Benchmark Source | Notes |
+|------------|------------|---------------|------------------|-------|
+| Hotels (Full-Service) | RevPAR | ADR / Occupancy | STR | |
+| Hotels (Select-Service) | RevPAR | GOP per Key | STR | |
+| Senior Living | NOI/Unit | Occupancy / Acuity Mix | NIC MAP | |
+| Self-Storage | Revenue/SF | Physical vs. Economic Occ. | Yardi Matrix | |
+| Student Housing | Revenue/Bed | Pre-Lease % | RealPage | |
+| Medical Office | NOI/SF | Weighted Avg. Lease Term | | |
+
+### E. Management Agreement Expertise
+
+| Dimension | Knowledge | Evidence | Notes |
+|-----------|-----------|----------|-------|
+| HMA vs. Franchise Agreement | | | |
+| Key Money / Owner Priority | | | |
+| Performance Test Structure | | | |
+| Termination Provisions | | | |
+| Brand PIP Requirements | | | |
+| FF&E Reserve Adequacy | | | |
+
 ---
 
 ## XVIII. CLIENT & OWNER RELATIONSHIPS
@@ -1793,9 +2142,9 @@ lastUpdated: {{date}}
 
 ### B. Performance Benchmarking
 
-| Asset | Key Metric | Performance | Comp Set Ranking | Notes |
-|-------|-----------|-------------|------------------|-------|
-| | | | | |
+| Asset | Key Metric | Performance | Comp Set Ranking | Data Source | Notes |
+|-------|-----------|-------------|------------------|------------|-------|
+| | | | | | |
 
 ---
 
@@ -1820,6 +2169,28 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal (hospitality / specialty) | | | |
+| Market study / feasibility | | | |
+| Brokerage (acquisition / disposition) | | | |
+| Asset management consulting | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Hotel / specialty investors | | |
+| Operators seeking management | | |
+| Brands expanding markets | | |
+| Other specialty professionals | | |
 `,
 
   // ════════════════════════════════════════════════════════════════════════
@@ -1847,6 +2218,7 @@ lastUpdated: {{date}}
 | License Numbers | |
 | Service Territory | |
 | Emergency Availability | |
+| Prevailing Wage / Union Status | |
 
 ### B. Active Contracts
 
@@ -1870,11 +2242,18 @@ lastUpdated: {{date}}
 
 ## XVII. SPECIALIZATION & CAPABILITIES
 
-### A. Service Expertise
+### A. Service Expertise by Trade
 
-| Service Type | Experience Level | Certifications | Notes |
-|-------------|------------------|----------------|-------|
-| | | | |
+| Trade / Service | Specialty Detail | Experience Level | Certifications | Notes |
+|----------------|-----------------|------------------|----------------|-------|
+| HVAC | Tonnage capacity, BAS integration | | | |
+| Electrical | High voltage, fire alarm, generator | | | |
+| Plumbing | Backflow prevention, medical gas | | | |
+| Roofing | Flat / TPO / metal, warranty programs | | | |
+| Fire Protection | Sprinkler, suppression, alarm | | | |
+| Elevator/Vertical | Modernization, code compliance | | | |
+| General Contracting | Tenant fit-up, base building | | | |
+| Landscaping/Snow | Seasonal scope, salt/plow capacity | | | |
 
 ### B. Equipment & Resources
 
@@ -1912,6 +2291,18 @@ lastUpdated: {{date}}
 | Cleanup/Professionalism | | |
 | Emergency Response | | |
 
+### C. Emergency Response History
+
+| Date | Property | Issue | Response Time | After-Hours? | Resolution | Notes |
+|------|----------|-------|-------------|-------------|-----------|-------|
+| | | | | | | |
+
+### D. Warranty & Guarantee Tracking
+
+| Work/Project | Warranty Period | Start | Expiry | Callback History | Status |
+|-------------|----------------|-------|--------|-----------------|--------|
+| | | | | | |
+
 ---
 
 ## XIX. REFERRAL TRACKING
@@ -1935,6 +2326,28 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal (capital planning) | | | |
+| Consulting (energy/sustainability) | | | |
+| Project management (renovations) | | | |
+| Property management referral | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Property managers needing trades | | |
+| Developers needing subcontractors | | |
+| Other trades (complementary) | | |
+| Building owners (direct) | | |
 `,
 
   // ════════════════════════════════════════════════════════════════════════
@@ -1988,12 +2401,14 @@ lastUpdated: {{date}}
 
 | Topic Area | Depth | Notable Engagements | Notes |
 |------------|-------|---------------------|-------|
-| Market Analysis | | | |
-| Investment Strategy | | | |
-| Property Management | | | |
-| Development/Construction | | | |
-| Legal/Regulatory | | | |
-| Technology/PropTech | | | |
+| Valuation Methodology | | | |
+| Market Analytics / Forecasting | | | |
+| PropTech / AI in Real Estate | | | |
+| ESG / Sustainability in RE | | | |
+| Capital Markets / CMBS | | | |
+| Land Use / Entitlements | | | |
+| Infrastructure / Linear Assets | | | |
+| Affordable Housing Policy | | | |
 
 ### B. Platform & Medium Experience
 
@@ -2032,6 +2447,32 @@ lastUpdated: {{date}}
 | Accessibility | | |
 | Commercial Value | | |
 
+### C. Publication & Content Track Record
+
+| Content Type | Title/Topic | Outlet/Venue | Date | Citations/Impact | Notes |
+|-------------|------------|-------------|------|-----------------|-------|
+| Research Report | | | | | |
+| Conference Presentation | | | | | |
+| Podcast / Webinar | | | | | |
+| Published Article | | | | | |
+| Industry Award / Recognition | | | | | |
+
+### D. Engagement Model
+
+| Dimension | Detail | Notes |
+|-----------|--------|-------|
+| Primary Billing Model | hourly / project / retainer | |
+| Typical Engagement Size | | |
+| Standard Deliverables | | |
+| Retainer Availability | | |
+| Subcontracting Willingness | | |
+
+### E. Competitive Positioning
+
+| Competitor | Overlap Area | Their Differentiator | My Differentiator | Notes |
+|-----------|-------------|---------------------|-------------------|-------|
+| | | | | |
+
 ---
 
 ## XIX. REFERRAL TRACKING
@@ -2055,6 +2496,28 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Valuation / appraisal expertise | | | |
+| Market research collaboration | | | |
+| Speaking / panel co-presentation | | | |
+| Joint consulting engagement | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Clients needing consulting | | |
+| Conference / event organizers | | |
+| Publishers / media contacts | | |
+| Other industry experts | | |
 `,
 
   // ════════════════════════════════════════════════════════════════════════
@@ -2082,6 +2545,9 @@ lastUpdated: {{date}}
 | Supervisor | |
 | Years in Role | |
 | Political Affiliation/Context | |
+| Term / Appointment Cycle | |
+| Next Reappointment / Election | |
+| Vulnerability (Low/Med/High) | |
 
 ### B. Active Matters in Their Jurisdiction
 
@@ -2136,6 +2602,12 @@ lastUpdated: {{date}}
 | Political Sensitivity | |
 | Appeal Likelihood | |
 
+### D. Precedent Decisions
+
+| Date | Application/Matter | Type | Decision | Rationale | Relevance to My Projects |
+|------|-------------------|------|----------|-----------|--------------------------|
+| | | | | | |
+
 ---
 
 ## XVIII. RELATIONSHIP MAPPING
@@ -2181,6 +2653,40 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. ENGAGEMENT STRATEGY
+
+### A. Pre-Consultation Approach
+
+| Phase | Recommended Approach | Notes |
+|-------|---------------------|-------|
+| Pre-Application Meeting | | |
+| Staff Report Influence | | |
+| Public Consultation | | |
+| Committee/Council Hearing | | |
+| Post-Decision Follow-Up | | |
+
+### B. Communication Preferences
+
+| Dimension | Preference | Notes |
+|-----------|-----------|-------|
+| Preferred Contact Method | | |
+| Meeting Format (formal/informal) | | |
+| Information Depth Preference | | |
+| Political Sensitivity Level | | |
+| Staff Report vs. Direct Advocacy | | |
+
+### C. My Influence Map
+
+| Approach | Effectiveness | Evidence |
+|----------|-------------|----------|
+| Technical data presentation | | |
+| Community benefit framing | | |
+| Precedent-based arguments | | |
+| Third-party expert support | | |
+| Public engagement strategy | | |
 `,
 
   // ════════════════════════════════════════════════════════════════════════
@@ -2245,9 +2751,9 @@ lastUpdated: {{date}}
 
 ### B. Carrier Relationships
 
-| Carrier | Relationship Level | Program Access | Specialties |
-|---------|-------------------|----------------|-------------|
-| | | | |
+| Carrier | Relationship Level | Program Access | Binding Authority | Specialties |
+|---------|-------------------|----------------|-------------------|-------------|
+| | | | | |
 
 ### C. Risk Assessment Capabilities
 
@@ -2279,6 +2785,38 @@ lastUpdated: {{date}}
 | Cost Competitiveness | | |
 | Proactive Risk Advice | | |
 
+### C. Coverage Gap Analysis
+
+| Coverage Area | Current Status | Gap Identified | Recommended Addition | Priority |
+|-------------|----------------|----------------|---------------------|----------|
+| Earthquake / Seismic | | | | |
+| Flood / Water Damage | | | | |
+| Cyber Liability | | | | |
+| Umbrella / Excess | | | | |
+| Pollution / Environmental | | | | |
+| Business Interruption | | | | |
+
+### D. Claims Handling Process
+
+| Dimension | Assessment | Evidence |
+|-----------|-----------|----------|
+| Filing Workflow / Ease | | |
+| Adjuster Response Speed | | |
+| Settlement Time (avg.) | | |
+| Dispute Resolution Approach | | |
+| Subrogation Aggressiveness | | |
+| Client Advocacy Level | | |
+
+### E. Market Cycle Awareness
+
+| Dimension | Current Assessment | Notes |
+|-----------|-------------------|-------|
+| Market Phase | hard / soft / transitioning | |
+| Carrier Appetite (by line) | | |
+| Rate Trend Direction | | |
+| Capacity Constraints | | |
+| Reinsurance Market Impact | | |
+
 ---
 
 ## XIX. REFERRAL TRACKING
@@ -2302,6 +2840,28 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal (insurance valuation) | | | |
+| Risk consulting (property) | | | |
+| Loss prevention advisory | | | |
+| Portfolio risk assessment | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Property owners needing coverage | | |
+| Developers (builder's risk) | | |
+| Lenders (force-placed insurance) | | |
+| Other insurance professionals | | |
 `,
 
   // ════════════════════════════════════════════════════════════════════════
@@ -2382,6 +2942,27 @@ lastUpdated: {{date}}
 |---------------|------------|--------------|
 | | | |
 
+### D. Regulatory Credential Detail
+
+| Credential | Status | Issuing Body | Expiry | Jurisdiction |
+|-----------|--------|--------------|--------|-------------|
+| QPESA (Qualified Person - ESA) | | | | |
+| Designated Substances Surveyor | | | | |
+| Record of Site Condition (RSC) | | | | |
+| P.Eng / P.Geo | | | | |
+| LEED AP / BOMA BESt | | | | |
+| Radiation Safety Officer | | | | |
+
+### E. Lab & Subcontractor Network
+
+| Lab / Subcontractor | Service | Accreditation | Turnaround | Notes |
+|---------------------|---------|---------------|-----------|-------|
+| | Soil/Groundwater Analysis | | | |
+| | Air Quality Monitoring | | | |
+| | Asbestos/Lead Testing | | | |
+| | Geotechnical Drilling | | | |
+| | Biological Assessment | | | |
+
 ---
 
 ## XVIII. CLIENT RELATIONSHIPS
@@ -2402,6 +2983,7 @@ lastUpdated: {{date}}
 | Communication | | |
 | Cost Competitiveness | | |
 | Regulatory Knowledge | | |
+| Defensibility Under Challenge | | |
 
 ---
 
@@ -2426,6 +3008,28 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal (pre-acquisition due diligence) | | | |
+| Consulting (remediation oversight) | | | |
+| ROW / infrastructure assessment | | | |
+| Litigation support (contamination) | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Developers needing Phase I/II | | |
+| Lenders requiring environmental | | |
+| Lawyers (contamination liability) | | |
+| Other technical specialists | | |
 `,
 };
 

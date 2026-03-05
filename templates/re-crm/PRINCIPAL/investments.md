@@ -78,6 +78,28 @@ lastUpdated: {{date}}
 | Preferred Debt Structure | | |
 | Co-Investment Approach | | |
 
+### D. Tax & Structure Strategy
+
+| Strategy | Usage | Evidence | Notes |
+|----------|-------|----------|-------|
+| 1031 Exchange | | | |
+| Opportunity Zones | | | |
+| Cost Segregation / Bonus Depreciation | | | |
+| Delaware Statutory Trust (DST) | | | |
+| Tenancy-in-Common (TIC) | | | |
+| UPREIT Contribution | | | |
+
+### E. Deal Sourcing Patterns
+
+| Source | Frequency | Success Rate | Notes |
+|--------|-----------|--------------|-------|
+| Broker-marketed (on-market) | | | |
+| Off-market / direct | | | |
+| Auction / competitive bid | | | |
+| Distress / workout | | | |
+| Relationship-driven | | | |
+| Platform / marketplace | | | |
+
 ---
 
 ## XVIII. LP/GP RELATIONSHIPS
@@ -100,15 +122,16 @@ lastUpdated: {{date}}
 |---------|------|------|-----------------|
 | | | | |
 
-### D. Service Provider Preferences
+### D. My Opportunity Assessment
 
-| Service | Current Provider | Satisfaction | My Opportunity |
-|---------|------------------|--------------|----------------|
-| Brokerage | | | |
-| Legal | | | |
-| Appraisal | | | |
-| Property Management | | | |
-| Accounting/Tax | | | |
+| Service Gap | Current Provider | Satisfaction | My Approach | Status |
+|-------------|------------------|--------------|-------------|--------|
+| Brokerage | | | | |
+| Appraisal / Valuation | | | | |
+| Consulting / Advisory | | | | |
+| Property Management | | | | |
+| Legal | | | | |
+| Accounting/Tax | | | | |
 
 ---
 

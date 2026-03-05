@@ -20,6 +20,7 @@ lastUpdated: {{date}}
 | License Numbers | |
 | Service Territory | |
 | Emergency Availability | |
+| Prevailing Wage / Union Status | |
 
 ### B. Active Contracts
 
@@ -43,11 +44,18 @@ lastUpdated: {{date}}
 
 ## XVII. SPECIALIZATION & CAPABILITIES
 
-### A. Service Expertise
+### A. Service Expertise by Trade
 
-| Service Type | Experience Level | Certifications | Notes |
-|-------------|------------------|----------------|-------|
-| | | | |
+| Trade / Service | Specialty Detail | Experience Level | Certifications | Notes |
+|----------------|-----------------|------------------|----------------|-------|
+| HVAC | Tonnage capacity, BAS integration | | | |
+| Electrical | High voltage, fire alarm, generator | | | |
+| Plumbing | Backflow prevention, medical gas | | | |
+| Roofing | Flat / TPO / metal, warranty programs | | | |
+| Fire Protection | Sprinkler, suppression, alarm | | | |
+| Elevator/Vertical | Modernization, code compliance | | | |
+| General Contracting | Tenant fit-up, base building | | | |
+| Landscaping/Snow | Seasonal scope, salt/plow capacity | | | |
 
 ### B. Equipment & Resources
 
@@ -85,6 +93,18 @@ lastUpdated: {{date}}
 | Cleanup/Professionalism | | |
 | Emergency Response | | |
 
+### C. Emergency Response History
+
+| Date | Property | Issue | Response Time | After-Hours? | Resolution | Notes |
+|------|----------|-------|-------------|-------------|-----------|-------|
+| | | | | | | |
+
+### D. Warranty & Guarantee Tracking
+
+| Work/Project | Warranty Period | Start | Expiry | Callback History | Status |
+|-------------|----------------|-------|--------|-----------------|--------|
+| | | | | | |
+
 ---
 
 ## XIX. REFERRAL TRACKING
@@ -108,3 +128,25 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal (capital planning) | | | |
+| Consulting (energy/sustainability) | | | |
+| Project management (renovations) | | | |
+| Property management referral | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Property managers needing trades | | |
+| Developers needing subcontractors | | |
+| Other trades (complementary) | | |
+| Building owners (direct) | | |

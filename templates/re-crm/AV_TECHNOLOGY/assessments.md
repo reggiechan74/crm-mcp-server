@@ -73,6 +73,27 @@ lastUpdated: {{date}}
 |---------------|------------|--------------|
 | | | |
 
+### D. Regulatory Credential Detail
+
+| Credential | Status | Issuing Body | Expiry | Jurisdiction |
+|-----------|--------|--------------|--------|-------------|
+| QPESA (Qualified Person - ESA) | | | | |
+| Designated Substances Surveyor | | | | |
+| Record of Site Condition (RSC) | | | | |
+| P.Eng / P.Geo | | | | |
+| LEED AP / BOMA BESt | | | | |
+| Radiation Safety Officer | | | | |
+
+### E. Lab & Subcontractor Network
+
+| Lab / Subcontractor | Service | Accreditation | Turnaround | Notes |
+|---------------------|---------|---------------|-----------|-------|
+| | Soil/Groundwater Analysis | | | |
+| | Air Quality Monitoring | | | |
+| | Asbestos/Lead Testing | | | |
+| | Geotechnical Drilling | | | |
+| | Biological Assessment | | | |
+
 ---
 
 ## XVIII. CLIENT RELATIONSHIPS
@@ -93,6 +114,7 @@ lastUpdated: {{date}}
 | Communication | | |
 | Cost Competitiveness | | |
 | Regulatory Knowledge | | |
+| Defensibility Under Challenge | | |
 
 ---
 
@@ -117,3 +139,25 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal (pre-acquisition due diligence) | | | |
+| Consulting (remediation oversight) | | | |
+| ROW / infrastructure assessment | | | |
+| Litigation support (contamination) | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Developers needing Phase I/II | | |
+| Lenders requiring environmental | | |
+| Lawyers (contamination liability) | | |
+| Other technical specialists | | |

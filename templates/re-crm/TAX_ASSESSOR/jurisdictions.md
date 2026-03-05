@@ -20,6 +20,9 @@ lastUpdated: {{date}}
 | Supervisor | |
 | Years in Role | |
 | Political Affiliation/Context | |
+| Term / Appointment Cycle | |
+| Next Reappointment / Election | |
+| Vulnerability (Low/Med/High) | |
 
 ### B. Active Matters in Their Jurisdiction
 
@@ -74,6 +77,12 @@ lastUpdated: {{date}}
 | Political Sensitivity | |
 | Appeal Likelihood | |
 
+### D. Precedent Decisions
+
+| Date | Application/Matter | Type | Decision | Rationale | Relevance to My Projects |
+|------|-------------------|------|----------|-----------|--------------------------|
+| | | | | | |
+
 ---
 
 ## XVIII. RELATIONSHIP MAPPING
@@ -119,3 +128,37 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. ENGAGEMENT STRATEGY
+
+### A. Pre-Consultation Approach
+
+| Phase | Recommended Approach | Notes |
+|-------|---------------------|-------|
+| Pre-Application Meeting | | |
+| Staff Report Influence | | |
+| Public Consultation | | |
+| Committee/Council Hearing | | |
+| Post-Decision Follow-Up | | |
+
+### B. Communication Preferences
+
+| Dimension | Preference | Notes |
+|-----------|-----------|-------|
+| Preferred Contact Method | | |
+| Meeting Format (formal/informal) | | |
+| Information Depth Preference | | |
+| Political Sensitivity Level | | |
+| Staff Report vs. Direct Advocacy | | |
+
+### C. My Influence Map
+
+| Approach | Effectiveness | Evidence |
+|----------|-------------|----------|
+| Technical data presentation | | |
+| Community benefit framing | | |
+| Precedent-based arguments | | |
+| Third-party expert support | | |
+| Public engagement strategy | | |

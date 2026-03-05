@@ -75,6 +75,25 @@ lastUpdated: {{date}}
 | Dispute Resolution | | |
 | Community Relations | | |
 
+### D. Regulatory & Legal Context
+
+| Jurisdiction | Governing Act | Expropriation Authority | Key Provisions | Notes |
+|-------------|---------------|------------------------|----------------|-------|
+| Ontario | Expropriations Act | | | |
+| Federal | National Energy Board Act | | | |
+| | | | | |
+
+### E. Subcontractor / Team Network
+
+| Vendor | Service | Relationship | Quality | Notes |
+|--------|---------|--------------|---------|-------|
+| | Surveying | | | |
+| | Environmental Assessment | | | |
+| | Appraisal / Compensation | | | |
+| | Legal (Expropriation) | | | |
+| | Archaeological | | | |
+| | Arborist | | | |
+
 ---
 
 ## XVIII. CLIENT & PROJECT RELATIONSHIPS
@@ -117,3 +136,25 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal / compensation valuation | | | |
+| Route optimization consulting | | | |
+| Landowner negotiation support | | | |
+| GIS / mapping services | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Utility / infrastructure clients | | |
+| Other ROW agents | | |
+| Environmental consultants | | |
+| Legal counsel (expropriation) | | |

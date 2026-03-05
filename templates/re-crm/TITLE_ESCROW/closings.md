@@ -76,6 +76,17 @@ lastUpdated: {{date}}
 | Proactive Issue Detection | | |
 | After-Hours Availability | | |
 
+### D. Technology & Process
+
+| Capability | Status | Platform/Tool | Notes |
+|-----------|--------|---------------|-------|
+| E-Closing / Remote Closing | | | |
+| Remote Online Notarization (RON) | | | |
+| Digital Title Search Platform | | | |
+| Automated Title Commitment | | | |
+| Electronic Document Signing | | | |
+| Wire Fraud Prevention Protocol | | | |
+
 ---
 
 ## XVIII. UNDERWRITER & LENDER RELATIONSHIPS
@@ -121,3 +132,25 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal for transactions | | | |
+| Brokerage introductions | | | |
+| Consulting (title clearance) | | | |
+| 1031 exchange coordination | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Buyers/Sellers needing title | | |
+| Lenders needing closings | | |
+| Attorneys needing title work | | |
+| Real estate agents | | |

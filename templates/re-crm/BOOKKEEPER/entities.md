@@ -63,6 +63,8 @@ lastUpdated: {{date}}
 | 1031 Exchange Tracking | | |
 | Audit Support | | |
 | Budgeting/Forecasting | | |
+| Transfer Pricing / Cross-Border | | |
+| Withholding Tax (NR) | | |
 
 ### C. Software & Systems
 
@@ -94,6 +96,29 @@ lastUpdated: {{date}}
 | Communication | | |
 | Cost Efficiency | | |
 
+### C. Year-End & Tax Calendar
+
+| Deadline | Entity/Filing | Type | Status | Notes |
+|----------|--------------|------|--------|-------|
+| T1/T2 Corporate Filing | | | | |
+| T3 Trust Returns | | | | |
+| T5013 Partnership Returns | | | | |
+| Estimated Tax Installments | | | | |
+| HST/GST Filing | | | | |
+| Audit / CRA Review Windows | | | | |
+| K-1 / Slip Distribution | | | | |
+
+### D. Lender & Investor Reporting
+
+| Report | Frequency | GAAP vs. Tax Basis | Recipient | Timing | Notes |
+|--------|-----------|-------------------|-----------|--------|-------|
+| Financial Statements | | | | | |
+| Waterfall / Distribution Calcs | | | | | |
+| K-1 / T5013 Slips | | | | | |
+| Covenant Compliance | | | | | |
+| Investor Quarterly Update | | | | | |
+| Annual Audit Package | | | | | |
+
 ---
 
 ## XIX. REFERRAL TRACKING
@@ -117,3 +142,25 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal (tax / estate) | | | |
+| Brokerage (disposition timing) | | | |
+| Consulting (structure optimization) | | | |
+| Cost segregation studies | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Investors needing tax advice | | |
+| Developers needing entity setup | | |
+| Lawyers (tax / corporate) | | |
+| Other accountants (specialized) | | |

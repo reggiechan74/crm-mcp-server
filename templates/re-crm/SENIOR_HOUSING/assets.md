@@ -73,6 +73,28 @@ lastUpdated: {{date}}
 |-----------------|-------------|--------------|-------|
 | | | | |
 
+### D. KPI by Asset Type
+
+| Asset Type | Primary KPI | Secondary KPI | Benchmark Source | Notes |
+|------------|------------|---------------|------------------|-------|
+| Hotels (Full-Service) | RevPAR | ADR / Occupancy | STR | |
+| Hotels (Select-Service) | RevPAR | GOP per Key | STR | |
+| Senior Living | NOI/Unit | Occupancy / Acuity Mix | NIC MAP | |
+| Self-Storage | Revenue/SF | Physical vs. Economic Occ. | Yardi Matrix | |
+| Student Housing | Revenue/Bed | Pre-Lease % | RealPage | |
+| Medical Office | NOI/SF | Weighted Avg. Lease Term | | |
+
+### E. Management Agreement Expertise
+
+| Dimension | Knowledge | Evidence | Notes |
+|-----------|-----------|----------|-------|
+| HMA vs. Franchise Agreement | | | |
+| Key Money / Owner Priority | | | |
+| Performance Test Structure | | | |
+| Termination Provisions | | | |
+| Brand PIP Requirements | | | |
+| FF&E Reserve Adequacy | | | |
+
 ---
 
 ## XVIII. CLIENT & OWNER RELATIONSHIPS
@@ -85,9 +107,9 @@ lastUpdated: {{date}}
 
 ### B. Performance Benchmarking
 
-| Asset | Key Metric | Performance | Comp Set Ranking | Notes |
-|-------|-----------|-------------|------------------|-------|
-| | | | | |
+| Asset | Key Metric | Performance | Comp Set Ranking | Data Source | Notes |
+|-------|-----------|-------------|------------------|------------|-------|
+| | | | | | |
 
 ---
 
@@ -112,3 +134,25 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal (hospitality / specialty) | | | |
+| Market study / feasibility | | | |
+| Brokerage (acquisition / disposition) | | | |
+| Asset management consulting | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Hotel / specialty investors | | |
+| Operators seeking management | | |
+| Brands expanding markets | | |
+| Other specialty professionals | | |

@@ -46,12 +46,16 @@ lastUpdated: {{date}}
 
 | Platform/Channel | Experience Level | Notable Campaigns | Notes |
 |------------------|------------------|-------------------|-------|
-| Digital/Social | | | |
-| Print/Collateral | | | |
-| Email/CRM | | | |
-| Events/Experiential | | | |
-| Video/Multimedia | | | |
-| PR/Media Relations | | | |
+| CoStar / LoopNet Listings | | | |
+| Offering Memorandum Design | | | |
+| Property Websites / Landing Pages | | | |
+| Investor Decks / Pitch Materials | | | |
+| Drone / 3D Virtual Tours | | | |
+| Social Media (LinkedIn, IG) | | | |
+| Email / CRM Drip Campaigns | | | |
+| Print / Collateral / Signage | | | |
+| PR / Media Relations | | | |
+| Events / Open Houses | | | |
 
 ### B. Industry Vertical Experience
 
@@ -89,6 +93,23 @@ lastUpdated: {{date}}
 | Budget Management | | |
 | Communication | | |
 
+### C. Creative Portfolio Assessment
+
+| Deliverable Type | Sample Quality (1-5) | Turnaround | Pricing Model | Notes |
+|-----------------|---------------------|-----------|---------------|-------|
+| Offering Memorandum | | | | |
+| Property Photography | | | | |
+| Video / Drone Content | | | | |
+| Website / Landing Page | | | | |
+| Investor Presentation | | | | |
+| Signage / Print Collateral | | | | |
+
+### D. Property Marketing Track Record
+
+| Property | Campaign Type | Days on Market | Absorption Impact | Result | Notes |
+|----------|-------------|----------------|-------------------|--------|-------|
+| | | | | | |
+
 ---
 
 ## XIX. REFERRAL TRACKING
@@ -112,3 +133,25 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Property listing / brokerage | | | |
+| Market data / comp research | | | |
+| Investor outreach strategy | | | |
+| Repositioning / branding | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Developers needing marketing | | |
+| Brokers needing collateral | | |
+| Investors seeking deal flow | | |
+| Other marketing professionals | | |

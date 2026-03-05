@@ -46,12 +46,14 @@ lastUpdated: {{date}}
 
 | Topic Area | Depth | Notable Engagements | Notes |
 |------------|-------|---------------------|-------|
-| Market Analysis | | | |
-| Investment Strategy | | | |
-| Property Management | | | |
-| Development/Construction | | | |
-| Legal/Regulatory | | | |
-| Technology/PropTech | | | |
+| Valuation Methodology | | | |
+| Market Analytics / Forecasting | | | |
+| PropTech / AI in Real Estate | | | |
+| ESG / Sustainability in RE | | | |
+| Capital Markets / CMBS | | | |
+| Land Use / Entitlements | | | |
+| Infrastructure / Linear Assets | | | |
+| Affordable Housing Policy | | | |
 
 ### B. Platform & Medium Experience
 
@@ -90,6 +92,32 @@ lastUpdated: {{date}}
 | Accessibility | | |
 | Commercial Value | | |
 
+### C. Publication & Content Track Record
+
+| Content Type | Title/Topic | Outlet/Venue | Date | Citations/Impact | Notes |
+|-------------|------------|-------------|------|-----------------|-------|
+| Research Report | | | | | |
+| Conference Presentation | | | | | |
+| Podcast / Webinar | | | | | |
+| Published Article | | | | | |
+| Industry Award / Recognition | | | | | |
+
+### D. Engagement Model
+
+| Dimension | Detail | Notes |
+|-----------|--------|-------|
+| Primary Billing Model | hourly / project / retainer | |
+| Typical Engagement Size | | |
+| Standard Deliverables | | |
+| Retainer Availability | | |
+| Subcontracting Willingness | | |
+
+### E. Competitive Positioning
+
+| Competitor | Overlap Area | Their Differentiator | My Differentiator | Notes |
+|-----------|-------------|---------------------|-------------------|-------|
+| | | | | |
+
 ---
 
 ## XIX. REFERRAL TRACKING
@@ -113,3 +141,25 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Valuation / appraisal expertise | | | |
+| Market research collaboration | | | |
+| Speaking / panel co-presentation | | | |
+| Joint consulting engagement | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Clients needing consulting | | |
+| Conference / event organizers | | |
+| Publishers / media contacts | | |
+| Other industry experts | | |

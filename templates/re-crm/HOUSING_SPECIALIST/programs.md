@@ -52,6 +52,10 @@ lastUpdated: {{date}}
 | State/Municipal Housing | | | |
 | Tax Credit Syndication | | | |
 | Community Development | | | |
+| CMHC Programs (Canada) | | | |
+| Provincial Housing Corp | | | |
+| Co-operative Housing | | | |
+| Inclusionary Zoning | | | |
 
 ### B. Regulatory Knowledge
 
@@ -68,6 +72,38 @@ lastUpdated: {{date}}
 | Certification | Status | Expiry | Issuing Body |
 |--------------|--------|--------|--------------|
 | | | | |
+
+### D. Application & Allocation Workflow
+
+| Phase | Typical Timeline | Key Requirements | Pitfalls | Notes |
+|-------|-----------------|------------------|----------|-------|
+| Application Cycle / Intake | | | | |
+| Allocation / Award | | | | |
+| Syndication / Capital Close | | | | |
+| Construction / Rehab | | | | |
+| Placed-in-Service (PIS) | | | | |
+| Initial Compliance Certification | | | | |
+
+### E. Compliance Monitoring Detail
+
+| Requirement | Frequency | Method | Risk Level | Notes |
+|-------------|-----------|--------|------------|-------|
+| Annual Tenant Certification | | | | |
+| IRS Form 8823 Filing | | | | |
+| Tenant File Audits | | | | |
+| Physical Inspection | | | | |
+| Utility Allowance Review | | | | |
+| Income Recertification | | | | |
+
+### F. Political & Community Relations
+
+| Stakeholder | Relationship | Position on Affordable Housing | Influence | Notes |
+|-------------|-------------|-------------------------------|-----------|-------|
+| Municipal Council | | | | |
+| Neighborhood Associations | | | | |
+| Community Benefit Agreements | | | | |
+| NIMBY Opposition Groups | | | | |
+| Supportive Housing Advocates | | | | |
 
 ---
 
@@ -108,3 +144,25 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal (LIHTC / affordable) | | | |
+| Market study / rent comparability | | | |
+| Consulting (compliance advisory) | | | |
+| Brokerage (portfolio disposition) | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Developers (affordable housing) | | |
+| Syndicators / tax credit investors | | |
+| Property managers (compliance) | | |
+| Legal counsel (housing law) | | |

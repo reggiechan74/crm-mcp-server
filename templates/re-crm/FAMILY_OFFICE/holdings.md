@@ -33,62 +33,89 @@ lastUpdated: {{date}}
 |------------------|--------------|-------------|-------------|------------|----------------|
 | | | | | | |
 
-### D. Active Acquisitions Pipeline
+### D. Allocation Strategy & Targets
 
-| Target | Location | Asset Class | Size | Stage | Est. Close | My Opportunity |
-|--------|----------|-------------|------|-------|------------|----------------|
-| | | | | | | |
-
----
-
-## XVII. INVESTMENT STRATEGY ANALYSIS
-
-### A. Asset Class Preferences
-
-| Asset Class | # Holdings | Total Value | Avg. Hold Period | Notes |
-|-------------|-----------|-------------|------------------|-------|
-| Office | | | | |
-| Industrial | | | | |
-| Retail | | | | |
-| Multifamily | | | | |
-| Land | | | | |
-| Specialty | | | | |
-
-### B. Investment Criteria
-
-| Dimension | Criteria |
-|-----------|----------|
-| Target Returns (IRR) | |
-| Equity Multiple | |
-| Hold Period | |
-| Leverage Preference | |
-| Minimum Deal Size | |
-| Maximum Deal Size | |
-| Risk Profile | |
-
-### C. Capital Structure Patterns
-
-| Source | Type | Typical % | Relationship |
-|--------|------|-----------|--------------|
-| | | | |
+| Asset Class | Target % | Current % | Geography | Vintage Preference | Notes |
+|-------------|----------|-----------|-----------|-------------------|-------|
+| Core / Core-Plus | | | | | |
+| Value-Add | | | | | |
+| Opportunistic | | | | | |
+| Debt / Mezzanine | | | | | |
+| Fund Investments | | | | | |
 
 ---
 
-## XVIII. RELATIONSHIPS & CO-INVESTMENT
+## XVII. PORTFOLIO CONSTRUCTION & GOVERNANCE
 
-### A. Co-Investment Partners
+### A. Portfolio Construction Parameters
 
-| Partner | # Deals Together | Total Volume | Structure | Relationship |
-|---------|-----------------|--------------|-----------|--------------|
+| Dimension | Parameters |
+|-----------|-----------|
+| Target Portfolio Size | |
+| Diversification Requirements | |
+| Geographic Constraints | |
+| Vintage Year Targets | |
+| Liquidity Requirements | |
+| Currency / FX Policy | |
+| ESG / Impact Mandate | |
+
+### B. Fund / Vehicle Structure
+
+| Dimension | Detail |
+|-----------|--------|
+| Vehicle Type | open-end / closed-end / separate account |
+| Fund Term | |
+| Distribution Schedule | |
+| Redemption / Liquidity | |
+| Fee Structure (Mgmt / Carry) | |
+| GP Commitment / Co-Invest | |
+
+### C. Reporting & Governance
+
+| Requirement | Frequency | Format | Notes |
+|-------------|-----------|--------|-------|
+| Board / IC Approval Process | | | |
+| Mandate Constraints | | | |
+| NAV / Valuation Reporting | | | |
+| ESG / Impact Reporting | | | |
+| Investor Letters / Updates | | | |
+| Annual Meeting / AGM | | | |
+
+### D. Manager Selection Criteria
+
+| Criterion | Minimum Requirement | Preferred | Notes |
+|-----------|-------------------|-----------|-------|
+| GP Track Record (years) | | | |
+| AUM Threshold | | | |
+| Team Stability | | | |
+| Co-Investment Rights | | | |
+| Separate Account Willingness | | | |
+| Reporting Standards (GIPS/INREV) | | | |
+| ESG Integration | | | |
+
+---
+
+## XVIII. RELATIONSHIPS & ALLOCATIONS
+
+### A. GP / Manager Relationships
+
+| GP / Manager | Strategy | # Allocations | Total Committed | Performance | Relationship |
+|-------------|----------|---------------|-----------------|-------------|--------------|
+| | | | | | |
+
+### B. Co-Investor Network
+
+| Co-Investor | Type | # Deals Together | Total Volume | Relationship |
+|-------------|------|-----------------|--------------|--------------|
 | | | | | |
 
-### B. Advisory Team
+### C. Advisory / Consultant Team
 
-| Advisor | Role | Firm | Relationship Quality |
-|---------|------|------|---------------------|
-| | | | |
+| Advisor | Role | Firm | Influence Level | Relationship Quality |
+|---------|------|------|-----------------|---------------------|
+| | | | | |
 
-### C. Service Provider Preferences
+### D. Service Provider Preferences
 
 | Service | Current Provider | Satisfaction | My Opportunity |
 |---------|------------------|--------------|----------------|
@@ -96,7 +123,7 @@ lastUpdated: {{date}}
 | Legal | | | |
 | Appraisal | | | |
 | Property Management | | | |
-| Accounting | | | |
+| Accounting / Fund Admin | | | |
 
 ---
 
@@ -121,3 +148,25 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal (portfolio valuation) | | | |
+| Market research / analytics | | | |
+| Consulting (asset strategy) | | | |
+| Brokerage (sourcing / disposition) | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Other allocators / LPs | | |
+| Fund managers / GPs | | |
+| Operating partners | | |
+| Placement agents | | |

@@ -57,9 +57,9 @@ lastUpdated: {{date}}
 
 ### B. Rate Competitiveness
 
-| Product | Typical Rate Spread | Market Position | Notes |
-|---------|---------------------|-----------------|-------|
-| | | | |
+| Product | Typical Rate Spread | Market Position | Last Quoted Date | vs. Market | Notes |
+|---------|---------------------|-----------------|-----------------|------------|-------|
+| | | | | | |
 
 ### C. Turnaround & Performance
 
@@ -69,6 +69,17 @@ lastUpdated: {{date}}
 | Approval Rate | | |
 | Lock Accuracy | | |
 | Communication During Process | | |
+
+### D. Regulatory & Compliance
+
+| Requirement | Status | Details |
+|-------------|--------|---------|
+| NMLS Registration | | |
+| State Licensing | | |
+| TRID Compliance | | |
+| RESPA Compliance | | |
+| Continuing Education | | |
+| E&O Insurance | | |
 
 ---
 
@@ -115,3 +126,25 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal for lending | | | |
+| Investment advisory | | | |
+| Brokerage referrals | | | |
+| Consulting | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Borrowers needing appraisal | | |
+| Investors seeking financing | | |
+| Developers needing construction loans | | |
+| Other professionals | | |

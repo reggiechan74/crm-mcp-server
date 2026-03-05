@@ -57,9 +57,9 @@ lastUpdated: {{date}}
 
 ### B. Carrier Relationships
 
-| Carrier | Relationship Level | Program Access | Specialties |
-|---------|-------------------|----------------|-------------|
-| | | | |
+| Carrier | Relationship Level | Program Access | Binding Authority | Specialties |
+|---------|-------------------|----------------|-------------------|-------------|
+| | | | | |
 
 ### C. Risk Assessment Capabilities
 
@@ -91,6 +91,38 @@ lastUpdated: {{date}}
 | Cost Competitiveness | | |
 | Proactive Risk Advice | | |
 
+### C. Coverage Gap Analysis
+
+| Coverage Area | Current Status | Gap Identified | Recommended Addition | Priority |
+|-------------|----------------|----------------|---------------------|----------|
+| Earthquake / Seismic | | | | |
+| Flood / Water Damage | | | | |
+| Cyber Liability | | | | |
+| Umbrella / Excess | | | | |
+| Pollution / Environmental | | | | |
+| Business Interruption | | | | |
+
+### D. Claims Handling Process
+
+| Dimension | Assessment | Evidence |
+|-----------|-----------|----------|
+| Filing Workflow / Ease | | |
+| Adjuster Response Speed | | |
+| Settlement Time (avg.) | | |
+| Dispute Resolution Approach | | |
+| Subrogation Aggressiveness | | |
+| Client Advocacy Level | | |
+
+### E. Market Cycle Awareness
+
+| Dimension | Current Assessment | Notes |
+|-----------|-------------------|-------|
+| Market Phase | hard / soft / transitioning | |
+| Carrier Appetite (by line) | | |
+| Rate Trend Direction | | |
+| Capacity Constraints | | |
+| Reinsurance Market Impact | | |
+
 ---
 
 ## XIX. REFERRAL TRACKING
@@ -114,3 +146,25 @@ lastUpdated: {{date}}
 | FROM them to me | | | |
 | TO them from me | | | |
 | **Net** | | | |
+
+---
+
+## XX. BUSINESS DEVELOPMENT OPPORTUNITIES
+
+### A. Services They Need / My Opportunity
+
+| Service | Current Provider | My Opportunity | Status |
+|---------|------------------|----------------|--------|
+| Appraisal (insurance valuation) | | | |
+| Risk consulting (property) | | | |
+| Loss prevention advisory | | | |
+| Portfolio risk assessment | | | |
+
+### B. Referral Potential
+
+| Referral Type | Likelihood | Notes |
+|---------------|------------|-------|
+| Property owners needing coverage | | |
+| Developers (builder's risk) | | |
+| Lenders (force-placed insurance) | | |
+| Other insurance professionals | | |
