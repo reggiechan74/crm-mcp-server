@@ -432,6 +432,7 @@ Config is read from (in priority order):
 | `crmRoot` | — | Path to your CRM contact directory |
 | `templates` | `[]` | Templates selected during init |
 | `defaultTemplate` | `simple` | Template used when none specified |
+| `embeddingModel` | `onnx-community/embeddinggemma-300m-ONNX` | Local embedding model for `crm_vector_search` (override via `CRM_EMBEDDING_MODEL` env) |
 | `templateRepo` | `reggiechan74/crm-mcp-server` | GitHub repo for remote templates (forks can override) |
 | `githubToken` | — | Optional GitHub token for private repos or higher rate limits |
 
@@ -442,6 +443,7 @@ crm-mcp mcp                    # Start MCP server (used by Claude Code)
 crm-mcp init                   # Interactive setup wizard
 crm-mcp reindex                # Rebuild SQLite index from dossier files
 crm-mcp embed                  # Generate vector embeddings for semantic search
+crm-mcp benchmark-embed        # Benchmark embedding speed and estimate full embed time
 crm-mcp templates list         # List local and remote templates
 crm-mcp templates pull <name>  # Download template from GitHub
 crm-mcp templates update       # Smart-update installed templates
@@ -468,7 +470,7 @@ The repair engine applies fixes in dependency order: moves → dedup → orderin
 - **Node.js** ≥ 22
 - **SQLite** via better-sqlite3 (FTS5 for search, content cache)
 - **MCP SDK** (@modelcontextprotocol/sdk)
-- **Transformers.js** for local vector embeddings (optional)
+- **Transformers.js** v3 + **EmbeddingGemma 300M** (q8) for local 768-dim vector embeddings
 - **Vitest** for testing (140 tests)
 
 ## Development
