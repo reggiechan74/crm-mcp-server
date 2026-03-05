@@ -1,16 +1,16 @@
 import { type Store } from './store.js';
 import { type Config } from './types.js';
 
-// Use a loose type for the pipeline since @xenova/transformers has inconsistent
-// type exports between FeatureExtractionPipeline and Pipeline.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let embedder: any = null;
 
 async function getEmbedder(model: string): Promise<any> {
   if (!embedder) {
     // Dynamic import to avoid loading transformers.js until needed
-    const { pipeline } = await import('@xenova/transformers');
-    embedder = await pipeline('feature-extraction', model);
+    const { pipeline } = await import('@huggingface/transformers');
+    // Use q8 quantization for EmbeddingGemma (fp16 not supported by this model)
+    const isGemma = model.toLowerCase().includes('gemma');
+    embedder = await pipeline('feature-extraction', model, isGemma ? { dtype: 'q8' } : {});
   }
   return embedder;
 }

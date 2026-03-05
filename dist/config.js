@@ -10,7 +10,7 @@ export function loadConfig() {
     }
     const crmRoot = process.env.CRM_ROOT || fileConfig.crmRoot || '';
     const dbPath = process.env.CRM_DB_PATH || fileConfig.dbPath || join(home, '.crm-mcp', 'crm.db');
-    const embeddingModel = process.env.CRM_EMBEDDING_MODEL || fileConfig.embeddingModel || 'Xenova/all-MiniLM-L6-v2';
+    const embeddingModel = process.env.CRM_EMBEDDING_MODEL || fileConfig.embeddingModel || 'onnx-community/embeddinggemma-300m-ONNX';
     const templates = fileConfig.templates || [];
     const defaultTemplate = fileConfig.defaultTemplate || 'simple';
     const templateRepo = process.env.CRM_TEMPLATE_REPO || fileConfig.templateRepo || 'reggiechan74/crm-mcp-server';

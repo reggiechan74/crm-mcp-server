@@ -16,9 +16,9 @@ describe('loadConfig', () => {
     delete process.env.CRM_ROOT;
   });
 
-  it('defaults embedding model to MiniLM', () => {
+  it('defaults embedding model to EmbeddingGemma', () => {
     const config = loadConfig();
-    expect(config.embeddingModel).toBe('Xenova/all-MiniLM-L6-v2');
+    expect(config.embeddingModel).toBe('onnx-community/embeddinggemma-300m-ONNX');
   });
 
   it('allows empty crmRoot without crashing when no config file', () => {
