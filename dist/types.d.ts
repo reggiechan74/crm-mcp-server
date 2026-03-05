@@ -48,7 +48,7 @@ export interface Config {
     templateRepo: string;
     githubToken?: string;
 }
-export declare const DOSSIER_SECTIONS: readonly ["index", "profile", "log", "intelligence-profile", "intelligence-strategic", "intelligence-risk", "medical", "education"];
+export declare const DOSSIER_SECTIONS: readonly ["index", "profile", "log", "intelligence-profile", "intelligence-strategic", "intelligence-risk", "medical", "medical-genetics", "medical-pharmacogenomics", "medical-labs", "education"];
 export type DossierSection = typeof DOSSIER_SECTIONS[number];
 export declare const SECTION_FILES: Record<DossierSection, string>;
 /**

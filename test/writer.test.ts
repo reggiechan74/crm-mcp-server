@@ -206,8 +206,8 @@ describe('createDossier', () => {
       category: 'Family',
     });
     expect(result.id).toMatch(/^FA-JANNYA-\d{3}$/);
-    // Family template should have medical.md and education.md
-    expect(existsSync(join(tempDir, 'Family', 'NYARKO-MENSAH_Janice', 'medical.md'))).toBe(true);
+    // Family template should have medical/ directory and education.md
+    expect(existsSync(join(tempDir, 'Family', 'NYARKO-MENSAH_Janice', 'medical', 'medical.md'))).toBe(true);
     expect(existsSync(join(tempDir, 'Family', 'NYARKO-MENSAH_Janice', 'education.md'))).toBe(true);
   });
 

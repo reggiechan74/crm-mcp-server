@@ -73,7 +73,8 @@ export interface Config {
 export const DOSSIER_SECTIONS = [
   'index', 'profile', 'log',
   'intelligence-profile', 'intelligence-strategic', 'intelligence-risk',
-  'medical', 'education',
+  'medical', 'medical-genetics', 'medical-pharmacogenomics', 'medical-labs',
+  'education',
 ] as const;
 
 export type DossierSection = typeof DOSSIER_SECTIONS[number];
@@ -86,6 +87,9 @@ export const SECTION_FILES: Record<DossierSection, string> = {
   'intelligence-strategic': 'intelligence/intelligence-strategic.md',
   'intelligence-risk': 'intelligence/intelligence-risk.md',
   'medical': 'medical.md',
+  'medical-genetics': 'medical/medical-genetics.md',
+  'medical-pharmacogenomics': 'medical/medical-pharmacogenomics.md',
+  'medical-labs': 'medical/medical-labs.md',
   'education': 'education.md',
 };
 

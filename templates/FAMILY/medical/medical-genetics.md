@@ -1,27 +1,12 @@
 ---
 dossierCode: "UNKNOWN"
 contactName: "DOSSIER_TEMPLATE_FAMILY_LEGACY"
-tier: medical-template
+tier: medical-genetics
 lastUpdated: 2026-01-25
 ---
 
 
-# DOSSIER_TEMPLATE_FAMILY_LEGACY - Medical & Health Profile
-
-## II.B. PHYSICAL & HEALTH
-
-> For awareness and care purposes - not for judgment.
-
-| Category | Details | Last Updated |
-|----------|---------|--------------|
-| **Health Status** | [GENERAL HEALTH NOTES] | YYYY-MM-DD |
-| **Medical Conditions** | [IF ANY - RELEVANT FOR CARE] | YYYY-MM-DD |
-| **Healthcare Provider** | [DOCTOR/PEDIATRICIAN] | YYYY-MM-DD |
-| **Allergies** | [KNOWN ALLERGIES] | YYYY-MM-DD |
-
----
-
-## GENETIC PROFILE (Optional)
+# DOSSIER_TEMPLATE_FAMILY_LEGACY - Genetic Profile
 
 > **PURPOSE:** When genetic testing data is available (23andMe, AncestryDNA, Genetic Genie, Promethease, etc.), this section captures health-relevant findings for informed healthcare decisions. This is OPTIONAL - family members without genetic testing should mark sections as "NOT TESTED" or omit entirely.
 
@@ -83,112 +68,6 @@ lastUpdated: 2026-01-25
 
 ---
 
-### Drug Response & Metabolism - CRITICAL
-
-> **CRITICAL SECTION:** Pharmacogenomic variants that affect medication safety and efficacy. This information should be shared with healthcare providers.
-
-**MEDICAL ALERT CARD - PRINT FOR PROVIDERS:**
-
-```
-PHARMACOGENOMIC ALERT - [NAME]
-- [Drug Class]: [ALERT] ([Gene Variant])
-- [Drug Class]: [ALERT] ([Gene Variant])
-- [Drug Class]: [ALERT] ([Gene Variant])
-```
-
-#### KEY DRUG METABOLISM VARIANTS
-
-| Drug/Class | Gene/Variant | Status | Clinical Action |
-|------------|--------------|--------|-----------------|
-| **[DRUG CLASS]** | [GENE rs#] | [Homo/Hetero STATUS] | [Action required] |
-
-#### ANTIDEPRESSANTS & PSYCHIATRIC MEDICATIONS
-
-| Drug | Gene/Variant | Status | Clinical Action |
-|------|--------------|--------|-----------------|
-| [DRUG] | [GENE rs#] | [STATUS] | [Action] |
-
-**Personal Medication History:**
-- [Document any personal experiences with medications that confirm or relate to genetic findings]
-
-#### CARDIOVASCULAR & BLOOD THINNERS
-
-| Drug | Gene/Variant | Status | Clinical Action |
-|------|--------------|--------|-----------------|
-| [DRUG] | [GENE rs#] | [STATUS] | [Action] |
-
-**Personal Medication History:**
-- [Document any personal experiences]
-
-#### PAIN MEDICATIONS & OPIOIDS
-
-| Drug | Gene/Variant | Status | Clinical Action |
-|------|--------------|--------|-----------------|
-| [DRUG] | [GENE rs#] | [STATUS] | [Action] |
-
-**Pain Management Guidance:**
-- [Specific guidance based on genetic findings]
-
-#### STATINS & CHOLESTEROL
-
-| Drug | Gene/Variant | Status | Clinical Action |
-|------|--------------|--------|-----------------|
-| [DRUG] | [GENE rs#] | [STATUS] | [Action] |
-
-**Personal Medication History:**
-- [Document any personal experiences]
-
-#### OTHER MEDICATIONS
-
-| Drug | Gene/Variant | Status | Clinical Action |
-|------|--------------|--------|-----------------|
-| [DRUG] | [GENE rs#] | [STATUS] | [Action] |
-
----
-
-### Methylation Profile (Optional - Genetic Genie)
-
-> MTHFR and related methylation gene variants affecting homocysteine metabolism, detox, and supplement needs.
-
-**METHYLATION STATUS SUMMARY:**
-
-| Gene | Variant | Status | Impact |
-|------|---------|--------|--------|
-| [GENE] | [rs#] | [+/+ | +/- | -/-] | [Impact description] |
-
-**Methylation Guidance:**
-- [Supplement recommendations based on methylation status]
-
----
-
-### Detoxification Profile (Optional - Genetic Genie)
-
-> Phase I and Phase II detoxification enzyme variants affecting ability to process toxins, medications, and environmental chemicals.
-
-**PHASE I DETOXIFICATION (CYP450 Enzymes):**
-
-| Gene | Variant | Status | Impact |
-|------|---------|--------|--------|
-| [GENE] | [rs#] | [STATUS] | [Drug classes affected] |
-
-**PHASE II DETOXIFICATION (Conjugation Enzymes):**
-
-| Gene | Variant | Status | Impact |
-|------|---------|--------|--------|
-| [GENE] | [rs#] | [STATUS] | [Detox pathway affected] |
-
----
-
-### Recommended Supplements (Based on Genetic Profile)
-
-> Supplement recommendations derived from genetic analysis. Consult healthcare provider before starting.
-
-| Supplement | Rationale (Gene Variant) | Priority |
-|------------|--------------------------|----------|
-| [SUPPLEMENT] | [Gene variant and reason] | [HIGH/MEDIUM/LOW] |
-
----
-
 ### Physical & Sensory Traits (Genetic)
 
 > Genetic predictions for physical characteristics. Compare with actual traits.
@@ -215,6 +94,14 @@ PHARMACOGENOMIC ALERT - [NAME]
 
 ---
 
+### Carrier Status (Recessive Conditions)
+
+| Condition | Gene | Inheritance | Notes |
+|-----------|------|-------------|-------|
+| [CONDITION] | [GENE] | [Autosomal recessive/X-linked] | [Carrier/Cleared] |
+
+---
+
 ### Rare & Uncommon Mutations (Optional)
 
 > Low-frequency variants that may warrant monitoring or further research.
@@ -222,6 +109,14 @@ PHARMACOGENOMIC ALERT - [NAME]
 | Gene | Variant | Frequency | Notes |
 |------|---------|-----------|-------|
 | [GENE] | [rs#] | [X.X%] | [Clinical significance if known] |
+
+---
+
+### Hereditary Cancer Screening (Optional)
+
+| Test | Provider | Date | Result | Genes Tested |
+|------|----------|------|--------|-------------|
+| [PANEL NAME] | [LAB] | YYYY-MM-DD | [NEGATIVE/POSITIVE] | [# genes] |
 
 ---
 
@@ -237,4 +132,4 @@ PHARMACOGENOMIC ALERT - [NAME]
 
 ---
 
-**END MEDICAL PROFILE**
+**END GENETIC PROFILE**

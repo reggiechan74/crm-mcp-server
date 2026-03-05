@@ -192,7 +192,7 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
   // ── 3. crm_read ──────────────────────────────────────────────────────
   server.tool(
     'crm_read',
-    'Read a specific section of a contact\'s dossier. Returns cleaned content with boilerplate stripped. Standard sections: index, profile, log, intelligence-profile, intelligence-strategic, intelligence-risk, medical, education. Profession-specific sections: deals, assignments, projects, portfolio, matters, assessments, jurisdictions, policies, campaigns, entities, holdings, programs, assets, services, engagements.',
+    'Read a specific section of a contact\'s dossier. Returns cleaned content with boilerplate stripped. Standard sections: index, profile, log, intelligence-profile, intelligence-strategic, intelligence-risk, medical, medical-genetics, medical-pharmacogenomics, medical-labs, education. Profession-specific sections: deals, assignments, projects, portfolio, matters, assessments, jurisdictions, policies, campaigns, entities, holdings, programs, assets, services, engagements.',
     {
       contact: z.string().describe('Contact name or dossier code'),
       section: z.string().describe('Section name (e.g., "profile", "deals", "assignments")'),
