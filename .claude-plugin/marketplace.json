@@ -7,7 +7,7 @@
     {
       "name": "crm",
       "version": "1.0.0",
-      "source": ".",
+      "source": "./",
       "description": "Token-optimized CRM with progressive disclosure — search, relationship graphs, and contact management via MCP"
     }
   ]
