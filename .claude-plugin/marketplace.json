@@ -1,11 +1,14 @@
 {
-  "schema_version": "1.0",
-  "plugins": {
-    "crm": {
-      "name": "CRM Intelligence",
-      "description": "Token-optimized contact management with progressive disclosure, relationship graphs, and semantic search",
-      "path": ".",
-      "featured": true
+  "name": "crm-mcp-server",
+  "owner": {
+    "name": "Reggie Chan"
+  },
+  "plugins": [
+    {
+      "name": "crm",
+      "version": "1.0.0",
+      "source": ".",
+      "description": "Token-optimized CRM with progressive disclosure — search, relationship graphs, and contact management via MCP"
     }
-  }
+  ]
 }
