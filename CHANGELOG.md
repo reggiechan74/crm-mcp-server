@@ -2,6 +2,46 @@
 
 All notable changes to crm-mcp-server are documented here.
 
+## [0.2.0] - 2026-03-05
+
+RE-CRM profession taxonomy, domain-enriched templates, and category-grouped directory structure.
+
+### Added
+
+#### RE-CRM Profession Taxonomy
+- 167 profession types across 18 categories (A–R) covering all real estate disciplines
+- `ProfessionEntry` interface with code, name, category, categoryLetter, templateDir, trackingFile
+- `lookupProfession()` (case-insensitive) and `searchProfessions()` (partial name/category match)
+- Profession parameter in `crm_create` for profession-specific dossier generation
+- Profession filter in `crm_search` for finding contacts by real estate specialty
+
+#### Template Pack
+- 167 profession-specific template directories, each with INDEX.md, profile.md, intelligence/ (3 files), log.md, and a tracking file
+- 20 tracking file templates with deep domain-specific content (deals, assignments, matters, projects, portfolio, loans, acquisitions, closings, investments, assessments, jurisdictions, campaigns, entities, programs, assets, services, engagements, holdings, policies, general)
+- Section XX: Business Development Opportunities added to all 20 tracking templates
+- Three-segment intelligence structure: intelligence-profile.md, intelligence-risk.md, intelligence-strategic.md
+
+#### Template Generator
+- `scripts/generate-re-crm-templates.ts` — generates all 167 profession directories from COMMON base + tracking templates
+- `--force` flag for bulk regeneration with category-aware cleanup
+- COMMON directory with shared template files copied to each profession
+
+### Changed
+
+#### Template Category Grouping
+- Profession directories nested under 18 lettered category folders (e.g., `A_BROKERAGE_SALES/BROKER_SALES/`)
+- `templateDir` values in professions registry updated from flat paths to category-prefixed paths
+- Generator cleanup logic handles nested directory structure
+
+#### Template Enrichment
+- 14 tracking templates enriched from generic to domain-specific depth matching the 6 gold-standard templates
+- Industry-specific table columns, workflow stage breakdowns, and cross-professional relationship tables
+- Domain vocabulary replacing generic "Type/Status/Notes" column headers throughout
+
+#### Testing
+- Test count increased from 102 to 129 (profession registry, FTS indexing, search filters)
+- FTS indexing expanded to include profession-specific tracking files
+
 ## [0.1.0] - 2026-03-05
 
 First public release. Transforms the CRM from a single-user tool into a general-purpose Claude Code MCP server plugin.
