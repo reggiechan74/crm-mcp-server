@@ -2,6 +2,67 @@
 
 All notable changes to crm-mcp-server are documented here.
 
+## [0.3.0] - 2026-03-05
+
+Template management system, Claude Code plugin marketplace, and performance optimizations.
+
+### Added
+
+#### Template Management System
+- Thin bundle architecture: 4 core templates ship with the package; extended templates (REAL_ESTATE, etc.) pulled on-demand from GitHub
+- `.manifest.json` tracking with SHA-256 content hashes for customization detection
+- Smart versioning: auto-updates untouched templates, skips customized ones with warning, `--force` CLI-only override
+- `installBundledTemplates()` for initializing `.templates/` with version tracking
+- `computeContentHash()` for deterministic content hashing (sorted file paths + content)
+- `isCustomized()` for detecting user modifications to installed templates
+- `migrateManifest()` for forward-compatible schema upgrades
+
+#### GitHub Integration
+- `listRemoteTemplates()` — fetches template directory listing + `template.json` metadata with 1-hour cache
+- `downloadTemplate()` — tarball download with streaming extraction, supports category-specific extraction (e.g., `REAL_ESTATE/A_BROKERAGE_SALES`)
+- Uses system `tar` via `execSync` (no npm tar dependency)
+
+#### MCP Tools
+- `crm_templates_list` — list installed and available remote templates (read-only)
+- `crm_templates_pull` — download a single template from GitHub to local `.templates/` (no `--force`, safe for AI use)
+- Tool count: 14 → 16
+
+#### CLI Commands
+- `crm-mcp templates list` — list local and remote templates
+- `crm-mcp templates pull <name>` — download template, supports `REAL_ESTATE/A_BROKERAGE_SALES` category syntax
+- `crm-mcp templates update` — smart-update all installed templates with decision matrix
+- `crm-mcp templates info <name>` — show template version, hash, customization status
+
+#### Plugin Marketplace
+- `.claude-plugin/marketplace.json` with correct schema (`name`, `owner`, `plugins` array)
+- Self-hosted marketplace: `reggiechan74/crm-mcp-server` registered as a Claude Code marketplace
+- Pre-built `dist/` committed for zero-build plugin installation
+- Private repo access documentation with SSH deploy key and git URL rewrite instructions
+
+#### Testing
+- 11 new tests for template management (content hashing, manifest I/O, bundled install, customization detection, migration, category install)
+- Test count: 129 → 140
+
+### Changed
+
+#### Performance
+- `indexOne()` method on Store for O(1) single-dossier indexing after `crm_create` (was O(N) full reindex)
+- Extracted `indexDossier()` helper from `indexAll()` loop
+
+#### Template Resolution
+- `.templates/` is now the single source of truth (removed bundled fallback from writer)
+- `getUserTemplatesDir(crmRoot)` replaces `getTemplatesDir()` for explicit local-first resolution
+- Template not found errors now include install instructions
+
+#### Distribution
+- `package.json` `files` field restricts npm package to `dist/` + 4 core templates only
+- `.gitignore` updated: `dist/` no longer ignored (required for plugin installation)
+
+### Fixed
+- Marketplace `source` field: `"."` → `"./"` (relative paths must start with `./`)
+- ESM `require()` usage in `init.ts` replaced with static imports
+- Redundant dynamic imports in `cli.ts` replaced with top-level imports
+
 ## [0.2.0] - 2026-03-05
 
 RE-CRM profession taxonomy, domain-enriched templates, and category-grouped directory structure.

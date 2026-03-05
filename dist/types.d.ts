@@ -53,6 +53,7 @@ export type DossierSection = typeof DOSSIER_SECTIONS[number];
 export declare const SECTION_FILES: Record<DossierSection, string>;
 /**
  * Resolve a section name to its file path.
+ * Accepts any format: "index", "INDEX.md", "intelligence-profile", "intelligence/intelligence-profile.md"
  * Known sections use the SECTION_FILES map; unknown sections (e.g. profession-specific
  * tracking files like "deals", "assignments") fall back to `${section}.md`.
  */

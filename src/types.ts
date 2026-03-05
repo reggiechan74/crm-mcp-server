@@ -91,10 +91,19 @@ export const SECTION_FILES: Record<DossierSection, string> = {
 
 /**
  * Resolve a section name to its file path.
+ * Accepts any format: "index", "INDEX.md", "intelligence-profile", "intelligence/intelligence-profile.md"
  * Known sections use the SECTION_FILES map; unknown sections (e.g. profession-specific
  * tracking files like "deals", "assignments") fall back to `${section}.md`.
  */
 export function resolveSectionFile(section: string): string {
-  if (section in SECTION_FILES) return SECTION_FILES[section as DossierSection];
-  return `${section}.md`;
+  // Normalize: strip path prefix, .md suffix, and lowercase for lookup
+  const normalized = section
+    .replace(/^.*\//, '')      // strip directory prefix (e.g. "intelligence/")
+    .replace(/\.md$/i, '')     // strip .md suffix
+    .toLowerCase();
+
+  if (normalized in SECTION_FILES) return SECTION_FILES[normalized as DossierSection];
+
+  // Unknown section — use the normalized name with .md
+  return `${normalized}.md`;
 }
