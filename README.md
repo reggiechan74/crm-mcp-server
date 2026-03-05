@@ -18,7 +18,7 @@ You: "What do I know about John Doe?"
 Claude: [uses crm_search → crm_outline → crm_read to fetch relevant sections]
 ```
 
-Instead of loading entire dossier files (thousands of tokens), the server strips boilerplate, caches cleaned content in SQLite with FTS5, and serves only what's requested.
+Instead of loading entire dossier files (thousands of tokens), the server strips boilerplate, caches cleaned content in SQLite with FTS5, and serves only what's requested. Every response includes a token estimate footer (`<!-- 599 chars | ~150 tokens -->`) so you can see exactly how much context each call consumes.
 
 ## Quick Start
 
@@ -126,7 +126,7 @@ The server exposes 16 MCP tools:
 |------|---------|--------|
 | `crm_search` | Find contacts by name, org, status, category, profession | ~50-100 per result |
 | `crm_outline` | Structural overview — sections, sizes, fill % | ~200-400 |
-| `crm_read` | Read a specific section with boilerplate stripped | Varies |
+| `crm_read` | Read a specific section with boilerplate stripped | Varies (footer shows estimate) |
 
 ### Contact Management
 
@@ -182,8 +182,12 @@ CRM/
 │   └── DOE_Jane/                           # FA-DOEJAH-001
 │       ├── INDEX.md
 │       ├── profile.md
-│       ├── medical.md        # Family-specific
-│       ├── education.md      # Family-specific
+│       ├── medical/             # Family-specific (split by volatility)
+│       │   ├── medical.md                  # Health summary & history (~400 tokens)
+│       │   ├── medical-genetics.md         # Ancestry, variants (static)
+│       │   ├── medical-pharmacogenomics.md # Drug metabolism (static)
+│       │   └── medical-labs.md             # Lab results (periodic)
+│       ├── education.md         # Family-specific
 │       ├── intelligence/
 │       │   ├── intelligence-profile.md
 │       │   ├── intelligence-relational.md
@@ -222,7 +226,7 @@ Four core templates ship with the package and are installed during `crm-mcp init
 |----------|----------|-------|
 | `simple` | Basic contacts | INDEX.md, profile.md, log.md |
 | `PROFESSIONAL` | Clients, network, prospects | INDEX.md, profile.md, intelligence/ (3 files), log.md |
-| `FAMILY` | Family members | INDEX.md, profile.md, medical.md, education.md, intelligence/ (3 files), log.md |
+| `FAMILY` | Family members | INDEX.md, profile.md, medical/ (4 files), education.md, intelligence/ (3 files), log.md |
 | `PERSONAL` | Friends, personal contacts | INDEX.md, profile.md, intelligence/ (3 files), log.md |
 
 ### Extended Templates (On-Demand)
