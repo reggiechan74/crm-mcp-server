@@ -9,7 +9,8 @@ import { runAudit, type AuditPass } from './audit.js';
 import { runRepair } from './repair.js';
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
-import type { Config, DossierSection } from './types.js';
+import type { Config } from './types.js';
+import { lookupProfession, searchProfessions } from './professions.js';
 
 /**
  * Guard: returns an error message when crmRoot is empty (unconfigured),
@@ -29,8 +30,8 @@ function requireConfigured(config: Config): string | null {
  * Returns null if not found.
  */
 function resolveContact(store: Store, contact: string): string | null {
-  // If it looks like a dossier code, use it directly
-  if (/^[A-Z]{2}-/.test(contact)) {
+  // If it looks like a dossier code (2 or 3 letter prefix), use it directly
+  if (/^[A-Z]{2,3}-/.test(contact)) {
     return contact;
   }
   // Otherwise search by name
@@ -87,6 +88,20 @@ function buildInstructions(store: Store | null, config: Config): string {
   for (const [cat, count] of Object.entries(stats.byCategory)) {
     lines.push(`  - ${cat}: ${count}`);
   }
+  // Profession stats (if any contacts have professions)
+  const profRows = store.db.prepare(
+    'SELECT profession, COUNT(*) as count FROM contacts WHERE profession IS NOT NULL GROUP BY profession',
+  ).all() as any[];
+  if (profRows.length > 0) {
+    lines.push('');
+    lines.push('Professions:');
+    for (const row of profRows) {
+      const entry = lookupProfession(row.profession);
+      const label = entry ? `${entry.name} (${row.profession})` : row.profession;
+      lines.push(`  - ${label}: ${row.count}`);
+    }
+  }
+
   lines.push('');
   lines.push('Workflow: crm_search → crm_outline → crm_read (progressive disclosure, 10x token savings)');
   lines.push('');
@@ -118,12 +133,13 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
       query: z.string().optional().describe('Name, org, or keyword to search for'),
       category: z.string().optional().describe('Filter by category: Client, Network, Family, etc.'),
       status: z.string().optional().describe('Filter by status: ACTIVE, DORMANT, etc.'),
+      profession: z.string().optional().describe('Filter by 3-letter profession code (e.g., BSB for Sales Broker)'),
       limit: z.number().optional().default(20).describe('Max results (default 20)'),
     },
-    async ({ query, category, status, limit }) => {
+    async ({ query, category, status, profession, limit }) => {
       const err = requireConfigured(config);
       if (err) return { content: [{ type: 'text' as const, text: err }] };
-      const results = store!.searchContacts({ query, category, status, limit });
+      const results = store!.searchContacts({ query, category, status, profession, limit });
       if (results.length === 0) return { content: [{ type: 'text' as const, text: 'No contacts found.' }] };
       const header = '| ID | Name | Org | Category | Status | Last Contact |';
       const sep = '|-----|------|-----|----------|--------|-------------|';
@@ -165,10 +181,10 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
   // ── 3. crm_read ──────────────────────────────────────────────────────
   server.tool(
     'crm_read',
-    'Read a specific section of a contact\'s dossier. Returns cleaned content with boilerplate stripped. Sections: index, profile, log, intelligence-profile, intelligence-strategic, intelligence-risk, medical, education',
+    'Read a specific section of a contact\'s dossier. Returns cleaned content with boilerplate stripped. Standard sections: index, profile, log, intelligence-profile, intelligence-strategic, intelligence-risk, medical, education. Profession-specific sections: deals, assignments, projects, portfolio, matters, assessments, jurisdictions, policies, campaigns, entities, holdings, programs, assets, services, engagements.',
     {
       contact: z.string().describe('Contact name or dossier code'),
-      section: z.enum(['index', 'profile', 'log', 'intelligence-profile', 'intelligence-strategic', 'intelligence-risk', 'medical', 'education']).describe('Which section to read'),
+      section: z.string().describe('Section name (e.g., "profile", "deals", "assignments")'),
     },
     async ({ contact, section }) => {
       const err = requireConfigured(config);
@@ -176,7 +192,7 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
       const contactId = resolveContact(store!, contact);
       if (!contactId) return { content: [{ type: 'text' as const, text: `Contact not found: ${contact}` }] };
       try {
-        const content = store!.getSection(contactId, section as DossierSection);
+        const content = store!.getSection(contactId, section);
         return { content: [{ type: 'text' as const, text: content }] };
       } catch (e: any) {
         return { content: [{ type: 'text' as const, text: `Error: ${e.message}` }] };
@@ -253,7 +269,7 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
     'Update a specific field in a contact\'s dossier. Updates YAML frontmatter and invalidates cache.',
     {
       contact: z.string().describe('Contact name or dossier code'),
-      section: z.enum(['index', 'profile', 'log', 'intelligence-profile', 'intelligence-strategic', 'intelligence-risk', 'medical', 'education']).describe('Which section to update'),
+      section: z.string().describe('Section name (e.g., "index", "profile", "deals")'),
       field: z.string().describe("YAML field name to update (e.g., 'status', 'lastContactDate')"),
       value: z.string().describe('New value for the field'),
     },
@@ -263,7 +279,7 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
       const contactId = resolveContact(store!, contact);
       if (!contactId) return { content: [{ type: 'text' as const, text: `Contact not found: ${contact}` }] };
       try {
-        updateField(store!, contactId, section as DossierSection, field, value);
+        updateField(store!, contactId, section, field, value);
         return { content: [{ type: 'text' as const, text: `Updated ${field} = "${value}" in ${section} for ${contactId}` }] };
       } catch (e: any) {
         return { content: [{ type: 'text' as const, text: `Error: ${e.message}` }] };
@@ -332,12 +348,13 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
       category: z.string().describe('Category: Client, Network, Family, Personal, Prospect, etc.'),
       organization: z.string().optional().describe('Organization name'),
       context: z.string().optional().describe('How you met or relationship context'),
+      profession: z.string().optional().describe('3-letter profession code (e.g., BSB for Sales Broker). Generates profession-based dossier code.'),
     },
-    async ({ name, category, organization, context }) => {
+    async ({ name, category, organization, context, profession }) => {
       const err = requireConfigured(config);
       if (err) return { content: [{ type: 'text' as const, text: err }] };
       try {
-        const result = createDossier(store!, config.crmRoot, { name, category, organization, context });
+        const result = createDossier(store!, config.crmRoot, { name, category, organization, context, profession });
         return { content: [{ type: 'text' as const, text: `Created dossier ${result.id} at ${result.path}` }] };
       } catch (e: any) {
         return { content: [{ type: 'text' as const, text: `Error: ${e.message}` }] };

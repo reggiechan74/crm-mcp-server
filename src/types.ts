@@ -29,6 +29,7 @@ export interface Contact {
   lastUpdated: string;
   path: string;
   metadataJson: string;
+  profession?: string;
 }
 
 export interface SectionMeta {
@@ -85,3 +86,13 @@ export const SECTION_FILES: Record<DossierSection, string> = {
   'medical': 'medical.md',
   'education': 'education.md',
 };
+
+/**
+ * Resolve a section name to its file path.
+ * Known sections use the SECTION_FILES map; unknown sections (e.g. profession-specific
+ * tracking files like "deals", "assignments") fall back to `${section}.md`.
+ */
+export function resolveSectionFile(section: string): string {
+  if (section in SECTION_FILES) return SECTION_FILES[section as DossierSection];
+  return `${section}.md`;
+}

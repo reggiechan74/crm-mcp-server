@@ -4,6 +4,7 @@ import { mkdtempSync, cpSync, readFileSync, existsSync, mkdirSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { createStore, type Store } from '../src/store.js';
 import { appendLog, updateField, createDossier, generateF3L3 } from '../src/writer.js';
+import { resolveSectionFile } from '../src/types.js';
 
 let store: Store;
 let tempDir: string;
@@ -112,6 +113,39 @@ describe('generateF3L3', () => {
   });
 });
 
+describe('resolveSectionFile', () => {
+  it('returns known section files from SECTION_FILES map', () => {
+    expect(resolveSectionFile('index')).toBe('INDEX.md');
+    expect(resolveSectionFile('profile')).toBe('profile.md');
+    expect(resolveSectionFile('intelligence-risk')).toBe('intelligence/intelligence-risk.md');
+  });
+
+  it('returns ${section}.md for unknown sections', () => {
+    expect(resolveSectionFile('deals')).toBe('deals.md');
+    expect(resolveSectionFile('assignments')).toBe('assignments.md');
+    expect(resolveSectionFile('projects')).toBe('projects.md');
+  });
+});
+
+describe('resolveContact regex', () => {
+  const resolveContactRegex = /^[A-Z]{2,3}-/;
+
+  it('matches 2-letter category codes', () => {
+    expect(resolveContactRegex.test('CL-RANMUL-002')).toBe(true);
+    expect(resolveContactRegex.test('NE-TESCON-001')).toBe(true);
+  });
+
+  it('matches 3-letter profession codes', () => {
+    expect(resolveContactRegex.test('BSB-ROSBRA-001')).toBe(true);
+    expect(resolveContactRegex.test('VAP-JANAPP-001')).toBe(true);
+  });
+
+  it('does not match plain names', () => {
+    expect(resolveContactRegex.test('Ross Bratt')).toBe(false);
+    expect(resolveContactRegex.test('ranjit')).toBe(false);
+  });
+});
+
 describe('createDossier', () => {
   it('creates a new dossier folder from template', () => {
     const result = createDossier(store, tempDir, {
@@ -183,6 +217,39 @@ describe('createDossier', () => {
   it('throws for invalid category', () => {
     expect(() => createDossier(store, tempDir, { name: 'Test User', category: 'Invalid' }))
       .toThrow(/Invalid category/);
+  });
+
+  it('creates dossier with 3-letter profession code', () => {
+    const result = createDossier(store, tempDir, {
+      name: 'Ross Bratt',
+      category: 'Network',
+      profession: 'BSB',
+    });
+    expect(result.id).toBe('BSB-ROSBRA-001');
+    expect(existsSync(join(tempDir, 'Network', 'BRATT_Ross', 'INDEX.md'))).toBe(true);
+
+    // Verify profession is in YAML frontmatter
+    const indexContent = readFileSync(join(tempDir, 'Network', 'BRATT_Ross', 'INDEX.md'), 'utf-8');
+    expect(indexContent).toContain('profession: BSB');
+  });
+
+  it('throws for invalid profession code', () => {
+    expect(() => createDossier(store, tempDir, {
+      name: 'Test User',
+      category: 'Network',
+      profession: 'ZZZ',
+    })).toThrow(/Unknown profession code/);
+  });
+
+  it('profession dossier is searchable after creation', () => {
+    createDossier(store, tempDir, {
+      name: 'Jane Appraiser',
+      category: 'Network',
+      profession: 'VAP',
+    });
+    const results = store.searchContacts({ query: 'Jane Appraiser' });
+    expect(results.length).toBe(1);
+    expect(results[0].id).toBe('VAP-JANAPP-001');
   });
 
   it('uses Personal template for Personal category', () => {

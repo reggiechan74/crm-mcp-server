@@ -7,6 +7,7 @@ import {
 } from './parser.js';
 import {
   SECTION_FILES,
+  resolveSectionFile,
   type Contact,
   type SectionMeta,
   type Relationship,
@@ -26,6 +27,7 @@ export interface Store {
     query?: string;
     category?: string;
     status?: string;
+    profession?: string;
     limit?: number;
   }): SearchResult[];
   fullTextSearch(
@@ -33,7 +35,7 @@ export interface Store {
     limit?: number,
   ): Array<SearchResult & { section: string; snippet: string }>;
   getOutline(contactId: string): { contact: Contact; sections: SectionMeta[] };
-  getSection(contactId: string, section: DossierSection): string;
+  getSection(contactId: string, section: string): string;
   getConnections(contactId: string, depth?: number): Relationship[];
   getRecent(limit?: number, category?: string): SearchResult[];
   getStats(): {
@@ -97,6 +99,13 @@ function initSchema(db: Database): void {
       created_at TEXT NOT NULL
     );
   `);
+
+  // Migration: add profession column (idempotent)
+  try {
+    db.exec('ALTER TABLE contacts ADD COLUMN profession TEXT');
+  } catch {
+    // Column already exists — safe to ignore
+  }
 }
 
 /**
@@ -122,8 +131,8 @@ export function createStore(dbPath: string, crmRoot: string): Store {
   // Prepared statements (created lazily to avoid issues with virtual tables)
   const stmts = {
     insertContact: db.prepare(`
-      INSERT OR REPLACE INTO contacts (id, name, category, organization, status, last_contact, last_updated, path, metadata_json)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO contacts (id, name, category, organization, status, last_contact, last_updated, path, metadata_json, profession)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
     insertRelationship: db.prepare(`
       INSERT OR REPLACE INTO relationships (source_id, target_id, target_name, type, context, bidirectional)
@@ -179,6 +188,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
             contact.lastUpdated,
             contact.path,
             contact.metadataJson,
+            contact.profession ?? null,
           );
 
           // Extract and insert relationships
@@ -232,6 +242,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
         query,
         category,
         status,
+        profession,
         limit = 20,
       } = filters;
       const conditions: string[] = [];
@@ -249,6 +260,10 @@ export function createStore(dbPath: string, crmRoot: string): Store {
       if (status) {
         conditions.push('status = ?');
         params.push(status);
+      }
+      if (profession) {
+        conditions.push('profession = ?');
+        params.push(profession);
       }
 
       const where =
@@ -353,6 +368,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
         lastUpdated: row.last_updated,
         path: row.path,
         metadataJson: row.metadata_json,
+        profession: row.profession ?? undefined,
       };
 
       // Get fresh section metadata from filesystem
@@ -362,17 +378,13 @@ export function createStore(dbPath: string, crmRoot: string): Store {
       return { contact, sections };
     },
 
-    getSection(contactId: string, section: DossierSection): string {
+    getSection(contactId: string, section: string): string {
       const row = stmts.getContactPath.get(contactId) as any;
       if (!row) {
         throw new Error(`Contact not found: ${contactId}`);
       }
 
-      const sectionFile = SECTION_FILES[section];
-      if (!sectionFile) {
-        throw new Error(`Unknown section: ${section}`);
-      }
-
+      const sectionFile = resolveSectionFile(section);
       const filePath = join(crmRoot, row.path, sectionFile);
       if (!existsSync(filePath)) {
         return '';

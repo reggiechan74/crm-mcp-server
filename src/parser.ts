@@ -1,4 +1,4 @@
-import { readFileSync, statSync, existsSync } from 'node:fs';
+import { readFileSync, statSync, existsSync, readdirSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { Contact, SectionMeta, Relationship, Category } from './types.js';
@@ -37,6 +37,7 @@ function parseFrontmatter(content: string): Record<string, unknown> | null {
         ['status', /^status:\s*(\S+)/m],
         ['lastContactDate', /^lastContactDate:\s*(\S+)/m],
         ['lastUpdated', /^lastUpdated:\s*(\S+)/m],
+        ['profession', /^profession:\s*"?([^"\n]+)"?/m],
       ] as const) {
         const m = match[1].match(pattern);
         if (m) result[key] = m[1].trim();
@@ -81,6 +82,7 @@ export function parseIndexYaml(dossierPath: string): Contact {
     lastUpdated: formatDate(lastUpdatedRaw) ?? '',
     path: basename(dirname(dossierPath)) + '/' + basename(dossierPath),
     metadataJson: JSON.stringify(yaml),
+    profession: yaml.profession ? String(yaml.profession) : undefined,
   };
 }
 
@@ -288,42 +290,55 @@ function removeOrphanedTableParts(
 }
 
 /**
+ * Build section metadata for a single file.
+ */
+function buildSectionMeta(fullPath: string, file: string): SectionMeta {
+  const stat = statSync(fullPath);
+  const content = readFileSync(fullPath, 'utf-8');
+  const stripped = stripBoilerplate(content);
+
+  const yaml = parseFrontmatter(content);
+  let lastUpdated: string | null = null;
+  if (yaml?.lastUpdated) {
+    const val = yaml.lastUpdated;
+    if (val instanceof Date) {
+      lastUpdated = val.toISOString().slice(0, 10);
+    } else {
+      lastUpdated = String(val);
+    }
+  }
+
+  const sizeBytes = stat.size;
+  const filledBytes = Buffer.byteLength(stripped, 'utf-8');
+  const fillPercent = sizeBytes > 0 ? Math.round((filledBytes / sizeBytes) * 100) : 0;
+
+  return { file, sizeBytes, filledBytes, fillPercent, lastUpdated };
+}
+
+/**
  * Scan a dossier directory and return metadata for each existing section file.
  */
 export function scanDossierSections(dossierPath: string): SectionMeta[] {
   const results: SectionMeta[] = [];
 
+  // Known section files from the standard dossier structure
+  const knownFiles = new Set(Object.values(SECTION_FILES));
+
   for (const [, file] of Object.entries(SECTION_FILES)) {
     const fullPath = join(dossierPath, file);
     if (!existsSync(fullPath)) continue;
+    results.push(buildSectionMeta(fullPath, file));
+  }
 
-    const stat = statSync(fullPath);
-    const content = readFileSync(fullPath, 'utf-8');
-    const stripped = stripBoilerplate(content);
-
-    // Extract lastUpdated from frontmatter
-    const yaml = parseFrontmatter(content);
-    let lastUpdated: string | null = null;
-    if (yaml?.lastUpdated) {
-      const val = yaml.lastUpdated;
-      if (val instanceof Date) {
-        lastUpdated = val.toISOString().slice(0, 10);
-      } else {
-        lastUpdated = String(val);
-      }
+  // Scan for extra .md files not in SECTION_FILES (profession-specific tracking files)
+  if (existsSync(dossierPath)) {
+    for (const entry of readdirSync(dossierPath)) {
+      if (!entry.endsWith('.md')) continue;
+      if (knownFiles.has(entry)) continue;
+      const fullPath = join(dossierPath, entry);
+      if (!statSync(fullPath).isFile()) continue;
+      results.push(buildSectionMeta(fullPath, entry));
     }
-
-    const sizeBytes = stat.size;
-    const filledBytes = Buffer.byteLength(stripped, 'utf-8');
-    const fillPercent = sizeBytes > 0 ? Math.round((filledBytes / sizeBytes) * 100) : 0;
-
-    results.push({
-      file,
-      sizeBytes,
-      filledBytes,
-      fillPercent,
-      lastUpdated,
-    });
   }
 
   return results;

@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { join } from 'node:path';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, cpSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { createStore, type Store } from '../src/store.js';
+import { createDossier } from '../src/writer.js';
 import { runInitNonInteractive } from '../src/init.js';
 import { runAudit } from '../src/audit.js';
 import { runRepair } from '../src/repair.js';
@@ -112,6 +113,67 @@ describe('recent contacts', () => {
     expect(recent.length).toBeGreaterThan(0);
     // If multiple contacts existed, they'd be sorted by date
     expect(recent[0].lastContact).toBeDefined();
+  });
+});
+
+describe('profession workflow', () => {
+  let tempDir: string;
+  let profStore: Store;
+
+  beforeAll(() => {
+    tempDir = mkdtempSync(join(tmpdir(), 'crm-prof-test-'));
+    cpSync(FIXTURES, tempDir, { recursive: true });
+    profStore = createStore(':memory:', tempDir);
+    profStore.indexAll();
+  });
+
+  afterAll(() => profStore.close());
+
+  it('create → search → read profession-aware dossier end-to-end', () => {
+    // 1. Create with profession
+    const result = createDossier(profStore, tempDir, {
+      name: 'Ross Bratt',
+      category: 'Network',
+      profession: 'BSB',
+      organization: 'CBRE',
+    });
+    expect(result.id).toBe('BSB-ROSBRA-001');
+
+    // 2. Search by profession
+    const byProf = profStore.searchContacts({ profession: 'BSB' });
+    expect(byProf.length).toBe(1);
+    expect(byProf[0].name).toBe('Ross Bratt');
+
+    // 3. Search by name still works
+    const byName = profStore.searchContacts({ query: 'Ross' });
+    expect(byName.length).toBe(1);
+    expect(byName[0].id).toBe('BSB-ROSBRA-001');
+
+    // 4. Outline shows standard sections
+    const outline = profStore.getOutline('BSB-ROSBRA-001');
+    expect(outline.contact.name).toBe('Ross Bratt');
+    expect(outline.sections.some(s => s.file === 'INDEX.md')).toBe(true);
+
+    // 5. Read index section
+    const content = profStore.getSection('BSB-ROSBRA-001', 'index');
+    expect(content).toContain('Ross Bratt');
+    expect(content).toContain('BSB');
+  });
+
+  it('existing 2-letter contacts coexist with 3-letter profession contacts', () => {
+    // Original fixture contact
+    const oldResults = profStore.searchContacts({ query: 'Test Contact' });
+    expect(oldResults.length).toBe(1);
+    expect(oldResults[0].id).toBe('NE-TESCON-001');
+
+    // New profession contact
+    const newResults = profStore.searchContacts({ profession: 'BSB' });
+    expect(newResults.length).toBe(1);
+    expect(newResults[0].id).toBe('BSB-ROSBRA-001');
+
+    // Total should include both
+    const stats = profStore.getStats();
+    expect(stats.totalContacts).toBeGreaterThanOrEqual(2);
   });
 });
 

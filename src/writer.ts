@@ -2,7 +2,8 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync, cpSync, existsSync
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
-import { SECTION_FILES, CATEGORY_CODES, CATEGORY_DIRS, type DossierSection, type Category } from './types.js';
+import { SECTION_FILES, CATEGORY_CODES, CATEGORY_DIRS, resolveSectionFile, type DossierSection, type Category } from './types.js';
+import { lookupProfession } from './professions.js';
 import { stripBoilerplate } from './parser.js';
 import { createHash } from 'node:crypto';
 import type { Store } from './store.js';
@@ -65,7 +66,7 @@ function reconstructFile(yaml: Record<string, unknown>, body: string): string {
 /**
  * Invalidate the cache and re-index a specific section for a contact.
  */
-function invalidateAndReindex(store: Store, contactId: string, section: DossierSection, filePath: string): void {
+function invalidateAndReindex(store: Store, contactId: string, section: string, filePath: string): void {
   // Delete from content_cache
   store.db.prepare('DELETE FROM content_cache WHERE contact_id = ? AND section = ?').run(contactId, section);
 
@@ -134,12 +135,9 @@ export function appendLog(store: Store, contactId: string, entry: LogEntry): voi
 /**
  * Update a specific YAML frontmatter field in a dossier section file.
  */
-export function updateField(store: Store, contactId: string, section: DossierSection, field: string, value: string): void {
+export function updateField(store: Store, contactId: string, section: string, field: string, value: string): void {
   const contactPath = getContactPath(store, contactId);
-  const sectionFile = SECTION_FILES[section];
-  if (!sectionFile) {
-    throw new Error(`Unknown section: ${section}`);
-  }
+  const sectionFile = resolveSectionFile(section);
 
   const filePath = join(store.crmRoot, contactPath, sectionFile);
   const content = readFileSync(filePath, 'utf-8');
@@ -180,6 +178,7 @@ export interface CreateDossierInput {
   organization?: string;
   context?: string;      // How you met
   template?: string;     // Template name (looks in .templates/ then bundled templates/)
+  profession?: string;   // 3-letter profession code (e.g. "BSB") — uses profession-based dossier code
 }
 
 export interface CreateDossierResult {
@@ -257,10 +256,22 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
     throw new Error(`Invalid category: "${input.category}". Valid: ${Object.keys(CATEGORY_DIRS).join(', ')}`);
   }
 
-  // 2. Category code
-  const catCode = CATEGORY_TO_CODE[category];
-  if (!catCode) {
-    throw new Error(`No code mapping for category: ${category}`);
+  // 2. Determine code prefix — profession code (3-letter) or category code (2-letter)
+  let codePrefix: string;
+  let professionEntry: ReturnType<typeof lookupProfession> | undefined;
+
+  if (input.profession) {
+    professionEntry = lookupProfession(input.profession);
+    if (!professionEntry) {
+      throw new Error(`Unknown profession code: "${input.profession}". Use searchProfessions() to find valid codes.`);
+    }
+    codePrefix = professionEntry.code;
+  } else {
+    const catCode = CATEGORY_TO_CODE[category];
+    if (!catCode) {
+      throw new Error(`No code mapping for category: ${category}`);
+    }
+    codePrefix = catCode;
   }
 
   // 3. Generate F3L3
@@ -270,7 +281,7 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
   const catPath = join(crmRoot, categoryDir);
   let nextSeq = 1;
   if (existsSync(catPath)) {
-    const prefix = `${catCode}-${f3l3}-`;
+    const prefix = `${codePrefix}-${f3l3}-`;
     const entries = readdirSync(catPath, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
@@ -293,7 +304,7 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
     }
   }
 
-  const dossierCode = `${catCode}-${f3l3}-${String(nextSeq).padStart(3, '0')}`;
+  const dossierCode = `${codePrefix}-${f3l3}-${String(nextSeq).padStart(3, '0')}`;
 
   // 5. Create folder name: LASTNAME_Firstname
   const nameParts = input.name.trim().split(/\s+/);
@@ -302,18 +313,34 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
   const folderName = `${lastName.toUpperCase()}_${firstName}`;
 
   // 6. Determine template source
+  // Priority: profession templateDir (.templates/) > explicit template > category default
   const templateName = input.template || templateTypeForCategory(input.category);
-  const userTemplatesDir = join(crmRoot, '.templates', templateName);
-  const bundledTemplatesDir = join(getTemplatesDir(), templateName);
-  const categoryFallbackDir = join(getTemplatesDir(), templateTypeForCategory(input.category));
+  let templatePath: string | undefined;
 
-  let templatePath: string;
-  if (existsSync(userTemplatesDir)) {
-    templatePath = userTemplatesDir;
-  } else if (existsSync(bundledTemplatesDir)) {
-    templatePath = bundledTemplatesDir;
-  } else {
-    templatePath = categoryFallbackDir;
+  // If profession specified, check for profession-specific template first
+  if (professionEntry) {
+    const userProfTpl = join(crmRoot, '.templates', professionEntry.templateDir);
+    const bundledProfTpl = join(getTemplatesDir(), 're-crm', professionEntry.templateDir);
+    if (existsSync(userProfTpl)) {
+      templatePath = userProfTpl;
+    } else if (existsSync(bundledProfTpl)) {
+      templatePath = bundledProfTpl;
+    }
+  }
+
+  // Fall back to named template or category default
+  if (!templatePath) {
+    const userTemplatesDir = join(crmRoot, '.templates', templateName);
+    const bundledTemplatesDir = join(getTemplatesDir(), templateName);
+    const categoryFallbackDir = join(getTemplatesDir(), templateTypeForCategory(input.category));
+
+    if (existsSync(userTemplatesDir)) {
+      templatePath = userTemplatesDir;
+    } else if (existsSync(bundledTemplatesDir)) {
+      templatePath = bundledTemplatesDir;
+    } else {
+      templatePath = categoryFallbackDir;
+    }
   }
 
   const destPath = join(crmRoot, categoryDir, folderName);
@@ -324,7 +351,20 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
 
   // Ensure category directory exists
   mkdirSync(join(crmRoot, categoryDir), { recursive: true });
-  cpSync(templatePath, destPath, { recursive: true });
+
+  // Check if the template dir needs composition (has tracking file but no INDEX.md)
+  const needsCompose = templatePath && !existsSync(join(templatePath, 'INDEX.md'));
+  if (needsCompose && professionEntry) {
+    // Compose: copy COMMON base files first, then overlay profession-specific files
+    const commonDir = join(getTemplatesDir(), 're-crm', 'COMMON');
+    if (existsSync(commonDir)) {
+      cpSync(commonDir, destPath, { recursive: true });
+    }
+    // Overlay profession-specific files (tracking file, any overrides)
+    cpSync(templatePath, destPath, { recursive: true });
+  } else {
+    cpSync(templatePath, destPath, { recursive: true });
+  }
 
   // 7. Replace placeholders in all .md files
   const todayStr = today();
@@ -335,6 +375,7 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
     category: input.category,
     date: todayStr,
     context: input.context ?? '',
+    profession: input.profession ?? '',
   });
 
   // 8. Rewrite INDEX.md with proper YAML frontmatter for parseIndexYaml compatibility
@@ -351,6 +392,9 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
   indexYaml.lastUpdated = todayStr;
   if (input.context) {
     indexYaml.context = input.context;
+  }
+  if (input.profession) {
+    indexYaml.profession = input.profession;
   }
   // Remove template-only fields
   delete indexYaml.tier;
@@ -377,7 +421,7 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
  */
 function replacePlaceholdersRecursive(
   dirPath: string,
-  replacements: { name: string; dossierCode: string; organization: string; category: string; date: string; context: string },
+  replacements: { name: string; dossierCode: string; organization: string; category: string; date: string; context: string; profession: string },
 ): void {
   const entries = readdirSync(dirPath, { withFileTypes: true });
   for (const entry of entries) {
@@ -395,6 +439,7 @@ function replacePlaceholdersRecursive(
         category: replacements.category ?? '',
         context: replacements.context,
         date: replacements.date,
+        profession: replacements.profession,
       };
       for (const [key, value] of Object.entries(vars)) {
         content = content.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
