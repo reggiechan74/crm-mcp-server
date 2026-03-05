@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { join } from 'node:path';
-import { mkdtempSync, cpSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, cpSync, readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { createStore, type Store } from '../src/store.js';
 import { appendLog, updateField, createDossier, generateF3L3 } from '../src/writer.js';
@@ -193,5 +193,34 @@ describe('createDossier', () => {
     expect(result.id).toMatch(/^PE-CLOFRI-\d{3}$/);
     // Personal template has intelligence-assessment.md, not intelligence-risk.md
     expect(existsSync(join(tempDir, 'Personal', 'FRIEND_Close', 'intelligence', 'intelligence-assessment.md'))).toBe(true);
+  });
+
+  it('creates dossier from .templates/ when available', () => {
+    // Set up .templates/simple/ in the temp CRM root
+    const templatesDir = join(tempDir, '.templates', 'simple');
+    mkdirSync(templatesDir, { recursive: true });
+    writeFileSync(join(templatesDir, 'template.json'), JSON.stringify({
+      name: 'Simple', description: 'Test', sections: ['INDEX', 'log'], variables: ['name']
+    }));
+    writeFileSync(join(templatesDir, 'INDEX.md'), '---\nname: "{{name}}"\ndossierCode: "{{dossierCode}}"\ncategory: {{category}}\nstatus: Active\nlastUpdated: {{date}}\n---\n# {{name}}\n');
+    writeFileSync(join(templatesDir, 'log.md'), '---\ncontactName: "{{name}}"\nlastUpdated: {{date}}\n---\n# {{name}} - Log\n');
+
+    const result = createDossier(store, tempDir, {
+      name: 'Alice Wonder',
+      category: 'Network',
+      template: 'simple',
+    });
+
+    expect(result.id).toMatch(/^NE-ALIWON-\d{3}$/);
+
+    // Verify files were created from .templates/simple, not from bundled templates
+    const indexPath = join(tempDir, 'Network', 'WONDER_Alice', 'INDEX.md');
+    const indexContent = readFileSync(indexPath, 'utf-8');
+    expect(indexContent).toContain('Alice Wonder');
+    expect(indexContent).not.toContain('{{name}}');
+
+    // Verify log.md was created (from simple template, no profile.md)
+    expect(existsSync(join(tempDir, 'Network', 'WONDER_Alice', 'log.md'))).toBe(true);
+    expect(existsSync(join(tempDir, 'Network', 'WONDER_Alice', 'profile.md'))).toBe(false);
   });
 });

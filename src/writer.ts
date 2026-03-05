@@ -179,6 +179,7 @@ export interface CreateDossierInput {
   category: string;      // "Network" | "Client" | etc.
   organization?: string;
   context?: string;      // How you met
+  template?: string;     // Template name (looks in .templates/ then bundled templates/)
 }
 
 export interface CreateDossierResult {
@@ -300,10 +301,21 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
   const firstName = nameParts.slice(0, -1).join(' ');
   const folderName = `${lastName.toUpperCase()}_${firstName}`;
 
-  // 6. Copy template
-  const templateType = templateTypeForCategory(input.category);
-  const templatesDir = getTemplatesDir();
-  const templatePath = join(templatesDir, templateType);
+  // 6. Determine template source
+  const templateName = input.template || templateTypeForCategory(input.category);
+  const userTemplatesDir = join(crmRoot, '.templates', templateName);
+  const bundledTemplatesDir = join(getTemplatesDir(), templateName);
+  const categoryFallbackDir = join(getTemplatesDir(), templateTypeForCategory(input.category));
+
+  let templatePath: string;
+  if (existsSync(userTemplatesDir)) {
+    templatePath = userTemplatesDir;
+  } else if (existsSync(bundledTemplatesDir)) {
+    templatePath = bundledTemplatesDir;
+  } else {
+    templatePath = categoryFallbackDir;
+  }
+
   const destPath = join(crmRoot, categoryDir, folderName);
 
   if (existsSync(destPath)) {
@@ -320,6 +332,7 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
     name: input.name,
     dossierCode,
     organization: input.organization ?? '',
+    category: input.category,
     date: todayStr,
     context: input.context ?? '',
   });
@@ -364,7 +377,7 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
  */
 function replacePlaceholdersRecursive(
   dirPath: string,
-  replacements: { name: string; dossierCode: string; organization: string; date: string; context: string },
+  replacements: { name: string; dossierCode: string; organization: string; category: string; date: string; context: string },
 ): void {
   const entries = readdirSync(dirPath, { withFileTypes: true });
   for (const entry of entries) {
@@ -373,6 +386,19 @@ function replacePlaceholdersRecursive(
       replacePlaceholdersRecursive(fullPath, replacements);
     } else if (entry.name.endsWith('.md')) {
       let content = readFileSync(fullPath, 'utf-8');
+
+      // Replace {{variable}} mustache-style placeholders first
+      const vars: Record<string, string> = {
+        name: replacements.name,
+        dossierCode: replacements.dossierCode,
+        organization: replacements.organization,
+        category: replacements.category ?? '',
+        context: replacements.context,
+        date: replacements.date,
+      };
+      for (const [key, value] of Object.entries(vars)) {
+        content = content.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+      }
 
       // Replace known placeholder patterns in YAML frontmatter
       content = content.replace(/contactName:\s*"[^"]*"/g, `contactName: "${replacements.name}"`);
