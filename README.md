@@ -63,7 +63,7 @@ npx crm-mcp reindex
 
 ## Tools
 
-The server exposes 14 MCP tools:
+The server exposes 16 MCP tools:
 
 ### Core Workflow (Progressive Disclosure)
 
@@ -94,12 +94,26 @@ The server exposes 14 MCP tools:
 | `crm_audit` | Analyze dossier structural health (5 passes) |
 | `crm_repair` | Apply fixes from audit results |
 
+### Template Management
+
+| Tool | Purpose |
+|------|---------|
+| `crm_templates_list` | List installed and available remote templates |
+| `crm_templates_pull` | Download a template from GitHub to local `.templates/` |
+
 ## Dossier Structure
 
 Each contact is a folder of markdown files. Dossier codes use 2-letter category prefixes (e.g., `NW-DOEJOH-001`) or 3-letter profession prefixes when a profession is assigned (e.g., `BSB-DOEJOH-001`):
 
 ```
 CRM/
+├── .templates/                            # Local template store (single source of truth)
+│   ├── .manifest.json                     # Version + content hash tracking
+│   ├── PROFESSIONAL/
+│   ├── FAMILY/
+│   └── REAL_ESTATE/                       # Pulled on-demand from GitHub
+│       ├── COMMON/
+│       └── A_BROKERAGE_SALES/
 ├── Network/
 │   └── DOE_John/                           # NW-DOEJOH-001
 │       ├── INDEX.md          # Quick reference, status, next actions
@@ -145,45 +159,79 @@ The tracking file varies by profession — brokers get `deals.md`, appraisers ge
 
 ## Templates
 
-Four built-in templates handle different contact types:
+### Bundled Templates
+
+Four core templates ship with the package and are installed during `crm-mcp init`:
 
 | Template | Use Case | Files |
 |----------|----------|-------|
 | `simple` | Basic contacts | INDEX.md, profile.md, log.md |
-| `professional` | Clients, network, prospects | INDEX.md, profile.md, intelligence/ (3 files), log.md |
-| `family` | Family members | INDEX.md, profile.md, medical.md, education.md, intelligence/ (3 files), log.md |
-| `personal` | Friends, personal contacts | INDEX.md, profile.md, intelligence/ (3 files), log.md |
+| `PROFESSIONAL` | Clients, network, prospects | INDEX.md, profile.md, intelligence/ (3 files), log.md |
+| `FAMILY` | Family members | INDEX.md, profile.md, medical.md, education.md, intelligence/ (3 files), log.md |
+| `PERSONAL` | Friends, personal contacts | INDEX.md, profile.md, intelligence/ (3 files), log.md |
 
-Templates use `{{variable}}` substitution (name, category, date, etc.) and are fully customizable. Place custom templates in `<CRM_ROOT>/.templates/<name>/`.
+### Extended Templates (On-Demand)
+
+Extended templates are hosted on GitHub and pulled on-demand — they are **not** included in the npm package. This keeps the install lightweight while providing access to specialized template packs.
+
+#### Managing Templates
+
+```bash
+# List installed and available templates
+crm-mcp templates list
+
+# Pull a template from GitHub
+crm-mcp templates pull REAL_ESTATE
+
+# Pull a single category from a composite template
+crm-mcp templates pull REAL_ESTATE/A_BROKERAGE_SALES
+
+# Check for upstream updates (auto-updates untouched templates, skips customized ones)
+crm-mcp templates update
+
+# View template details
+crm-mcp templates info REAL_ESTATE
+```
+
+Claude can also manage templates directly through the MCP tools `crm_templates_list` and `crm_templates_pull`. If you try to create a contact with a template that isn't installed, Claude will offer to pull it for you.
+
+#### Smart Versioning
+
+Templates you install are copied to `<CRM_ROOT>/.templates/`, which serves as both the local template store and your customization layer. A `.manifest.json` file tracks versions and content hashes for each installed template.
+
+**How updates work:**
+
+| Upstream newer? | You customized it? | What happens |
+|:-:|:-:|:--|
+| No | — | Skipped (up to date) |
+| Yes | No | Auto-updated |
+| Yes | Yes | Skipped with warning (use `--force` via CLI to override) |
+
+The `--force` flag is only available via CLI, never through the MCP tool — this ensures Claude cannot accidentally overwrite your customizations.
+
+#### Custom Templates
+
+You can customize any installed template by editing files in `.templates/`. Your changes are preserved across updates (the system detects customization via content hashing). You can also create entirely new templates by adding a directory with a `template.json` manifest.
 
 ### RE-CRM Template Pack (Real Estate)
 
-A profession-specific template pack for real estate professionals, bundled at `templates/REAL_ESTATE/`:
+A profession-specific template pack for real estate professionals, available as an extended template:
 
 - **167 profession types** across 18 categories (Brokerage & Sales, Appraisal, Legal, Development, etc.)
 - **3-letter profession codes** (e.g., `BSB` = Sales Broker, `APR` = Residential Appraiser, `LRE` = Real Estate Lawyer)
 - **15 unique tracking file types** with rich section templates: deals, assignments, projects, portfolio, matters, assessments, jurisdictions, policies, campaigns, entities, holdings, programs, assets, services, engagements
 - **COMMON base templates** shared across all professions: INDEX.md (with deal velocity metrics), profile.md (6 major sections), intelligence/ (3-file split: profile, risk, strategic), log.md (with summary statistics)
 
-**Structure:**
+```bash
+# Install the full pack (all 18 categories, ~1,200 files)
+crm-mcp templates pull REAL_ESTATE
+
+# Or install just what you need
+crm-mcp templates pull REAL_ESTATE/A_BROKERAGE_SALES
+crm-mcp templates pull REAL_ESTATE/E_FINANCE_CAPITAL_MARKETS
 ```
-templates/REAL_ESTATE/
-├── COMMON/                    # Shared base files
-│   ├── INDEX.md
-│   ├── profile.md
-│   ├── intelligence/
-│   │   ├── intelligence-profile.md    # DISC, decision-making, negotiation
-│   │   ├── intelligence-risk.md       # NATO reliability rating, red flags
-│   │   └── intelligence-strategic.md  # Influence mapping, engagement strategy
-│   └── log.md
-├── BROKER_SALES/deals.md      # Sales-focused deal tracking
-├── BROKER_LEASING/deals.md    # Leasing-focused deal tracking
-├── APPRAISER/assignments.md
-├── LAWYER_RE/matters.md
-├── DEVELOPER/projects.md
-├── PROP_MANAGER/portfolio.md
-└── ... (167 profession directories)
-```
+
+When pulling individual categories, `COMMON/` (shared base files) and `template.json` (profession code mapping) are always included automatically.
 
 **Usage:** Create a profession-based dossier:
 ```
@@ -200,25 +248,39 @@ npx tsx scripts/generate-real-estate-templates.ts --force
 
 Config is read from (in priority order):
 
-1. `CRM_ROOT` environment variable
+1. Environment variables (`CRM_ROOT`, `CRM_TEMPLATE_REPO`, `CRM_GITHUB_TOKEN`)
 2. `~/.crm-mcp.json`
 3. Defaults (unconfigured mode with setup instructions)
 
 ```json
 {
   "crmRoot": "/path/to/your/CRM",
-  "templates": ["simple", "professional", "family", "personal"],
-  "defaultTemplate": "professional"
+  "templates": ["simple", "PROFESSIONAL", "FAMILY", "PERSONAL"],
+  "defaultTemplate": "PROFESSIONAL",
+  "templateRepo": "reggiechan74/crm-mcp-server",
+  "githubToken": ""
 }
 ```
+
+| Field | Default | Purpose |
+|-------|---------|---------|
+| `crmRoot` | — | Path to your CRM contact directory |
+| `templates` | `[]` | Templates selected during init |
+| `defaultTemplate` | `simple` | Template used when none specified |
+| `templateRepo` | `reggiechan74/crm-mcp-server` | GitHub repo for remote templates (forks can override) |
+| `githubToken` | — | Optional GitHub token for private repos or higher rate limits |
 
 ## CLI Commands
 
 ```bash
-crm-mcp mcp        # Start MCP server (used by Claude Code)
-crm-mcp init       # Interactive setup wizard
-crm-mcp reindex    # Rebuild SQLite index from dossier files
-crm-mcp embed      # Generate vector embeddings for semantic search
+crm-mcp mcp                    # Start MCP server (used by Claude Code)
+crm-mcp init                   # Interactive setup wizard
+crm-mcp reindex                # Rebuild SQLite index from dossier files
+crm-mcp embed                  # Generate vector embeddings for semantic search
+crm-mcp templates list         # List local and remote templates
+crm-mcp templates pull <name>  # Download template from GitHub
+crm-mcp templates update       # Smart-update installed templates
+crm-mcp templates info <name>  # Show template details
 ```
 
 ## Audit & Repair
@@ -242,7 +304,7 @@ The repair engine applies fixes in dependency order: moves → dedup → orderin
 - **SQLite** via better-sqlite3 (FTS5 for search, content cache)
 - **MCP SDK** (@modelcontextprotocol/sdk)
 - **Transformers.js** for local vector embeddings (optional)
-- **Vitest** for testing (124 tests)
+- **Vitest** for testing (140 tests)
 
 ## Development
 
