@@ -8,7 +8,7 @@
  * Usage: npx tsx scripts/generate-re-crm-templates.ts
  */
 
-import { mkdirSync, writeFileSync, cpSync, existsSync, rmSync } from 'node:fs';
+import { mkdirSync, writeFileSync, cpSync, existsSync, rmSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PROFESSIONS, type ProfessionEntry } from '../src/professions.js';
@@ -1939,9 +1939,15 @@ function main(): void {
     // Create directory
     mkdirSync(profDir, { recursive: true });
 
-    // Copy COMMON files
-    for (const file of ['INDEX.md', 'profile.md', 'intelligence.md', 'log.md']) {
-      cpSync(join(COMMON_DIR, file), join(profDir, file));
+    // Copy COMMON files (flat files + intelligence/ directory)
+    for (const entry of readdirSync(COMMON_DIR)) {
+      const src = join(COMMON_DIR, entry);
+      const dest = join(profDir, entry);
+      if (statSync(src).isDirectory()) {
+        cpSync(src, dest, { recursive: true });
+      } else {
+        cpSync(src, dest);
+      }
     }
 
     // Generate tracking file
