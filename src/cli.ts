@@ -29,11 +29,15 @@ if (command === 'mcp') {
   const result = await generateEmbeddings(store, config);
   console.log(`Done: ${result.indexed} chunks indexed, ${result.skipped} sections skipped.`);
   store.close();
+} else if (command === 'init') {
+  const { runInit } = await import('./init.js');
+  await runInit();
 } else {
-  console.log('Usage: crm-mcp <mcp|reindex|embed>');
+  console.log('Usage: crm-mcp <mcp|reindex|embed|init>');
   console.log('');
   console.log('Commands:');
-  console.log('  mcp      Start MCP server (stdio transport)');
+  console.log('  init      Initialize a new CRM directory with templates');
+  console.log('  mcp       Start MCP server (stdio transport)');
   console.log('  reindex   Re-scan and re-index all dossiers');
   console.log('  embed     Generate vector embeddings for semantic search');
 }
