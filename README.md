@@ -78,9 +78,9 @@ npx crm-mcp reindex
 
 ### Private Repository Access
 
-This repository is private. Both the marketplace and plugin install use `git clone` over SSH, so you need a valid SSH key with access to `reggiechan74/crm-mcp-server`.
+This repository is private. Access methods depend on your situation:
 
-#### Using a deploy key (recommended for CI/Codespaces)
+#### For yourself: Deploy key (recommended for CI/Codespaces)
 
 If your environment uses per-repo deploy keys with custom SSH host aliases, configure a git URL rewrite so the plugin installer resolves correctly:
 
@@ -99,9 +99,44 @@ git config --global url."git@github-crm-mcp-server:reggiechan74/crm-mcp-server".
 
 After this, both `/plugin marketplace add` and `/plugin install` will use the deploy key transparently.
 
-#### Using a personal SSH key
+#### For yourself: Personal SSH key
 
 If your default `~/.ssh/id_ed25519` (or `id_rsa`) is added to a GitHub account with access to this repo, no extra configuration is needed — `git clone git@github.com:reggiechan74/crm-mcp-server.git` will just work.
+
+#### For collaborators
+
+GitHub private repos have two access tiers:
+
+| Access Level | Method | What They Can Do |
+|-------------|--------|-----------------|
+| **Read + Write** | Add as [collaborator](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-roles/managing-an-individuals-access-to-a-repository) (Settings → Collaborators) | Clone, pull, push, install plugin |
+| **Read-only** | Fine-grained Personal Access Token (PAT) | Clone, pull, install plugin — no push |
+
+**Read + Write** — Adding a collaborator grants full read/write. They accept the invite, then clone via SSH as normal. Simple, but there's no way to restrict a collaborator to read-only on a personal repo (this is a GitHub limitation — only Organization repos support granular role-based permissions).
+
+**Read-only** — For read-only access without granting write, create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) scoped to this repo:
+
+```
+1. Go to: GitHub → Settings → Developer settings → Fine-grained personal access tokens
+2. Create a new token:
+   - Token name: crm-mcp-server-readonly (or descriptive name)
+   - Repository access: "Only select repositories" → reggiechan74/crm-mcp-server
+   - Permissions → Repository permissions → Contents: Read-only
+   - Generate token and share securely with collaborator
+3. Collaborator clones via HTTPS with the token:
+```
+
+```bash
+# Clone using PAT (collaborator runs this):
+git clone https://<TOKEN>@github.com/reggiechan74/crm-mcp-server.git
+
+# For plugin install, collaborator sets git URL rewrite to use HTTPS + token:
+git config --global url."https://<TOKEN>@github.com/reggiechan74/crm-mcp-server".insteadOf "git@github.com:reggiechan74/crm-mcp-server"
+```
+
+The collaborator can then run `/plugin marketplace add reggiechan74/crm-mcp-server` and `/plugin install crm@crm-mcp-server` normally — the git URL rewrite transparently injects the token.
+
+> **Note:** Fine-grained PATs have an expiration date (max 1 year). Set a calendar reminder to rotate before expiry. You can also revoke at any time from Settings → Developer settings → Personal access tokens.
 
 #### Verifying access
 
@@ -114,6 +149,9 @@ ssh -T git@github-crm-mcp-server
 
 # Test git access (should return a commit SHA):
 git ls-remote git@github.com:reggiechan74/crm-mcp-server.git HEAD
+
+# Test HTTPS/PAT access (for collaborators):
+git ls-remote https://<TOKEN>@github.com/reggiechan74/crm-mcp-server.git HEAD
 ```
 
 ## Tools
