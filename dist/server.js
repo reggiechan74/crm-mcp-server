@@ -118,7 +118,7 @@ function buildInstructions(store, config) {
 export function createMcpServer(store, config) {
     const server = new McpServer({ name: 'crm', version: '0.3.0' }, { instructions: buildInstructions(store, config) });
     // ── 1. crm_search ────────────────────────────────────────────────────
-    server.tool('crm_search', 'Search contacts by name, organization, status, category, or keyword. Returns compact results (~50-100 tokens each).', {
+    server.tool('crm_search', 'Search contacts by name, alias/nickname, organization, status, category, or keyword. Returns compact results (~50-100 tokens each).', {
         query: z.string().optional().describe('Name, org, or keyword to search for'),
         category: z.string().optional().describe('Filter by category: Client, Network, Family, etc.'),
         status: z.string().optional().describe('Filter by status: ACTIVE, DORMANT, etc.'),

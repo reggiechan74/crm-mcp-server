@@ -62,6 +62,13 @@ function initSchema(db) {
     catch {
         // Column already exists — safe to ignore
     }
+    // Migration: add aliases column (idempotent)
+    try {
+        db.exec('ALTER TABLE contacts ADD COLUMN aliases TEXT');
+    }
+    catch {
+        // Column already exists — safe to ignore
+    }
 }
 /**
  * Sanitize FTS5 query — escape special characters that FTS5 would interpret as operators.
@@ -84,8 +91,8 @@ export function createStore(dbPath, crmRoot) {
     // Prepared statements (created lazily to avoid issues with virtual tables)
     const stmts = {
         insertContact: db.prepare(`
-      INSERT OR REPLACE INTO contacts (id, name, category, organization, status, last_contact, last_updated, path, metadata_json, profession)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO contacts (id, name, category, organization, status, last_contact, last_updated, path, metadata_json, profession, aliases)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
         insertRelationship: db.prepare(`
       INSERT OR REPLACE INTO relationships (source_id, target_id, target_name, type, context, bidirectional)
@@ -111,7 +118,7 @@ export function createStore(dbPath, crmRoot) {
         if (!contact.id)
             return;
         // Insert contact
-        stmts.insertContact.run(contact.id, contact.name, contact.category, contact.organization, contact.status, contact.lastContact, contact.lastUpdated, contact.path, contact.metadataJson, contact.profession ?? null);
+        stmts.insertContact.run(contact.id, contact.name, contact.category, contact.organization, contact.status, contact.lastContact, contact.lastUpdated, contact.path, contact.metadataJson, contact.profession ?? null, contact.aliases ?? null);
         // Extract and insert relationships
         const rels = extractRelationships(dossierPath, contact.id);
         for (const rel of rels) {
@@ -185,9 +192,8 @@ export function createStore(dbPath, crmRoot) {
             const conditions = [];
             const params = [];
             if (query) {
-                // Try name LIKE match first
-                conditions.push('name LIKE ?');
-                params.push(`%${query}%`);
+                conditions.push('(name LIKE ? OR aliases LIKE ?)');
+                params.push(`%${query}%`, `%${query}%`);
             }
             if (category) {
                 conditions.push('category = ?');
@@ -294,6 +300,7 @@ export function createStore(dbPath, crmRoot) {
                 path: row.path,
                 metadataJson: row.metadata_json,
                 profession: row.profession ?? undefined,
+                aliases: row.aliases ?? undefined,
             };
             // Get fresh section metadata from filesystem
             const dossierPath = join(crmRoot, contact.path);

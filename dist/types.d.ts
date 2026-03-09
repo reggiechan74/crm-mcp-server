@@ -13,6 +13,7 @@ export interface Contact {
     path: string;
     metadataJson: string;
     profession?: string;
+    aliases?: string;
 }
 export interface SectionMeta {
     file: string;

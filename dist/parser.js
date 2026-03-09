@@ -65,6 +65,10 @@ export function parseIndexYaml(dossierPath) {
             return val.toISOString().slice(0, 10);
         return String(val);
     };
+    const aliasesRaw = yaml.aliases;
+    const aliases = Array.isArray(aliasesRaw)
+        ? JSON.stringify(aliasesRaw.map(String))
+        : undefined;
     return {
         id: String(yaml.dossierCode ?? ''),
         name: String(yaml.name ?? ''),
@@ -76,6 +80,7 @@ export function parseIndexYaml(dossierPath) {
         path: basename(dirname(dossierPath)) + '/' + basename(dossierPath),
         metadataJson: JSON.stringify(yaml),
         profession: yaml.profession ? String(yaml.profession) : undefined,
+        aliases,
     };
 }
 // Patterns that indicate placeholder/boilerplate content

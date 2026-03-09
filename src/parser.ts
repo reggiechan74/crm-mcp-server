@@ -75,7 +75,7 @@ export function parseIndexYaml(dossierPath: string): Contact {
   const aliasesRaw = yaml.aliases;
   const aliases = Array.isArray(aliasesRaw)
     ? JSON.stringify(aliasesRaw.map(String))
-    : null;
+    : undefined;
 
   return {
     id: String(yaml.dossierCode ?? ''),
