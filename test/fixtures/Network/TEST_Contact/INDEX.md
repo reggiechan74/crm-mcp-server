@@ -1,5 +1,8 @@
 ---
 name: "Test Contact"
+aliases:
+  - "TC"
+  - "Testy"
 dossierCode: "NE-TESCON-001"
 organization: "Test Corp"
 relationshipType: "network"
