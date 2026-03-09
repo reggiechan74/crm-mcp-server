@@ -51,6 +51,38 @@ describe('searchContacts', () => {
   });
 });
 
+describe('searchContacts — alias support', () => {
+  it('finds contact by alias', () => {
+    const results = store.searchContacts({ query: 'TC' });
+    expect(results.length).toBe(1);
+    expect(results[0].name).toBe('Test Contact');
+  });
+
+  it('finds contact by partial alias', () => {
+    const results = store.searchContacts({ query: 'Testy' });
+    expect(results.length).toBe(1);
+    expect(results[0].name).toBe('Test Contact');
+  });
+
+  it('finds family contact by nickname with category filter', () => {
+    const results = store.searchContacts({ query: 'Izzy', category: 'Family' });
+    expect(results.length).toBe(1);
+    expect(results[0].name).toBe('Isabella Persona');
+  });
+
+  it('finds family contact by alternate alias', () => {
+    const results = store.searchContacts({ query: 'Bella' });
+    expect(results.length).toBe(1);
+    expect(results[0].name).toBe('Isabella Persona');
+  });
+
+  it('still finds contact by name when aliases exist', () => {
+    const results = store.searchContacts({ query: 'Test Contact' });
+    expect(results.length).toBe(1);
+    expect(results[0].name).toBe('Test Contact');
+  });
+});
+
 describe('fullTextSearch', () => {
   it('finds content across dossier sections', () => {
     const results = store.fullTextSearch('competitor XYZ');
