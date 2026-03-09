@@ -1,5 +1,5 @@
 ---
-name: "Isabella Test-Person"
+name: "Isabella Persona"
 aliases:
   - "Izzy"
   - "Bella"
@@ -11,7 +11,7 @@ lastContactDate: 2026-02-01
 lastUpdated: 2026-02-01
 ---
 
-# Isabella Test-Person - Quick Reference
+# Isabella Persona - Quick Reference
 
 ## I. EXECUTIVE SUMMARY
 
