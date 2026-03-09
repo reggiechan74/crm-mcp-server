@@ -139,7 +139,7 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
   // ── 1. crm_search ────────────────────────────────────────────────────
   server.tool(
     'crm_search',
-    'Search contacts by name, organization, status, category, or keyword. Returns compact results (~50-100 tokens each).',
+    'Search contacts by name, alias/nickname, organization, status, category, or keyword. Returns compact results (~50-100 tokens each).',
     {
       query: z.string().optional().describe('Name, org, or keyword to search for'),
       category: z.string().optional().describe('Filter by category: Client, Network, Family, etc.'),

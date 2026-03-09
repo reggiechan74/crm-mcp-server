@@ -421,6 +421,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
         path: row.path,
         metadataJson: row.metadata_json,
         profession: row.profession ?? undefined,
+        aliases: row.aliases ?? undefined,
       };
 
       // Get fresh section metadata from filesystem
