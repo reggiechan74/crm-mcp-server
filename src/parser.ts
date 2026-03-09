@@ -72,6 +72,11 @@ export function parseIndexYaml(dossierPath: string): Contact {
     return String(val);
   };
 
+  const aliasesRaw = yaml.aliases;
+  const aliases = Array.isArray(aliasesRaw)
+    ? JSON.stringify(aliasesRaw.map(String))
+    : null;
+
   return {
     id: String(yaml.dossierCode ?? ''),
     name: String(yaml.name ?? ''),
@@ -83,6 +88,7 @@ export function parseIndexYaml(dossierPath: string): Contact {
     path: basename(dirname(dossierPath)) + '/' + basename(dossierPath),
     metadataJson: JSON.stringify(yaml),
     profession: yaml.profession ? String(yaml.profession) : undefined,
+    aliases,
   };
 }
 

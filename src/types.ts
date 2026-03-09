@@ -30,6 +30,7 @@ export interface Contact {
   path: string;
   metadataJson: string;
   profession?: string;
+  aliases?: string;  // JSON-serialized array, e.g. '["Izzy","Bella"]'
 }
 
 export interface SectionMeta {

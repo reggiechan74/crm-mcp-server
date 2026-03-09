@@ -107,6 +107,13 @@ function initSchema(db: Database): void {
   } catch {
     // Column already exists — safe to ignore
   }
+
+  // Migration: add aliases column (idempotent)
+  try {
+    db.exec('ALTER TABLE contacts ADD COLUMN aliases TEXT');
+  } catch {
+    // Column already exists — safe to ignore
+  }
 }
 
 /**
@@ -132,8 +139,8 @@ export function createStore(dbPath: string, crmRoot: string): Store {
   // Prepared statements (created lazily to avoid issues with virtual tables)
   const stmts = {
     insertContact: db.prepare(`
-      INSERT OR REPLACE INTO contacts (id, name, category, organization, status, last_contact, last_updated, path, metadata_json, profession)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO contacts (id, name, category, organization, status, last_contact, last_updated, path, metadata_json, profession, aliases)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
     insertRelationship: db.prepare(`
       INSERT OR REPLACE INTO relationships (source_id, target_id, target_name, type, context, bidirectional)
@@ -178,6 +185,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
       contact.path,
       contact.metadataJson,
       contact.profession ?? null,
+      contact.aliases ?? null,
     );
 
     // Extract and insert relationships
@@ -292,9 +300,8 @@ export function createStore(dbPath: string, crmRoot: string): Store {
       const params: any[] = [];
 
       if (query) {
-        // Try name LIKE match first
-        conditions.push('name LIKE ?');
-        params.push(`%${query}%`);
+        conditions.push('(name LIKE ? OR aliases LIKE ?)');
+        params.push(`%${query}%`, `%${query}%`);
       }
       if (category) {
         conditions.push('category = ?');
