@@ -1,5 +1,5 @@
 import { readFileSync, statSync, existsSync, readdirSync } from 'node:fs';
-import { join, basename, dirname } from 'node:path';
+import { join, basename, dirname, relative } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { Contact, SectionMeta, Relationship, Category } from './types.js';
 import { SECTION_FILES, CATEGORY_DIRS } from './types.js';
@@ -322,7 +322,27 @@ function buildSectionMeta(fullPath: string, file: string): SectionMeta {
 }
 
 /**
+ * Recursively collect all .md files under a directory,
+ * returning paths relative to the root directory.
+ */
+export function collectMdFiles(dir: string, root?: string): string[] {
+  const base = root ?? dir;
+  const results: string[] = [];
+
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...collectMdFiles(full, base));
+    } else if (entry.name.endsWith('.md')) {
+      results.push(relative(base, full));
+    }
+  }
+  return results;
+}
+
+/**
  * Scan a dossier directory and return metadata for each existing section file.
+ * Discovers all .md files recursively — both standard sections and custom files.
  */
 export function scanDossierSections(dossierPath: string): SectionMeta[] {
   const results: SectionMeta[] = [];
@@ -330,20 +350,20 @@ export function scanDossierSections(dossierPath: string): SectionMeta[] {
   // Known section files from the standard dossier structure
   const knownFiles = new Set(Object.values(SECTION_FILES));
 
+  // First: index known section files in their canonical order
   for (const [, file] of Object.entries(SECTION_FILES)) {
     const fullPath = join(dossierPath, file);
     if (!existsSync(fullPath)) continue;
     results.push(buildSectionMeta(fullPath, file));
   }
 
-  // Scan for extra .md files not in SECTION_FILES (profession-specific tracking files)
+  // Then: recursively discover all other .md files
   if (existsSync(dossierPath)) {
-    for (const entry of readdirSync(dossierPath)) {
-      if (!entry.endsWith('.md')) continue;
-      if (knownFiles.has(entry)) continue;
-      const fullPath = join(dossierPath, entry);
+    for (const relPath of collectMdFiles(dossierPath)) {
+      if (knownFiles.has(relPath)) continue;
+      const fullPath = join(dossierPath, relPath);
       if (!statSync(fullPath).isFile()) continue;
-      results.push(buildSectionMeta(fullPath, entry));
+      results.push(buildSectionMeta(fullPath, relPath));
     }
   }
 

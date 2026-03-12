@@ -164,7 +164,7 @@ export function createMcpServer(store, config) {
         }
     });
     // ── 3. crm_read ──────────────────────────────────────────────────────
-    server.tool('crm_read', 'Read a specific section of a contact\'s dossier. Returns cleaned content with boilerplate stripped. Standard sections: index, profile, log, intelligence-profile, intelligence-strategic, intelligence-risk, medical, medical-genetics, medical-pharmacogenomics, medical-labs, education. Profession-specific sections: deals, assignments, projects, portfolio, matters, assessments, jurisdictions, policies, campaigns, entities, holdings, programs, assets, services, engagements.', {
+    server.tool('crm_read', 'Read a specific section of a contact\'s dossier. Returns cleaned content with boilerplate stripped. Standard sections: index, profile, log, intelligence-profile, intelligence-strategic, intelligence-risk, medical, medical-genetics, medical-pharmacogenomics, medical-labs, education. Profession-specific sections: deals, assignments, projects, portfolio, matters, assessments, jurisdictions, policies, campaigns, entities, holdings, programs, assets, services, engagements. Any custom file visible in crm_outline is also addressable by its relative path (e.g., "intelligence/intelligence-unsent").', {
         contact: z.string().describe('Contact name or dossier code'),
         section: z.string().describe('Section name (e.g., "profile", "deals", "assignments")'),
     }, async ({ contact, section }) => {

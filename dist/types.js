@@ -30,17 +30,17 @@ export const SECTION_FILES = {
  * Resolve a section name to its file path.
  * Accepts any format: "index", "INDEX.md", "intelligence-profile", "intelligence/intelligence-profile.md"
  * Known sections use the SECTION_FILES map; unknown sections (e.g. profession-specific
- * tracking files like "deals", "assignments") fall back to `${section}.md`.
+ * tracking files like "deals", "assignments", or custom files like "intelligence/intelligence-unsent")
+ * preserve their full relative path with .md extension.
  */
 export function resolveSectionFile(section) {
-    // Normalize: strip path prefix, .md suffix, and lowercase for lookup
-    const normalized = section
-        .replace(/^.*\//, '') // strip directory prefix (e.g. "intelligence/")
-        .replace(/\.md$/i, '') // strip .md suffix
-        .toLowerCase();
-    if (normalized in SECTION_FILES)
-        return SECTION_FILES[normalized];
-    // Unknown section — use the normalized name with .md
-    return `${normalized}.md`;
+    // Strip .md suffix for lookup
+    const withoutMd = section.replace(/\.md$/i, '');
+    // Try flat key (strip directory prefix) against known sections
+    const flatKey = withoutMd.replace(/^.*\//, '').toLowerCase();
+    if (flatKey in SECTION_FILES)
+        return SECTION_FILES[flatKey];
+    // Unknown section — preserve the full relative path with .md
+    return `${withoutMd}.md`;
 }
 //# sourceMappingURL=types.js.map

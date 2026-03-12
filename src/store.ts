@@ -4,6 +4,7 @@ import {
   stripBoilerplate,
   scanDossierSections,
   extractRelationships,
+  collectMdFiles,
 } from './parser.js';
 import {
   SECTION_FILES,
@@ -12,10 +13,9 @@ import {
   type SectionMeta,
   type Relationship,
   type SearchResult,
-  type DossierSection,
 } from './types.js';
 import fg from 'fast-glob';
-import { readFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 
@@ -224,15 +224,15 @@ export function createStore(dbPath: string, crmRoot: string): Store {
       );
     }
 
-    // Index extra .md files not in SECTION_FILES (profession-specific tracking files)
+    // Index all other .md files recursively (custom and profession-specific)
     const knownFiles = new Set(Object.values(SECTION_FILES));
-    for (const entry of readdirSync(dossierPath)) {
-      if (!entry.endsWith('.md')) continue;
-      if (knownFiles.has(entry)) continue;
-      const filePath = join(dossierPath, entry);
+    for (const relPath of collectMdFiles(dossierPath)) {
+      if (knownFiles.has(relPath)) continue;
+      const filePath = join(dossierPath, relPath);
       if (!statSync(filePath).isFile()) continue;
 
-      const sectionKey = entry.replace(/\.md$/, '');
+      // Section key = relative path without .md (e.g. "intelligence/intelligence-unsent")
+      const sectionKey = relPath.replace(/\.md$/, '');
       const raw = readFileSync(filePath, 'utf-8');
       const hash = createHash('sha256').update(raw).digest('hex');
       const cleaned = stripBoilerplate(raw);
@@ -580,8 +580,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
         const contact = stmts.getContactPath.get(row.contact_id) as any;
         if (!contact) continue;
 
-        const sectionFile = SECTION_FILES[row.section as DossierSection];
-        if (!sectionFile) continue;
+        const sectionFile = resolveSectionFile(row.section);
 
         const filePath = join(crmRoot, contact.path, sectionFile);
         if (!existsSync(filePath)) continue;

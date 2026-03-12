@@ -1,8 +1,8 @@
 import { openDatabase, loadSqliteVec } from './db.js';
-import { parseIndexYaml, stripBoilerplate, scanDossierSections, extractRelationships, } from './parser.js';
+import { parseIndexYaml, stripBoilerplate, scanDossierSections, extractRelationships, collectMdFiles, } from './parser.js';
 import { SECTION_FILES, resolveSectionFile, } from './types.js';
 import fg from 'fast-glob';
-import { readFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 function fileHash(filePath) {
@@ -136,17 +136,16 @@ export function createStore(dbPath, crmRoot) {
             db.prepare('INSERT INTO content_fts (contact_id, section, content) VALUES (?, ?, ?)').run(contact.id, sectionKey, cleaned);
             stmts.insertContentCache.run(contact.id, sectionKey, hash, cleaned, now);
         }
-        // Index extra .md files not in SECTION_FILES (profession-specific tracking files)
+        // Index all other .md files recursively (custom and profession-specific)
         const knownFiles = new Set(Object.values(SECTION_FILES));
-        for (const entry of readdirSync(dossierPath)) {
-            if (!entry.endsWith('.md'))
+        for (const relPath of collectMdFiles(dossierPath)) {
+            if (knownFiles.has(relPath))
                 continue;
-            if (knownFiles.has(entry))
-                continue;
-            const filePath = join(dossierPath, entry);
+            const filePath = join(dossierPath, relPath);
             if (!statSync(filePath).isFile())
                 continue;
-            const sectionKey = entry.replace(/\.md$/, '');
+            // Section key = relative path without .md (e.g. "intelligence/intelligence-unsent")
+            const sectionKey = relPath.replace(/\.md$/, '');
             const raw = readFileSync(filePath, 'utf-8');
             const hash = createHash('sha256').update(raw).digest('hex');
             const cleaned = stripBoilerplate(raw);
@@ -418,9 +417,7 @@ export function createStore(dbPath, crmRoot) {
                 const contact = stmts.getContactPath.get(row.contact_id);
                 if (!contact)
                     continue;
-                const sectionFile = SECTION_FILES[row.section];
-                if (!sectionFile)
-                    continue;
+                const sectionFile = resolveSectionFile(row.section);
                 const filePath = join(crmRoot, contact.path, sectionFile);
                 if (!existsSync(filePath))
                     continue;
