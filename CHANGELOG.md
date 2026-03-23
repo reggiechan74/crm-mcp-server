@@ -2,6 +2,11 @@
 
 All notable changes to crm-mcp-server are documented here.
 
+## [0.4.3] - 2026-03-23
+
+### Changed
+- `analyze-subject` refactored to v4.0 — 78% size reduction (1624→354 lines). Explicit INDEX.md population rules, search checklists replacing empty template tables, condensed verification protocol, removed legacy dossier support, parallel sub-agent dispatch pattern baked in.
+
 ## [0.4.2] - 2026-03-23
 
 ### Added
