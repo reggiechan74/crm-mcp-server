@@ -2,6 +2,20 @@
 
 All notable changes to crm-mcp-server are documented here.
 
+## [0.4.2] - 2026-03-23
+
+### Added
+- `analyze-subject` skill — comprehensive OSINT intelligence gathering combining Gmail, Limitless, and web sources to build detailed profiles with behavioral analysis, manipulation detection, and risk scoring. Migrated from reggie-life-plan local skill to CRM plugin. Invocable as `/crm:analyze-subject [Name]`.
+
+### Changed
+- Internal references updated from `/create-dossier` to `crm_create` MCP tool
+- `Task` tool references updated to `Agent` tool
+
+## [0.4.1] - 2026-03-15
+
+### Fixed
+- Minor bug fixes and stability improvements
+
 ## [0.4.0] - 2026-03-05
 
 19 plugin-bundled skills that orchestrate MCP tools into higher-level workflows, triggered by natural conversation.
