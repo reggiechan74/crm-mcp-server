@@ -3,6 +3,7 @@
   "version": "0.4.3",
   "description": "CRM contact intelligence MCP server for Claude Code — token-optimized dossier search and management",
   "type": "module",
+  "main": "dist/cli.js",
   "bin": {
     "crm-mcp": "dist/cli.js"
   },
