@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "crm",
-      "version": "0.4.3",
+      "version": "0.4.4",
       "source": "./",
       "description": "Token-optimized CRM with progressive disclosure — search, relationship graphs, and contact management via MCP"
     }

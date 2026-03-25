@@ -2,6 +2,18 @@
 
 All notable changes to crm-mcp-server are documented here.
 
+## [0.4.4] - 2026-03-25
+
+### Added
+- Dedicated `mcp-entry.js` entrypoint for plugin launcher compatibility
+- `refresh-crm` skill for rebuilding and syncing the plugin runtime
+- `version-bump` skill for atomic version updates across all files
+
+### Fixed
+- Node.js engine requirement lowered from `>=22` to `>=18` (server works fine on Node 18+)
+- `plugin.json` version sync — was stuck at `0.4.1` while other files were at `0.4.3`
+- README badge now reflects correct Node.js version
+
 ## [0.4.3] - 2026-03-23
 
 ### Changed
