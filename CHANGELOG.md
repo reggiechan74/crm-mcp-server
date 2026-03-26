@@ -2,6 +2,13 @@
 
 All notable changes to crm-mcp-server are documented here.
 
+## [0.5.0] - 2026-03-25
+
+### Changed
+- Switched from tsc multi-file output to esbuild bundled distribution (`dist/mcp-server.mjs` + `dist/cli.mjs`)
+- Eliminated build step on consumer side — `git pull` is sufficient for code-only updates
+- Removed invalid `model: default` frontmatter from all 21 skills
+
 ## [0.4.4] - 2026-03-25
 
 ### Added
