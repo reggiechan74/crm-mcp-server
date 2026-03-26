@@ -1,11 +1,12 @@
 # CRM MCP Server
 
+[![Version](https://img.shields.io/badge/Version-0.5.0-FF6B35)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A518-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP Tools](https://img.shields.io/badge/MCP_Tools-16-8B5CF6)](https://modelcontextprotocol.io/)
-[![Tests](https://img.shields.io/badge/Tests-140-2EA043)](test/)
-[![Skills](https://img.shields.io/badge/Skills-19-E879F9)](skills/)
+[![Tests](https://img.shields.io/badge/Tests-144-2EA043)](test/)
+[![Skills](https://img.shields.io/badge/Skills-23-E879F9)](skills/)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-F97316?logo=anthropic&logoColor=white)](https://claude.ai/code)
 
 A personal CRM system built as an [MCP](https://modelcontextprotocol.io/) server for [Claude Code](https://claude.ai/code). Manage contacts, dossiers, and relationship intelligence through natural conversation — no GUI needed.
