@@ -17,7 +17,6 @@ allowed-tools:
   - mcp__plugin_crm_crm__crm_bulk_update
   - mcp__plugin_crm_crm__crm_create
   - AskUserQuestion
-model: sonnet
 ---
 
 ## Purpose

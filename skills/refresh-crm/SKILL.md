@@ -4,7 +4,6 @@ description: Rebuild CRM plugin dist and sync to the Claude Code runtime directo
 allowed-tools:
   - Bash
   - Read
-model: haiku
 ---
 
 ## Purpose

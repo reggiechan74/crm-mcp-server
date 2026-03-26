@@ -18,7 +18,6 @@ allowed-tools:
   - mcp__plugin_crm_crm__crm_create
   - AskUserQuestion
   - Read
-model: default
 ---
 
 ## Purpose

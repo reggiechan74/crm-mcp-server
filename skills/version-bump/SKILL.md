@@ -7,7 +7,6 @@ allowed-tools:
   - Edit
   - Write
   - AskUserQuestion
-model: haiku
 ---
 
 ## Purpose

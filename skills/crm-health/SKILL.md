@@ -20,7 +20,6 @@ allowed-tools:
   - Bash
   - Read
   - Write
-model: haiku
 ---
 
 ## Purpose
