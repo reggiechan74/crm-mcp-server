@@ -2,7 +2,7 @@
   "mcpServers": {
     "crm": {
       "type": "stdio",
-      "command": "${CLAUDE_PLUGIN_ROOT}/dist/mcp-entry.js"
+      "command": "${CLAUDE_PLUGIN_ROOT}/dist/mcp-server.mjs"
     }
   }
 }

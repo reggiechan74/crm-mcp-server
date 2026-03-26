@@ -3,9 +3,9 @@
   "version": "0.4.4",
   "description": "CRM contact intelligence MCP server for Claude Code — token-optimized dossier search and management",
   "type": "module",
-  "main": "dist/cli.js",
+  "main": "dist/cli.mjs",
   "bin": {
-    "crm-mcp": "dist/cli.js"
+    "crm-mcp": "dist/cli.mjs"
   },
   "files": [
     "dist/",
@@ -15,7 +15,8 @@
     "templates/PERSONAL/"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && printf '#!/usr/bin/env node\n' | cat - dist/cli.js > dist/cli.tmp && mv dist/cli.tmp dist/cli.js && chmod +x dist/cli.js && chmod +x dist/mcp-entry.js",
+    "build": "node esbuild.config.mjs && chmod +x dist/mcp-server.mjs dist/cli.mjs",
+    "build:tsc": "tsc -p tsconfig.json",
     "dev": "tsx src/cli.ts",
     "test": "vitest run --reporter=verbose",
     "test:watch": "vitest --reporter=verbose"
@@ -37,6 +38,7 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.0",
+    "esbuild": "^0.27.4",
     "tsx": "^4.0.0",
     "typescript": "^5.9.3",
     "vitest": "^3.0.0"
