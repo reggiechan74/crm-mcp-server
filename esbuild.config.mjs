@@ -6,10 +6,15 @@ const shared = {
   target: 'node18',
   format: 'esm',
   sourcemap: true,
-  // All npm packages stay external — only our source code gets bundled.
-  // This avoids CJS/ESM interop headaches and keeps node_modules as the
-  // single source of truth for dependencies.
-  packages: 'external',
+  // CJS packages (yaml, fast-glob, etc.) use require() internally. In an ESM bundle,
+  // esbuild's synthetic __require shim can't resolve Node.js built-ins (process, path).
+  // Injecting createRequire at the top gives bundled CJS code a real require() that works.
+  banner: {
+    js: "import { createRequire as __createRequire } from 'module'; const require = __createRequire(import.meta.url);",
+  },
+  // better-sqlite3 and sqlite-vec: native addons, loaded via createRequire
+  // @huggingface/transformers: optional embedding dep, pulls in onnxruntime-node (.node binaries)
+  external: ['better-sqlite3', 'sqlite-vec', '@huggingface/transformers'],
 };
 
 // MCP server entry — what the plugin system runs
