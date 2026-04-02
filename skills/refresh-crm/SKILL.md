@@ -54,9 +54,11 @@ Tell the user:
 ## Key Architecture Note
 Claude Code's plugin system for single-plugin-repo marketplaces uses the **marketplace clone** (`~/.claude/plugins/marketplaces/<name>/`) as the runtime directory. `${CLAUDE_PLUGIN_ROOT}` points there, NOT to the cache directory (`~/.claude/plugins/cache/<name>/`). The cache is used for version tracking and plugin metadata only.
 
-## Build Architecture (v0.4.5+)
-- **esbuild** bundles all source TypeScript into two files: `dist/mcp-server.mjs` (MCP entry) and `dist/cli.mjs` (CLI)
-- All npm packages are marked external (`packages: 'external'`) — resolved from node_modules at runtime
-- Native deps (`better-sqlite3`, `sqlite-vec`) and heavy deps (`@huggingface/transformers`) stay in node_modules
-- Pure JS deps (`@modelcontextprotocol/sdk`, `yaml`, `zod`, `fast-glob`) also stay in node_modules but could be inlined in a future iteration
+## Build Architecture (v0.5.0+)
+- **esbuild** bundles all source TypeScript into two self-contained files: `dist/mcp-server.mjs` (MCP entry) and `dist/cli.mjs` (CLI) — ~1.6MB each
+- All JS deps (`@modelcontextprotocol/sdk`, `yaml`, `zod`, `fast-glob`, etc.) are **bundled inline** — no `node_modules/` required for JS packages
+- Only native addons stay external: `external: ['better-sqlite3', 'sqlite-vec', '@huggingface/transformers']` — compiled C++ binaries that esbuild cannot inline
+- A `createRequire` banner fixes CJS/ESM interop: `import { createRequire as __createRequire } from 'module'; const require = __createRequire(import.meta.url);`
+- **`packages: 'external'` is incorrect** — marks ALL deps external, requiring a full `node_modules/` at runtime. Use selective `external: [...]` for native addons only.
 - **No TypeScript compiler needed at runtime** — only esbuild during development
+- **Fresh Codespace:** after `git pull`, run `/crm:setup` to install the two required native addons (`better-sqlite3`, `sqlite-vec`)
