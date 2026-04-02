@@ -20054,6 +20054,9 @@ function createStore(dbPath, crmRoot) {
       INSERT OR REPLACE INTO content_cache (contact_id, section, file_hash, cleaned_content, cleaned_at)
       VALUES (?, ?, ?, ?, ?)
     `),
+    insertContentFts: db.prepare(
+      "INSERT INTO content_fts (contact_id, section, content) VALUES (?, ?, ?)"
+    ),
     getContact: db.prepare("SELECT * FROM contacts WHERE id = ?"),
     getContactPath: db.prepare("SELECT path FROM contacts WHERE id = ?"),
     getContentCache: db.prepare(
@@ -20101,9 +20104,7 @@ function createStore(dbPath, crmRoot) {
       const hash2 = createHash("sha256").update(raw).digest("hex");
       const cleaned = stripBoilerplate(raw);
       const now = (/* @__PURE__ */ new Date()).toISOString();
-      db.prepare(
-        "INSERT INTO content_fts (contact_id, section, content) VALUES (?, ?, ?)"
-      ).run(contact.id, sectionKey, cleaned);
+      stmts.insertContentFts.run(contact.id, sectionKey, cleaned);
       stmts.insertContentCache.run(
         contact.id,
         sectionKey,
@@ -20122,9 +20123,7 @@ function createStore(dbPath, crmRoot) {
       const hash2 = createHash("sha256").update(raw).digest("hex");
       const cleaned = stripBoilerplate(raw);
       const now = (/* @__PURE__ */ new Date()).toISOString();
-      db.prepare(
-        "INSERT INTO content_fts (contact_id, section, content) VALUES (?, ?, ?)"
-      ).run(contact.id, sectionKey, cleaned);
+      stmts.insertContentFts.run(contact.id, sectionKey, cleaned);
       stmts.insertContentCache.run(
         contact.id,
         sectionKey,
@@ -20138,18 +20137,21 @@ function createStore(dbPath, crmRoot) {
     db,
     crmRoot,
     indexAll() {
-      db.exec("DELETE FROM contacts");
-      db.exec("DELETE FROM relationships");
-      db.exec("DELETE FROM content_fts");
-      db.exec("DELETE FROM content_cache");
       const indexFiles = import_fast_glob.default.sync("*/*/INDEX.md", { cwd: crmRoot });
-      for (const relPath of indexFiles) {
-        try {
-          indexDossier(dirname2(relPath));
-        } catch (err) {
-          console.error(`Failed to index ${relPath}:`, err);
+      const runIndex = db.transaction(() => {
+        db.exec("DELETE FROM contacts");
+        db.exec("DELETE FROM relationships");
+        db.exec("DELETE FROM content_fts");
+        db.exec("DELETE FROM content_cache");
+        for (const relPath of indexFiles) {
+          try {
+            indexDossier(dirname2(relPath));
+          } catch (err) {
+            console.error(`Failed to index ${relPath}:`, err);
+          }
         }
-      }
+      });
+      runIndex();
     },
     indexOne(dossierRelPath) {
       const dossierPath = join3(crmRoot, dossierRelPath);

@@ -150,6 +150,9 @@ export function createStore(dbPath: string, crmRoot: string): Store {
       INSERT OR REPLACE INTO content_cache (contact_id, section, file_hash, cleaned_content, cleaned_at)
       VALUES (?, ?, ?, ?, ?)
     `),
+    insertContentFts: db.prepare(
+      'INSERT INTO content_fts (contact_id, section, content) VALUES (?, ?, ?)',
+    ),
     getContact: db.prepare('SELECT * FROM contacts WHERE id = ?'),
     getContactPath: db.prepare('SELECT path FROM contacts WHERE id = ?'),
     getContentCache: db.prepare(
@@ -211,9 +214,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
       const cleaned = stripBoilerplate(raw);
       const now = new Date().toISOString();
 
-      db.prepare(
-        'INSERT INTO content_fts (contact_id, section, content) VALUES (?, ?, ?)',
-      ).run(contact.id, sectionKey, cleaned);
+      stmts.insertContentFts.run(contact.id, sectionKey, cleaned);
 
       stmts.insertContentCache.run(
         contact.id,
@@ -238,9 +239,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
       const cleaned = stripBoilerplate(raw);
       const now = new Date().toISOString();
 
-      db.prepare(
-        'INSERT INTO content_fts (contact_id, section, content) VALUES (?, ?, ?)',
-      ).run(contact.id, sectionKey, cleaned);
+      stmts.insertContentFts.run(contact.id, sectionKey, cleaned);
 
       stmts.insertContentCache.run(
         contact.id,
@@ -257,22 +256,28 @@ export function createStore(dbPath: string, crmRoot: string): Store {
     crmRoot,
 
     indexAll(): void {
-      // Clear existing data
-      db.exec('DELETE FROM contacts');
-      db.exec('DELETE FROM relationships');
-      db.exec('DELETE FROM content_fts');
-      db.exec('DELETE FROM content_cache');
-
-      // Find all INDEX.md files under crmRoot
+      // Scan filesystem before opening the transaction (avoids holding write lock during I/O)
       const indexFiles = fg.sync('*/*/INDEX.md', { cwd: crmRoot });
 
-      for (const relPath of indexFiles) {
-        try {
-          indexDossier(dirname(relPath));
-        } catch (err) {
-          console.error(`Failed to index ${relPath}:`, err);
+      // Wrap all deletes and inserts in a single transaction for 10-50x speedup.
+      // Without this, each insert is its own implicit transaction — with 100+ contacts
+      // and 600+ files, startup blocked the MCP handshake past Claude Code's timeout.
+      const runIndex = db.transaction(() => {
+        db.exec('DELETE FROM contacts');
+        db.exec('DELETE FROM relationships');
+        db.exec('DELETE FROM content_fts');
+        db.exec('DELETE FROM content_cache');
+
+        for (const relPath of indexFiles) {
+          try {
+            indexDossier(dirname(relPath));
+          } catch (err) {
+            console.error(`Failed to index ${relPath}:`, err);
+          }
         }
-      }
+      });
+
+      runIndex();
     },
 
     indexOne(dossierRelPath: string): void {
