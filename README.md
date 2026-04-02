@@ -1,11 +1,11 @@
 # CRM MCP Server
 
-[![Version](https://img.shields.io/badge/Version-0.5.0-FF6B35)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-0.5.3-FF6B35)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A518-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP Tools](https://img.shields.io/badge/MCP_Tools-16-8B5CF6)](https://modelcontextprotocol.io/)
-[![Tests](https://img.shields.io/badge/Tests-144-2EA043)](test/)
+[![Tests](https://img.shields.io/badge/Tests-145-2EA043)](test/)
 [![Skills](https://img.shields.io/badge/Skills-23-E879F9)](skills/)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-F97316?logo=anthropic&logoColor=white)](https://claude.ai/code)
 
@@ -213,7 +213,7 @@ The server exposes 16 MCP tools:
 
 ## Skills
 
-The plugin bundles 19 skills that orchestrate MCP tools into higher-level workflows. Skills trigger automatically from natural conversation — just describe what you need.
+The plugin bundles 23 skills that orchestrate MCP tools into higher-level workflows. Skills trigger automatically from natural conversation — just describe what you need.
 
 ### Preparation
 
@@ -238,6 +238,7 @@ The plugin bundles 19 skills that orchestrate MCP tools into higher-level workfl
 | `enrich-contact` | "enrich [name]", "fill out [name]'s dossier", "what's missing for [name]" | opus |
 | `find-path` | "who can introduce me to [name]", "warm intro options", "connection path to [org]" | opus |
 | `competitive-intel` | "what do I know about [org]", "competitive intel", "who do I know at [org]" | sonnet |
+| `analyze-subject` | "analyze [name]", "OSINT on [name]", "deep research on [name]", "intelligence report for [name]" | opus |
 
 ### Reporting
 
@@ -258,6 +259,14 @@ The plugin bundles 19 skills that orchestrate MCP tools into higher-level workfl
 | `education-tracker` | "how's Izzy doing at school", "education update", "school progress" | opus |
 | `gift-intel` | "what should I get [name]", "gift ideas for [name]", "gift history" | haiku |
 | `life-event-support` | "[name] got promoted", "[name]'s [relative] passed away", "how should I respond" | opus |
+
+### Developer
+
+| Skill | Trigger Examples | Model |
+|-------|-----------------|:-----:|
+| `setup` | "crm setup", "install crm deps", "fresh codespace setup", "crm not connecting" | haiku |
+| `refresh-crm` | "refresh crm", "rebuild crm", "update crm plugin", "fix crm mcp" | haiku |
+| `version-bump` | "version bump", "bump version", "release crm", "new crm version" | haiku |
 
 ### Shared Conventions
 
@@ -468,11 +477,11 @@ The repair engine applies fixes in dependency order: moves → dedup → orderin
 ## Tech Stack
 
 - **TypeScript** (ESM, strict mode)
-- **Node.js** ≥ 22
+- **Node.js** ≥ 18
 - **SQLite** via better-sqlite3 (FTS5 for search, content cache)
 - **MCP SDK** (@modelcontextprotocol/sdk)
 - **Transformers.js** v3 + **EmbeddingGemma 300M** (q8) for local 768-dim vector embeddings
-- **Vitest** for testing (140 tests)
+- **Vitest** for testing (145 tests)
 
 ## Development
 
