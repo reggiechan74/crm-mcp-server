@@ -45547,8 +45547,8 @@ async function startMcpServerUnconfigured(config3) {
 var config2 = loadConfig();
 if (config2.crmRoot) {
   const store = createStore(config2.dbPath, config2.crmRoot);
-  store.indexAll();
   await startMcpServer(store, config2);
+  setImmediate(() => store.indexAll());
 } else {
   await startMcpServerUnconfigured(config2);
 }
