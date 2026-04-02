@@ -2,6 +2,21 @@
 
 All notable changes to crm-mcp-server are documented here.
 
+## [0.5.3] - 2026-04-01
+
+### Added
+- `/crm:setup` skill — installs `better-sqlite3` and `sqlite-vec` in the marketplace dir and validates the MCP server with a `/tmp` handshake test. Run on every fresh Codespace when "Failed to reconnect to plugin:crm:crm" appears.
+
+## [0.5.2] - 2026-04-01
+
+### Fixed
+- Deferred `indexAll()` to run after `server.connect(transport)` via `setImmediate()` — eliminates cold-start MCP handshake timeout on fresh Codespace instances where indexing took 2s+ before the stdio transport was connected.
+
+## [0.5.1] - 2026-04-01
+
+### Fixed
+- Wrapped `indexAll()` bulk inserts in `db.transaction()` — reduced indexing time from 5-7s to ~2s by eliminating per-row implicit transaction overhead.
+
 ## [0.5.0] - 2026-03-25
 
 ### Changed
