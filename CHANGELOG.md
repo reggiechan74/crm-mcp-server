@@ -2,6 +2,15 @@
 
 All notable changes to crm-mcp-server are documented here.
 
+## [0.6.1] - 2026-05-31
+
+### Changed
+- Consolidated the post-update workflow into a single command: **`/crm:setup`** now syncs the marketplace clone to the latest pushed code (idempotent `git pull`), reinstalls the native deps the plugin updater wipes on every version bump, validates the server from `/tmp`, and prompts `/mcp`. End users run one command after an update instead of two.
+- `/crm:refresh-crm` is now a thin alias that defers to `/crm:setup`, so its trigger phrases ("refresh crm", "fix crm mcp", etc.) still work.
+
+### Fixed
+- Removed the broken `npm install --omit=dev` guidance from the refresh workflow. That command pulls `@huggingface/transformers` → `onnxruntime-node`, whose prebuilt binary download fails and aborts the whole npm transaction — leaving the runtime with no deps. The correct path (install only `better-sqlite3` + `sqlite-vec` with `--no-save`) is now the documented one.
+
 ## [0.6.0] - 2026-05-31
 
 ### Added
