@@ -192,6 +192,7 @@ The server exposes 17 MCP tools:
 | `crm_log` | Append an interaction to the contact's log |
 | `crm_bulk_update` | Update a field across multiple contacts |
 | `crm_export` | Export contacts as JSON, CSV, or markdown |
+| `crm_reindex` | Rebuild the FTS search index from disk after out-of-band file edits (per-contact or whole-CRM) |
 
 ### Intelligence
 
