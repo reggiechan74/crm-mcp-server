@@ -2,6 +2,14 @@
 
 All notable changes to crm-mcp-server are documented here.
 
+## [0.7.0] - 2026-05-31
+
+### Changed
+- **Plugin now survives updates with zero manual steps.** The MCP server no longer depends on native node modules. Replaced `better-sqlite3` with Node's built-in `node:sqlite` (requires Node >= 22.5, which Claude Code ships). The esbuild bundle plus `node:sqlite` is fully self-contained, so the marketplace re-clone on every version bump can no longer wipe a required `node_modules` and break reconnect ("Failed to reconnect to crm"). The `/crm:setup` native-reinstall step is no longer needed.
+- Removed runtime deps `better-sqlite3`, `sqlite-vec`, and the four `sqlite-vec-*` platform optionals. Vector search already used in-process JS cosine similarity, so no capability is lost.
+- Semantic search (`crm_vector_search`) is preserved as an optional feature: `@huggingface/transformers` moved to `optionalDependencies` and stays lazy-loaded, so the server boots and serves FTS5 search even when it is not installed.
+- `engines.node` raised to `>=22.5.0`.
+
 ## [0.6.1] - 2026-05-31
 
 ### Changed

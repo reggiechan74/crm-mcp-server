@@ -20336,20 +20336,49 @@ function loadConfig() {
 import { createRequire } from "node:module";
 var esmRequire = createRequire(import.meta.url);
 var isBun = typeof globalThis.Bun !== "undefined";
-function openDatabase(path) {
-  const BetterSqlite3 = esmRequire("better-sqlite3");
-  const raw = new BetterSqlite3(path);
-  raw.pragma("journal_mode = WAL");
-  return raw;
+var warningFilterInstalled = false;
+function suppressSqliteExperimentalWarning() {
+  if (warningFilterInstalled) return;
+  warningFilterInstalled = true;
+  const original = process.emitWarning.bind(process);
+  process.emitWarning = ((warning, ...args) => {
+    const message = typeof warning === "string" ? warning : warning?.message;
+    if (message && message.includes("SQLite is an experimental feature")) return;
+    return original(warning, ...args);
+  });
 }
-function loadSqliteVec(db) {
-  try {
-    const sqliteVec = esmRequire("sqlite-vec");
-    sqliteVec.load(db);
-    return true;
-  } catch {
-    return false;
-  }
+function wrapDatabase(raw) {
+  return {
+    exec: (sql) => raw.exec(sql),
+    prepare: (sql) => raw.prepare(sql),
+    transaction: ((fn) => {
+      return ((...args) => {
+        raw.exec("BEGIN");
+        try {
+          const result = fn(...args);
+          raw.exec("COMMIT");
+          return result;
+        } catch (err) {
+          try {
+            raw.exec("ROLLBACK");
+          } catch {
+          }
+          throw err;
+        }
+      });
+    }),
+    close: () => raw.close()
+  };
+}
+function openDatabase(path) {
+  suppressSqliteExperimentalWarning();
+  const { DatabaseSync } = esmRequire("node:sqlite");
+  const raw = new DatabaseSync(path);
+  raw.exec("PRAGMA journal_mode = WAL");
+  return wrapDatabase(raw);
+}
+function loadSqliteVec(_db) {
+  return false;
 }
 
 // src/parser.ts
