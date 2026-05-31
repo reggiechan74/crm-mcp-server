@@ -2,6 +2,17 @@
 
 All notable changes to crm-mcp-server are documented here.
 
+## [0.6.0] - 2026-05-31
+
+### Added
+- `crm_reindex` tool — rebuild the FTS search index from disk on demand, per-contact or whole-CRM. After editing a dossier file directly (out-of-band, e.g. via the `Edit` tool), `crm_search` keyword results now reflect the change without restarting the server. (`crm_read` was already disk-fresh and is unaffected.)
+- `crm_outline` now shows the absolute dossier folder path (`**Path:**`), so callers no longer have to guess the `LASTNAME_Firstname` folder for direct edits.
+- `crm_search` gains an opt-in `paths: true` parameter that adds an absolute dossier path column. Off by default to keep search results compact.
+
+### Fixed
+- `loadConfig` now coerces a non-array `templates` value from `~/.crm-mcp.json` to `[]`, honoring the declared `Config.templates: string[]` type. Legacy configs that stored `templates` as a string (e.g. `"default"`) no longer leak a wrong-typed value downstream.
+- Added the `transaction` method to the internal `Database` interface so `tsc` typechecks cleanly (better-sqlite3 provides it at runtime; the hand-rolled type previously omitted it).
+
 ## [0.5.3] - 2026-04-01
 
 ### Added
