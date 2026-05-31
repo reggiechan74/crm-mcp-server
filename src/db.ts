@@ -12,6 +12,8 @@ export const isBun = typeof (globalThis as any).Bun !== 'undefined';
 export interface Database {
   exec(sql: string): void;
   prepare(sql: string): Statement;
+  // better-sqlite3 wraps fn so the returned function runs inside a transaction.
+  transaction<F extends (...args: any[]) => any>(fn: F): F;
   close(): void;
 }
 
