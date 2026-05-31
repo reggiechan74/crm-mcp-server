@@ -12,9 +12,12 @@ const shared = {
   banner: {
     js: "import { createRequire as __createRequire } from 'module'; const require = __createRequire(import.meta.url);",
   },
-  // better-sqlite3 and sqlite-vec: native addons, loaded via createRequire
-  // @huggingface/transformers: optional embedding dep, pulls in onnxruntime-node (.node binaries)
-  external: ['better-sqlite3', 'sqlite-vec', '@huggingface/transformers'],
+  // SQLite is Node's built-in node:sqlite (auto-external via the node: prefix),
+  // so the bundle has no native SQLite dependency. @huggingface/transformers is
+  // an OPTIONAL embedding dep that pulls in the native onnxruntime-node addon;
+  // keep it external and lazy-loaded so the core server bundle stays
+  // dependency-free and boots even when transformers is not installed.
+  external: ['@huggingface/transformers'],
 };
 
 // MCP server entry — what the plugin system runs
