@@ -1,6 +1,6 @@
 # CRM MCP Server
 
-[![Version](https://img.shields.io/badge/Version-0.6.0-FF6B35)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-0.6.1-FF6B35)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A518-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -264,8 +264,8 @@ The plugin bundles 23 skills that orchestrate MCP tools into higher-level workfl
 
 | Skill | Trigger Examples | Model |
 |-------|-----------------|:-----:|
-| `setup` | "crm setup", "install crm deps", "fresh codespace setup", "crm not connecting" | haiku |
-| `refresh-crm` | "refresh crm", "rebuild crm", "update crm plugin", "fix crm mcp" | haiku |
+| `setup` | "update crm", "crm setup", "install crm deps", "fresh codespace setup", "crm not connecting", "fix crm mcp" — the one command to run after a plugin update | haiku |
+| `refresh-crm` | "refresh crm", "rebuild crm", "update crm plugin" — alias for `setup` | haiku |
 | `version-bump` | "version bump", "bump version", "release crm", "new crm version" | haiku |
 
 ### Shared Conventions
