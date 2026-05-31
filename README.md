@@ -1,6 +1,6 @@
 # CRM MCP Server
 
-[![Version](https://img.shields.io/badge/Version-0.7.0-FF6B35)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-0.7.1-FF6B35)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A518-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -478,7 +478,7 @@ The repair engine applies fixes in dependency order: moves → dedup → orderin
 
 - **TypeScript** (ESM, strict mode)
 - **Node.js** ≥ 18
-- **SQLite** via better-sqlite3 (FTS5 for search, content cache)
+- **SQLite** via Node's built-in `node:sqlite` (FTS5 for search, content cache) — no native addon, so the bundle is self-contained
 - **MCP SDK** (@modelcontextprotocol/sdk)
 - **Transformers.js** v3 + **EmbeddingGemma 300M** (q8) for local 768-dim vector embeddings
 - **Vitest** for testing (145 tests)

@@ -2,6 +2,12 @@
 
 All notable changes to crm-mcp-server are documented here.
 
+## [0.7.1] - 2026-05-31
+
+### Changed
+- Slimmed the `/crm:setup` skill (and its `/crm:refresh-crm` alias) to match the v0.7.0 native-free server. Removed the obsolete `better-sqlite3`/`sqlite-vec` reinstall step — those are no longer dependencies. Setup is now a lightweight connection diagnostic: sync the marketplace clone (`git pull`), validate the server boots from `/tmp`, reload `/mcp`. Documents the optional, opt-in `@huggingface/transformers` install for semantic search.
+- README tech stack now reflects `node:sqlite` instead of better-sqlite3.
+
 ## [0.7.0] - 2026-05-31
 
 ### Changed
