@@ -127,6 +127,7 @@ function buildInstructions(store: Store | null, config: Config): string {
   lines.push('  - crm_log — append interaction log entry');
   lines.push('  - crm_audit — analyze dossier structural health');
   lines.push('  - crm_repair — apply fixes from audit results');
+  lines.push('  - crm_reindex — rebuild FTS index after out-of-band file edits');
   return lines.join('\n');
 }
 
@@ -146,15 +147,19 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
       status: z.string().optional().describe('Filter by status: ACTIVE, DORMANT, etc.'),
       profession: z.string().optional().describe('Filter by 3-letter profession code (e.g., BSB for Sales Broker)'),
       limit: z.number().optional().default(20).describe('Max results (default 20)'),
+      paths: z.boolean().optional().default(false).describe('Include the absolute dossier folder path per result (off by default to keep results compact)'),
     },
-    async ({ query, category, status, profession, limit }) => {
+    async ({ query, category, status, profession, limit, paths }) => {
       const err = requireConfigured(config);
       if (err) return respond(err);
       const results = store!.searchContacts({ query, category, status, profession, limit });
       if (results.length === 0) return respond('No contacts found.');
-      const header = '| ID | Name | Org | Category | Status | Last Contact |';
-      const sep = '|-----|------|-----|----------|--------|-------------|';
-      const rows = results.map(r => `| ${r.id} | ${r.name} | ${r.organization || '-'} | ${r.category} | ${r.status} | ${r.lastContact || '-'} |`);
+      const header = `| ID | Name | Org | Category | Status | Last Contact |${paths ? ' Path |' : ''}`;
+      const sep = `|-----|------|-----|----------|--------|-------------|${paths ? '------|' : ''}`;
+      const rows = results.map(r => {
+        const base = `| ${r.id} | ${r.name} | ${r.organization || '-'} | ${r.category} | ${r.status} | ${r.lastContact || '-'} |`;
+        return paths ? `${base} ${r.path ? join(config.crmRoot, r.path) : '-'} |` : base;
+      });
       return respond([header, sep, ...rows].join('\n'));
     },
   );
@@ -173,8 +178,12 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
       if (!contactId) return respond(`Contact not found: ${contact}`);
       try {
         const outline = store!.getOutline(contactId);
+        const dossierDir = join(config.crmRoot, outline.contact.path);
         const lines = [`# ${outline.contact.name} (${outline.contact.id})`, ''];
         lines.push(`**Status:** ${outline.contact.status} | **Org:** ${outline.contact.organization || '-'} | **Last Contact:** ${outline.contact.lastContact || '-'}`);
+        // Folder path once; per-section absolute paths are just this + the
+        // Section column, so we don't repeat the long prefix on every row.
+        lines.push(`**Path:** ${dossierDir}`);
         lines.push('');
         lines.push('| Section | Size | Filled | Last Updated |');
         lines.push('|---------|------|--------|-------------|');
@@ -597,6 +606,33 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
 
         const files = countFiles(destDir);
         return respond(`Installed ${templateName}${category ? '/' + category : ''}: ${files} files written to .templates/${templateName}/`);
+      } catch (e: any) {
+        return respond(`Error: ${e.message}`);
+      }
+    },
+  );
+
+  // ── 17. crm_reindex ─────────────────────────────────────────────────
+  server.tool(
+    'crm_reindex',
+    'Rebuild the full-text search index from disk. Use after editing a dossier file directly (out-of-band, e.g. via the Edit tool) so crm_search keyword results reflect the change without restarting the server. crm_read is always disk-fresh and does not need this. Omit "contact" to reindex the whole CRM.',
+    {
+      contact: z.string().optional().describe('Contact name or dossier code to reindex. Omit to reindex all contacts.'),
+    },
+    async ({ contact }) => {
+      const err = requireConfigured(config);
+      if (err) return respond(err);
+      try {
+        if (contact) {
+          const contactId = resolveContact(store!, contact);
+          if (!contactId) return respond(`Contact not found: ${contact}`);
+          const contactPath = store!.getContactPath(contactId);
+          if (!contactPath) return respond(`Contact path not found: ${contactId}`);
+          store!.indexOne(contactPath);
+          return respond(`Reindexed ${contactId} from disk.`);
+        }
+        store!.indexAll();
+        return respond('Reindexed all contacts from disk.');
       } catch (e: any) {
         return respond(`Error: ${e.message}`);
       }

@@ -19620,7 +19620,7 @@ function loadConfig() {
   const crmRoot = process.env.CRM_ROOT || fileConfig.crmRoot || "";
   const dbPath = process.env.CRM_DB_PATH || fileConfig.dbPath || join(home, ".crm-mcp", "crm.db");
   const embeddingModel = process.env.CRM_EMBEDDING_MODEL || fileConfig.embeddingModel || "onnx-community/embeddinggemma-300m-ONNX";
-  const templates = fileConfig.templates || [];
+  const templates = Array.isArray(fileConfig.templates) ? fileConfig.templates : [];
   const defaultTemplate = fileConfig.defaultTemplate || "simple";
   const templateRepo = process.env.CRM_TEMPLATE_REPO || fileConfig.templateRepo || "reggiechan74/crm-mcp-server";
   const githubToken = process.env.CRM_GITHUB_TOKEN || fileConfig.githubToken || void 0;
@@ -20191,7 +20191,7 @@ function createStore(dbPath, crmRoot) {
         params.push(profession);
       }
       const where = conditions.length > 0 ? "WHERE " + conditions.join(" AND ") : "";
-      const sql = `SELECT id, name, category, organization, status, last_contact FROM contacts ${where} ORDER BY name LIMIT ?`;
+      const sql = `SELECT id, name, category, organization, status, last_contact, path FROM contacts ${where} ORDER BY name LIMIT ?`;
       params.push(limit);
       const rows = db.prepare(sql).all(...params);
       let results = rows.map((row) => ({
@@ -20200,12 +20200,13 @@ function createStore(dbPath, crmRoot) {
         category: row.category,
         organization: row.organization,
         status: row.status,
-        lastContact: row.last_contact
+        lastContact: row.last_contact,
+        path: row.path
       }));
       if (query && results.length === 0) {
         const ftsQuery = sanitizeFtsQuery(query);
         const ftsSql = `
-          SELECT DISTINCT c.id, c.name, c.category, c.organization, c.status, c.last_contact
+          SELECT DISTINCT c.id, c.name, c.category, c.organization, c.status, c.last_contact, c.path
           FROM content_fts f
           JOIN contacts c ON c.id = f.contact_id
           WHERE content_fts MATCH ?
@@ -20226,7 +20227,8 @@ function createStore(dbPath, crmRoot) {
           category: row.category,
           organization: row.organization,
           status: row.status,
-          lastContact: row.last_contact
+          lastContact: row.last_contact,
+          path: row.path
         }));
       }
       return results;
@@ -45120,6 +45122,7 @@ function buildInstructions(store, config3) {
   lines.push("  - crm_log \u2014 append interaction log entry");
   lines.push("  - crm_audit \u2014 analyze dossier structural health");
   lines.push("  - crm_repair \u2014 apply fixes from audit results");
+  lines.push("  - crm_reindex \u2014 rebuild FTS index after out-of-band file edits");
   return lines.join("\n");
 }
 function createMcpServer(store, config3) {
@@ -45135,16 +45138,20 @@ function createMcpServer(store, config3) {
       category: external_exports3.string().optional().describe("Filter by category: Client, Network, Family, etc."),
       status: external_exports3.string().optional().describe("Filter by status: ACTIVE, DORMANT, etc."),
       profession: external_exports3.string().optional().describe("Filter by 3-letter profession code (e.g., BSB for Sales Broker)"),
-      limit: external_exports3.number().optional().default(20).describe("Max results (default 20)")
+      limit: external_exports3.number().optional().default(20).describe("Max results (default 20)"),
+      paths: external_exports3.boolean().optional().default(false).describe("Include the absolute dossier folder path per result (off by default to keep results compact)")
     },
-    async ({ query, category, status, profession, limit }) => {
+    async ({ query, category, status, profession, limit, paths }) => {
       const err = requireConfigured(config3);
       if (err) return respond(err);
       const results = store.searchContacts({ query, category, status, profession, limit });
       if (results.length === 0) return respond("No contacts found.");
-      const header = "| ID | Name | Org | Category | Status | Last Contact |";
-      const sep = "|-----|------|-----|----------|--------|-------------|";
-      const rows = results.map((r) => `| ${r.id} | ${r.name} | ${r.organization || "-"} | ${r.category} | ${r.status} | ${r.lastContact || "-"} |`);
+      const header = `| ID | Name | Org | Category | Status | Last Contact |${paths ? " Path |" : ""}`;
+      const sep = `|-----|------|-----|----------|--------|-------------|${paths ? "------|" : ""}`;
+      const rows = results.map((r) => {
+        const base = `| ${r.id} | ${r.name} | ${r.organization || "-"} | ${r.category} | ${r.status} | ${r.lastContact || "-"} |`;
+        return paths ? `${base} ${r.path ? join9(config3.crmRoot, r.path) : "-"} |` : base;
+      });
       return respond([header, sep, ...rows].join("\n"));
     }
   );
@@ -45161,8 +45168,10 @@ function createMcpServer(store, config3) {
       if (!contactId) return respond(`Contact not found: ${contact}`);
       try {
         const outline = store.getOutline(contactId);
+        const dossierDir = join9(config3.crmRoot, outline.contact.path);
         const lines = [`# ${outline.contact.name} (${outline.contact.id})`, ""];
         lines.push(`**Status:** ${outline.contact.status} | **Org:** ${outline.contact.organization || "-"} | **Last Contact:** ${outline.contact.lastContact || "-"}`);
+        lines.push(`**Path:** ${dossierDir}`);
         lines.push("");
         lines.push("| Section | Size | Filled | Last Updated |");
         lines.push("|---------|------|--------|-------------|");
@@ -45525,6 +45534,31 @@ function createMcpServer(store, config3) {
         writeManifest(config3.crmRoot, manifest);
         const files = countFiles(destDir);
         return respond(`Installed ${templateName}${category ? "/" + category : ""}: ${files} files written to .templates/${templateName}/`);
+      } catch (e) {
+        return respond(`Error: ${e.message}`);
+      }
+    }
+  );
+  server.tool(
+    "crm_reindex",
+    'Rebuild the full-text search index from disk. Use after editing a dossier file directly (out-of-band, e.g. via the Edit tool) so crm_search keyword results reflect the change without restarting the server. crm_read is always disk-fresh and does not need this. Omit "contact" to reindex the whole CRM.',
+    {
+      contact: external_exports3.string().optional().describe("Contact name or dossier code to reindex. Omit to reindex all contacts.")
+    },
+    async ({ contact }) => {
+      const err = requireConfigured(config3);
+      if (err) return respond(err);
+      try {
+        if (contact) {
+          const contactId = resolveContact(store, contact);
+          if (!contactId) return respond(`Contact not found: ${contact}`);
+          const contactPath = store.getContactPath(contactId);
+          if (!contactPath) return respond(`Contact path not found: ${contactId}`);
+          store.indexOne(contactPath);
+          return respond(`Reindexed ${contactId} from disk.`);
+        }
+        store.indexAll();
+        return respond("Reindexed all contacts from disk.");
       } catch (e) {
         return respond(`Error: ${e.message}`);
       }

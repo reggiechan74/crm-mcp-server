@@ -323,7 +323,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
 
       const where =
         conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
-      const sql = `SELECT id, name, category, organization, status, last_contact FROM contacts ${where} ORDER BY name LIMIT ?`;
+      const sql = `SELECT id, name, category, organization, status, last_contact, path FROM contacts ${where} ORDER BY name LIMIT ?`;
       params.push(limit);
 
       const rows = db.prepare(sql).all(...params);
@@ -335,13 +335,14 @@ export function createStore(dbPath: string, crmRoot: string): Store {
         organization: row.organization,
         status: row.status,
         lastContact: row.last_contact,
+        path: row.path,
       }));
 
       // If query provided and no name matches, fall back to FTS
       if (query && results.length === 0) {
         const ftsQuery = sanitizeFtsQuery(query);
         const ftsSql = `
-          SELECT DISTINCT c.id, c.name, c.category, c.organization, c.status, c.last_contact
+          SELECT DISTINCT c.id, c.name, c.category, c.organization, c.status, c.last_contact, c.path
           FROM content_fts f
           JOIN contacts c ON c.id = f.contact_id
           WHERE content_fts MATCH ?
@@ -364,6 +365,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
           organization: row.organization,
           status: row.status,
           lastContact: row.last_contact,
+          path: row.path,
         }));
       }
 

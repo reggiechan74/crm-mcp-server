@@ -57,6 +57,7 @@ export interface SearchResult {
   organization: string | null;
   status: string;
   lastContact: string | null;
+  path?: string;
   score?: number;
   snippet?: string;
 }
