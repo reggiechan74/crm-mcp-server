@@ -46,6 +46,7 @@ export interface Store {
     avgFillPercent: number;
   };
   getContactPath(contactId: string): string | null;
+  resolveByPath(input: string): string | null;
   close(): void;
 }
 
@@ -305,8 +306,12 @@ export function createStore(dbPath: string, crmRoot: string): Store {
       const params: any[] = [];
 
       if (query) {
-        conditions.push('(name LIKE ? OR aliases LIKE ?)');
-        params.push(`%${query}%`, `%${query}%`);
+        // Escape LIKE wildcards so '_' and '%' in the query match literally.
+        // Folder-style inputs like "SMITH_Bobby" contain '_', which SQLite LIKE
+        // otherwise treats as a single-char wildcard.
+        const escaped = query.replace(/[\\%_]/g, (c) => `\\${c}`);
+        conditions.push("(name LIKE ? ESCAPE '\\' OR aliases LIKE ? ESCAPE '\\')");
+        params.push(`%${escaped}%`, `%${escaped}%`);
       }
       if (category) {
         conditions.push('category = ?');
@@ -349,6 +354,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
           ${category ? 'AND c.category = ?' : ''}
           ${status ? 'AND c.status = ?' : ''}
           ${profession ? 'AND c.profession = ?' : ''}
+          ORDER BY rank
           LIMIT ?
         `;
         const ftsParams: any[] = [ftsQuery];
@@ -617,6 +623,19 @@ export function createStore(dbPath: string, crmRoot: string): Store {
     getContactPath(contactId: string): string | null {
       const row = stmts.getContactPath.get(contactId) as any;
       return row ? row.path : null;
+    },
+
+    resolveByPath(input: string): string | null {
+      // Resolve a dossier folder name (LASTNAME_Firstname convention) or full
+      // folder path to a contact id by EXACT basename match. Exact string
+      // compare avoids the SQLite LIKE wildcard hazard ('_'/'%') entirely.
+      const slug = input.replace(/[\\/]+$/, '').split(/[\\/]/).pop();
+      if (!slug) return null;
+      const rows = db.prepare('SELECT id, path FROM contacts').all() as any[];
+      const hit = rows.find(
+        (r) => r.path && r.path.split(/[\\/]/).pop() === slug,
+      );
+      return hit ? hit.id : null;
     },
 
     close(): void {

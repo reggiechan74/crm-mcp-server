@@ -20909,8 +20909,9 @@ function createStore(dbPath, crmRoot) {
       const conditions = [];
       const params = [];
       if (query) {
-        conditions.push("(name LIKE ? OR aliases LIKE ?)");
-        params.push(`%${query}%`, `%${query}%`);
+        const escaped = query.replace(/[\\%_]/g, (c) => `\\${c}`);
+        conditions.push("(name LIKE ? ESCAPE '\\' OR aliases LIKE ? ESCAPE '\\')");
+        params.push(`%${escaped}%`, `%${escaped}%`);
       }
       if (category) {
         conditions.push("category = ?");
@@ -20947,6 +20948,7 @@ function createStore(dbPath, crmRoot) {
           ${category ? "AND c.category = ?" : ""}
           ${status ? "AND c.status = ?" : ""}
           ${profession ? "AND c.profession = ?" : ""}
+          ORDER BY rank
           LIMIT ?
         `;
         const ftsParams = [ftsQuery];
@@ -21146,6 +21148,15 @@ function createStore(dbPath, crmRoot) {
     getContactPath(contactId) {
       const row = stmts.getContactPath.get(contactId);
       return row ? row.path : null;
+    },
+    resolveByPath(input) {
+      const slug = input.replace(/[\\/]+$/, "").split(/[\\/]/).pop();
+      if (!slug) return null;
+      const rows = db.prepare("SELECT id, path FROM contacts").all();
+      const hit = rows.find(
+        (r) => r.path && r.path.split(/[\\/]/).pop() === slug
+      );
+      return hit ? hit.id : null;
     },
     close() {
       db.close();
@@ -45472,6 +45483,8 @@ function resolveContact(store, contact) {
   if (/^[A-Z]{2,3}-/.test(contact)) {
     return contact;
   }
+  const byFolder = store.resolveByPath(contact);
+  if (byFolder) return byFolder;
   const results = store.searchContacts({ query: contact, limit: 1 });
   return results.length > 0 ? results[0].id : null;
 }
