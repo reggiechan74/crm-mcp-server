@@ -171,6 +171,44 @@ describe('getStats', () => {
   });
 });
 
+describe('resolveByPath — exact folder-name resolution (fail-open bug fix)', () => {
+  // Fixtures reproduce the bug: ADECOY_Den (lower rowid, token-dense, mentions
+  // "Smith-Jones Bobby" repeatedly) vs SMITH-JONES_Bobby (the real owner, minimal
+  // content). A folder-name input must resolve to the OWNER, never the decoy.
+  const OWNER = 'NE-BOBSMI-100';
+  const DECOY = 'NE-ADADEC-099';
+
+  it('resolves a bare folder name to its owner, not a token-dense decoy', () => {
+    const id = store.resolveByPath('SMITH-JONES_Bobby');
+    expect(id).toBe(OWNER);
+    expect(id).not.toBe(DECOY);
+  });
+
+  it('resolves a full folder path (with trailing slash) to its owner', () => {
+    expect(store.resolveByPath('Network/SMITH-JONES_Bobby/')).toBe(OWNER);
+    expect(store.resolveByPath('/abs/CRM/Network/SMITH-JONES_Bobby')).toBe(OWNER);
+  });
+
+  it('handles folder names containing both _ and - (no LIKE-wildcard hazard)', () => {
+    // The "_" must be treated literally, not as a SQLite single-char wildcard.
+    expect(store.resolveByPath('SMITH-JONES_Bobby')).toBe(OWNER);
+  });
+
+  it('returns null for an input with no matching folder basename', () => {
+    expect(store.resolveByPath('Smith')).toBeNull();
+    expect(store.resolveByPath('Nonexistent_Folder')).toBeNull();
+  });
+
+  it('confirms the trap: the buggy FTS path returns the DECOY for this input', () => {
+    // Proves the regression test is non-vacuous: structured + FTS-fallback
+    // search (the old resolution route) lands on the wrong contact, so the
+    // resolveByPath step is what actually fixes it.
+    const results = store.searchContacts({ query: 'SMITH-JONES_Bobby', limit: 1 });
+    expect(results.length).toBe(1);
+    expect(results[0].id).toBe(DECOY);
+  });
+});
+
 describe('reindex after out-of-band edit (issue #1, AC#2)', () => {
   it('reflects a direct file edit in crm_search after indexOne, without restart', () => {
     const sectionPath = join(

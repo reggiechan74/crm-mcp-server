@@ -42,12 +42,20 @@ function respond(text: string) {
  * or a name fragment, returning the canonical contact ID.
  * Returns null if not found.
  */
-function resolveContact(store: Store, contact: string): string | null {
-  // If it looks like a dossier code (2 or 3 letter prefix), use it directly
+export function resolveContact(store: Store, contact: string): string | null {
+  // 1. Dossier code (e.g. "CL-RANMUL-002") — use it directly.
   if (/^[A-Z]{2,3}-/.test(contact)) {
     return contact;
   }
-  // Otherwise search by name
+  // 2. Dossier folder name or full folder path (e.g. "MENSAH-CHAN_Izzy") —
+  //    resolve EXACTLY by path basename. This must come before the name search:
+  //    a folder name is not a substring of the stored display name, so the name
+  //    search would fall through to the fail-open FTS fallback and silently
+  //    return the wrong contact. A typed display name has no matching folder
+  //    basename, so it harmlessly falls through to the name search below.
+  const byFolder = store.resolveByPath(contact);
+  if (byFolder) return byFolder;
+  // 3. Otherwise search by name/alias.
   const results = store.searchContacts({ query: contact, limit: 1 });
   return results.length > 0 ? results[0].id : null;
 }

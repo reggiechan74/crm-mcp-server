@@ -2,6 +2,11 @@
 
 All notable changes to crm-mcp-server are documented here.
 
+## [0.7.2] - 2026-05-31
+
+### Fixed
+- Fix `resolveContact` resolving dossier folder names to the wrong contact (fail-open FTS fallback). Passing a `LASTNAME_Firstname` folder name (e.g. `MENSAH-CHAN_Izzy`) to any tool taking a `contact` param could silently resolve to a *different* contact with full confidence — it returned the wrong person's record. Root cause: the folder name failed the dossier-code regex, was not a substring of the stored display name, and the FTS fallback ran `MATCH ? LIMIT 1` with no `ORDER BY rank`, returning the lowest-rowid (often largest, token-dense) dossier. Added exact `Store.resolveByPath` (basename match, no LIKE-wildcard hazard) and wired it into `resolveContact` before the name search. Hardening: added `ORDER BY rank` to the FTS fallback; escaped `_`/`%` LIKE wildcards in the structured search so folder/underscore inputs match literally. Regression tests assert a folder-name input resolves to the folder's owner, never a token-dense decoy.
+
 ## [0.7.1] - 2026-05-31
 
 ### Changed
