@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { join } from 'node:path';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { createStore, type Store } from '../src/store.js';
 
 const FIXTURES = join(import.meta.dirname, 'fixtures');
@@ -48,6 +49,19 @@ describe('searchContacts', () => {
   it('returns empty array for no matches', () => {
     const results = store.searchContacts({ query: 'Nonexistent Person' });
     expect(results.length).toBe(0);
+  });
+
+  it('includes the dossier path on name-match results', () => {
+    const results = store.searchContacts({ query: 'Test Contact' });
+    expect(results[0].path).toBe('Network/TEST_Contact');
+  });
+
+  it('includes the dossier path on FTS-fallback results', () => {
+    // 'competitor XYZ' lives in section content, not the name — forces the
+    // FTS fallback branch of searchContacts (the one easy to miss).
+    const results = store.searchContacts({ query: 'competitor XYZ' });
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].path).toBe('Network/TEST_Contact');
   });
 });
 
@@ -154,5 +168,34 @@ describe('getStats', () => {
     expect(stats.totalContacts).toBeGreaterThan(0);
     expect(stats.byCategory).toBeDefined();
     expect(stats.byCategory['Network']).toBeGreaterThan(0);
+  });
+});
+
+describe('reindex after out-of-band edit (issue #1, AC#2)', () => {
+  it('reflects a direct file edit in crm_search after indexOne, without restart', () => {
+    const sectionPath = join(
+      FIXTURES,
+      'Network/TEST_Contact/intelligence/intelligence-risk.md',
+    );
+    const original = readFileSync(sectionPath, 'utf-8');
+    const sentinel = 'ZZZsentineltokenZZZ';
+
+    try {
+      // Pre-condition: sentinel not present in the live FTS index.
+      expect(store.fullTextSearch(sentinel).length).toBe(0);
+
+      // Simulate an out-of-band edit (e.g. via the Edit tool, bypassing MCP writes).
+      writeFileSync(sectionPath, `${original}\n\n${sentinel}\n`, 'utf-8');
+
+      // Without reindex, FTS is still stale (no file watcher).
+      expect(store.fullTextSearch(sentinel).length).toBe(0);
+
+      // On-demand reindex closes the gap.
+      store.indexOne('Network/TEST_Contact');
+      expect(store.fullTextSearch(sentinel).length).toBeGreaterThan(0);
+    } finally {
+      writeFileSync(sectionPath, original, 'utf-8');
+      store.indexOne('Network/TEST_Contact');
+    }
   });
 });
