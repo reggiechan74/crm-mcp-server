@@ -71,6 +71,7 @@ export interface SearchResult {
   snippet?: string;
   orgType?: string;
   roles?: string[];
+  secondaryTypes?: string[];
 }
 
 export const SALES_MOTIONS = ['general', 'tech'] as const;

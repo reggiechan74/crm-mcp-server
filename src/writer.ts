@@ -125,7 +125,7 @@ export function appendLog(store: Store, contactId: string, entry: LogEntry): voi
 // ── Field updates ───────────────────────────────────────────────────────
 
 /** INDEX.md fields that hold list values (comma-separated or JSON array string on input). */
-const LIST_FIELDS = new Set(['roles', 'aliases', 'assetClasses']);
+const LIST_FIELDS = new Set(['roles', 'aliases', 'assetClasses', 'secondaryTypes']);
 
 /**
  * Parse a list-valued field's incoming string into a string array.
@@ -156,8 +156,17 @@ function writeField(store: Store, contactId: string, section: string, field: str
   const { key, filePath } = sectionFilePath(store, contactPath, section);
   const content = readFileSync(filePath, 'utf-8');
 
+  const extra: Record<string, unknown> = {};
   let newValue: unknown = value;
-  if (key === 'index' && LIST_FIELDS.has(field)) {
+  if (key === 'index' && field === 'orgType') {
+    const code = normalizeOrgType(value);
+    if (!code) throw new Error(`Invalid org type(s): ${value}. Valid:\n${formatOrgTypeChoices()}`);
+    newValue = code;
+    const current = parseFrontmatter(content)?.secondaryTypes;
+    if (current !== undefined) extra.secondaryTypes = normalizeOrgTypeList(current, code);
+  } else if (key === 'index' && field === 'secondaryTypes') {
+    newValue = normalizeOrgTypeList(value, String(parseFrontmatter(content)?.orgType ?? ''));
+  } else if (key === 'index' && LIST_FIELDS.has(field)) {
     const list = parseListValue(value);
     if (field === 'roles') {
       const badRoles = list.filter((r) => !(ORG_ROLES as readonly string[]).includes(r));
@@ -168,7 +177,7 @@ function writeField(store: Store, contactId: string, section: string, field: str
     newValue = list;
   }
 
-  atomicWriteFileSync(filePath, updateFrontmatter(content, { [field]: newValue, lastUpdated: today() }));
+  atomicWriteFileSync(filePath, updateFrontmatter(content, { [field]: newValue, ...extra, lastUpdated: today() }));
   return { key, contactPath };
 }
 

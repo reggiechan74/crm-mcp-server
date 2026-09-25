@@ -15,7 +15,7 @@ import {
 import fg from 'fast-glob';
 import { readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { AUTO_WORKS_AT_CONTEXT, ORG_ROLES } from './orgTypes.js';
+import { AUTO_WORKS_AT_CONTEXT, ORG_ROLES, ORG_GROUPS, ORG_GROUP_KEYS, type OrgGroup } from './orgTypes.js';
 import { collectMdFiles, isWithin, sha256 } from './fsutil.js';
 
 export interface SectionContent {
@@ -65,6 +65,7 @@ export interface Store {
     profession?: string;
     roles?: string[];
     orgType?: string;
+    orgGroup?: string;
     limit?: number;
   }): SearchResult[];
   /** Contact ids whose name or alias equals `input` (case-insensitive, exact). */
@@ -383,6 +384,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
         const meta = JSON.parse(row.metadata_json);
         if (meta.orgType) result.orgType = String(meta.orgType);
         if (Array.isArray(meta.roles)) result.roles = meta.roles.map(String);
+        if (Array.isArray(meta.secondaryTypes)) result.secondaryTypes = meta.secondaryTypes.map(String);
       } catch { /* ignore malformed metadata */ }
     }
     return result;
@@ -500,93 +502,80 @@ export function createStore(dbPath: string, crmRoot: string): Store {
     },
 
     searchContacts(filters): SearchResult[] {
-      const {
-        query,
-        category,
-        status,
-        profession,
-        roles,
-        orgType,
-        limit = 20,
-      } = filters;
-      const conditions: string[] = [];
-      const params: any[] = [];
+      const { query, category, status, profession, roles, orgType, orgGroup, limit = 20 } = filters;
 
+      const normalizedRoles = (roles ?? []).map((role) => {
+        const canonical = (ORG_ROLES as readonly string[]).find(
+          (r) => r.toLowerCase() === role.trim().toLowerCase(),
+        );
+        if (!canonical) throw new Error(`Invalid role(s): ${role}. Valid: ${ORG_ROLES.join(', ')}`);
+        return canonical;
+      });
+      let groupCodes: string[] = [];
+      if (orgGroup) {
+        const key = orgGroup.trim().toUpperCase();
+        if (!Object.hasOwn(ORG_GROUPS, key)) {
+          throw new Error(`Invalid org group: ${orgGroup}. Valid: ${ORG_GROUP_KEYS.join(', ')}`);
+        }
+        groupCodes = Object.keys(ORG_GROUPS[key as OrgGroup].types);
+      }
+
+      /** Structured filters for a contacts alias (`contacts` or `c`). */
+      const filterSql = (t: string): { sql: string[]; params: any[] } => {
+        const sql: string[] = [];
+        const params: any[] = [];
+        const anyType = (codesSql: string) =>
+          `(json_extract(${t}.metadata_json, '$.orgType') ${codesSql}` +
+          ` OR EXISTS (SELECT 1 FROM json_each(${t}.metadata_json, '$.secondaryTypes') WHERE value ${codesSql}))`;
+        if (category) { sql.push(`${t}.category = ?`); params.push(category); }
+        if (status) { sql.push(`${t}.status = ?`); params.push(status); }
+        if (profession) { sql.push(`${t}.profession = ?`); params.push(profession); }
+        if (orgType) {
+          const code = orgType.trim().toUpperCase();
+          sql.push(anyType('= ?')); params.push(code, code);
+        }
+        if (groupCodes.length > 0) {
+          const inList = `IN (${groupCodes.map(() => '?').join(', ')})`;
+          sql.push(anyType(inList)); params.push(...groupCodes, ...groupCodes);
+        }
+        for (const role of normalizedRoles) {
+          sql.push(`EXISTS (SELECT 1 FROM json_each(${t}.metadata_json, '$.roles') WHERE value = ?)`);
+          params.push(role);
+        }
+        return { sql, params };
+      };
+
+      const base = filterSql('contacts');
+      const conditions = [...base.sql];
+      const params: any[] = [];
       if (query) {
         // Escape LIKE wildcards so '_' and '%' in the query match literally.
         // Folder-style inputs like "SMITH_Bobby" contain '_', which SQLite LIKE
         // otherwise treats as a single-char wildcard.
         const escaped = query.replace(/[\\%_]/g, (c) => `\\${c}`);
-        conditions.push("(name LIKE ? ESCAPE '\\' OR aliases LIKE ? ESCAPE '\\')");
+        conditions.unshift("(name LIKE ? ESCAPE '\\' OR aliases LIKE ? ESCAPE '\\')");
         params.push(`%${escaped}%`, `%${escaped}%`);
       }
-      if (category) {
-        conditions.push('category = ?');
-        params.push(category);
-      }
-      if (status) {
-        conditions.push('status = ?');
-        params.push(status);
-      }
-      if (profession) {
-        conditions.push('profession = ?');
-        params.push(profession);
-      }
-      if (orgType) {
-        conditions.push("json_extract(metadata_json, '$.orgType') = ?");
-        params.push(orgType.toUpperCase());
-      }
-      // Normalize each requested role to its canonical ORG_ROLES spelling,
-      // case-insensitively — 'client' should match stored 'Client'. Throw
-      // (rather than fail open to zero results) on an unrecognized role.
-      const normalizedRoles = (roles ?? []).map((role) => {
-        const canonical = (ORG_ROLES as readonly string[]).find(
-          (r) => r.toLowerCase() === role.trim().toLowerCase(),
-        );
-        if (!canonical) {
-          throw new Error(`Invalid role(s): ${role}. Valid: ${ORG_ROLES.join(', ')}`);
-        }
-        return canonical;
-      });
-      for (const role of normalizedRoles) {
-        conditions.push("EXISTS (SELECT 1 FROM json_each(contacts.metadata_json, '$.roles') WHERE value = ?)");
-        params.push(role);
-      }
+      params.push(...base.params);
 
-      const where =
-        conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
-      const sql = `SELECT id, name, category, organization, status, last_contact, path, metadata_json FROM contacts ${where} ORDER BY name LIMIT ?`;
-      params.push(limit);
-
-      const rows = db.prepare(sql).all(...params);
-
+      const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+      const rows = db.prepare(
+        `SELECT id, name, category, organization, status, last_contact, path, metadata_json FROM contacts ${where} ORDER BY name LIMIT ?`,
+      ).all(...params, limit);
       let results = rows.map(toSearchResult);
 
       // If query provided and no name matches, fall back to FTS
       if (query && results.length === 0) {
-        const ftsQuery = sanitizeFtsQuery(query);
-        const ftsSql = `
+        const fts = filterSql('c');
+        const ftsRows = db.prepare(`
           SELECT DISTINCT c.id, c.name, c.category, c.organization, c.status, c.last_contact, c.path, c.metadata_json
           FROM content_fts f
           JOIN contacts c ON c.id = f.contact_id
           WHERE content_fts MATCH ?
-          ${category ? 'AND c.category = ?' : ''}
-          ${status ? 'AND c.status = ?' : ''}
-          ${profession ? 'AND c.profession = ?' : ''}
-          ${orgType ? "AND json_extract(c.metadata_json, '$.orgType') = ?" : ''}
-          ${normalizedRoles.map(() => "AND EXISTS (SELECT 1 FROM json_each(c.metadata_json, '$.roles') WHERE value = ?)").join('\n')}
+          ${fts.sql.map((s) => `AND ${s}`).join('\n')}
           ORDER BY rank
           LIMIT ?
-        `;
-        const ftsParams: any[] = [ftsQuery];
-        if (category) ftsParams.push(category);
-        if (status) ftsParams.push(status);
-        if (profession) ftsParams.push(profession);
-        if (orgType) ftsParams.push(orgType.toUpperCase());
-        for (const role of normalizedRoles) ftsParams.push(role);
-        ftsParams.push(limit);
-
-        const ftsRows = db.prepare(ftsSql).all(...ftsParams);
+        `).all(sanitizeFtsQuery(query), ...fts.params, limit);
         results = ftsRows.map(toSearchResult);
       }
 
