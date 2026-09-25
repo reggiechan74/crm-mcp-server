@@ -165,6 +165,18 @@ export function normalizeOrgType(input: string): OrgType | null {
   return Object.hasOwn(ORG_TYPES, upper) ? (upper as OrgType) : null;
 }
 
+/** Canonical role spelling for any casing/padding of a known role, else null. */
+export function normalizeOrgRole(input: string): OrgRole | null {
+  const needle = input.trim().toLowerCase();
+  return ORG_ROLES.find((r) => r.toLowerCase() === needle) ?? null;
+}
+
+/** Canonical group key for any casing/padding of a known group, else null. */
+export function normalizeOrgGroup(input: string): OrgGroup | null {
+  const upper = input.trim().toUpperCase();
+  return Object.hasOwn(ORG_GROUPS, upper) ? (upper as OrgGroup) : null;
+}
+
 export function groupOf(code: string): OrgGroup | null {
   const t = normalizeOrgType(code);
   return t ? ORG_TYPES[t].group : null;
@@ -254,7 +266,7 @@ export function orgTemplateLayers(orgRoot: string, spec: OrgLayerSpec): string[]
     if (overlay) add(join(orgRoot, 'TYPES', overlay.dir));
   }
   for (const role of spec.roles ?? []) {
-    const canonical = ORG_ROLES.find((r) => r.toLowerCase() === String(role).trim().toLowerCase());
+    const canonical = normalizeOrgRole(String(role));
     const overlay = canonical ? ROLE_OVERLAYS[canonical] : undefined;
     if (overlay) add(join(orgRoot, 'ROLES', overlay));
   }

@@ -83,4 +83,26 @@ describe('org tools', () => {
     expect(text).toContain('The previous type is no longer listed — add it to secondaryTypes to keep it.');
     expect(text).toContain('crm_audit');
   });
+
+  it('accepts type codes, groups and roles in any case', async () => {
+    const server = createMcpServer(store, config());
+    const created = await call(server, 'crm_create', {
+      name: 'Harbor Credit', category: 'Organization', orgType: ' debt ', cid: 'HARB',
+      secondaryTypes: ['svcr', 'Pm'], roles: ['lender', 'VENDOR'],
+    });
+    expect(created).toContain('Created dossier DEBT-HARB-001');
+    expect(existsSync(join(root, 'Organizations', 'DEBT_Harbor_Credit', 'vendor.md'))).toBe(true);
+    expect(await call(server, 'crm_search', { orgType: 'pm' })).toContain('DEBT-HARB-001');
+    expect(await call(server, 'crm_search', { orgGroup: 'Lending' })).toContain('DEBT (+SVCR, PM) [Lender, Vendor]');
+    expect(await call(server, 'crm_search', { roles: ['vendor'] })).toContain('DEBT-HARB-001');
+    expect(await call(server, 'crm_org_types', { group: 'lending' })).toContain('BANK');
+  });
+
+  it('still advertises the exact choices to clients', () => {
+    const server = createMcpServer(store, config()) as any;
+    const schema = server._registeredTools.crm_search.inputSchema;
+    expect(schema.parse({ orgType: 'pm', orgGroup: 'lending', roles: ['client'] }))
+      .toMatchObject({ orgType: 'PM', orgGroup: 'LENDING', roles: ['Client'] });
+    expect(() => schema.parse({ orgType: 'nope' })).toThrow();
+  });
 });
