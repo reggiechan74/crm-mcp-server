@@ -46300,6 +46300,7 @@ function resolveContact(store, contact, opts = {}) {
     return p != null && (pathMatch === p || pathMatch.endsWith(`/${p}`));
   });
   if (exactPath.length === 1) return exactPath[0];
+  if (opts.strict && pathMatch.includes("/") && byFolder.length > 0) return null;
   if (byFolder.length === 1) return byFolder[0];
   if (byFolder.length > 1) {
     if (opts.strict) {
