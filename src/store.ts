@@ -18,6 +18,7 @@ import fg from 'fast-glob';
 import { readFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
+import { AUTO_WORKS_AT_CONTEXT } from './orgTypes.js';
 
 export interface Store {
   db: Database;
@@ -252,6 +253,57 @@ export function createStore(dbPath: string, crmRoot: string): Store {
     }
   }
 
+  /**
+   * Resolve relationships.target_id from target_name (dossier code, name, or alias —
+   * case-insensitive, unique matches only) and re-derive person→org `works_at` edges
+   * from each person's `organization` field.
+   */
+  function resolveRelationshipTargets(): void {
+    db.prepare('DELETE FROM relationships WHERE context = ?').run(AUTO_WORKS_AT_CONTEXT);
+
+    const contacts = db.prepare(
+      'SELECT id, name, aliases, category, organization FROM contacts',
+    ).all() as Array<{ id: string; name: string; aliases: string | null; category: string; organization: string | null }>;
+
+    const buildIndex = (rows: typeof contacts, includeIds: boolean): Map<string, Set<string>> => {
+      const map = new Map<string, Set<string>>();
+      const add = (key: string, id: string) => {
+        const k = key.trim().toLowerCase();
+        if (!k) return;
+        if (!map.has(k)) map.set(k, new Set());
+        map.get(k)!.add(id);
+      };
+      for (const c of rows) {
+        if (includeIds) add(c.id, c.id);
+        add(c.name, c.id);
+        if (c.aliases) {
+          try { for (const a of JSON.parse(c.aliases) as string[]) add(a, c.id); } catch { /* ignore */ }
+        }
+      }
+      return map;
+    };
+    const unique = (map: Map<string, Set<string>>, key: string): string => {
+      const ids = map.get(key.trim().toLowerCase());
+      return ids && ids.size === 1 ? [...ids][0] : '';
+    };
+
+    const all = buildIndex(contacts, true);
+    const update = db.prepare('UPDATE relationships SET target_id = ? WHERE rowid = ?');
+    for (const row of db.prepare('SELECT rowid, target_name FROM relationships').all() as any[]) {
+      update.run(unique(all, row.target_name), row.rowid);
+    }
+
+    const orgs = contacts.filter(c => c.category === 'Organization');
+    const orgIndex = buildIndex(orgs, false);
+    const orgName = new Map(orgs.map(o => [o.id, o.name]));
+    for (const c of contacts) {
+      if (c.category === 'Organization' || !c.organization) continue;
+      const orgId = unique(orgIndex, c.organization);
+      if (!orgId) continue;
+      stmts.insertRelationship.run(c.id, orgId, orgName.get(orgId)!, 'works_at', AUTO_WORKS_AT_CONTEXT, 0);
+    }
+  }
+
   const store: Store = {
     db,
     crmRoot,
@@ -276,6 +328,8 @@ export function createStore(dbPath: string, crmRoot: string): Store {
             console.error(`Failed to index ${relPath}:`, err);
           }
         }
+
+        resolveRelationshipTargets();
       });
 
       runIndex();
@@ -292,6 +346,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
         db.prepare('DELETE FROM content_cache WHERE contact_id = ?').run(contact.id);
       }
       indexDossier(dossierRelPath);
+      resolveRelationshipTargets();
     },
 
     searchContacts(filters): SearchResult[] {
