@@ -44290,7 +44290,8 @@ function orgTemplateLayers(orgRoot, spec) {
     if (overlay) add(join4(orgRoot, "TYPES", overlay.dir));
   }
   for (const role of spec.roles ?? []) {
-    const overlay = ROLE_OVERLAYS[role];
+    const canonical = ORG_ROLES.find((r) => r.toLowerCase() === String(role).trim().toLowerCase());
+    const overlay = canonical ? ROLE_OVERLAYS[canonical] : void 0;
     if (overlay) add(join4(orgRoot, "ROLES", overlay));
   }
   if (spec.salesMotion === "tech") add(join4(orgRoot, "MOTION", "TECH_SALE"));
@@ -45238,6 +45239,7 @@ function appendLog(store, contactId, entry) {
   store.reindexSection(contactId, "log");
 }
 var LIST_FIELDS = /* @__PURE__ */ new Set(["roles", "aliases", "assetClasses", "secondaryTypes"]);
+var ORG_ONLY_FIELDS = /* @__PURE__ */ new Set(["orgType", "secondaryTypes", "salesMotion"]);
 function parseListValue(value) {
   const trimmed = value.trim();
   if (trimmed.startsWith("[")) {
@@ -45255,6 +45257,12 @@ function writeField(store, contactId, section, field, value) {
   const contactPath = requireContactPath(store, contactId);
   const { key, filePath } = sectionFilePath(store, contactPath, section);
   const content = readFileSync5(filePath, "utf-8");
+  if (key === "index" && ORG_ONLY_FIELDS.has(field)) {
+    const category = store.getOutline(contactId).contact.category;
+    if (category !== "Organization") {
+      throw new Error(`${field} applies to Organization dossiers only`);
+    }
+  }
   const extra = {};
   let newValue = value;
   if (key === "index" && field === "orgType") {
@@ -45265,7 +45273,13 @@ ${formatOrgTypeChoices()}`);
     const current = parseFrontmatter(content)?.secondaryTypes;
     if (current !== void 0) extra.secondaryTypes = normalizeOrgTypeList(current, code);
   } else if (key === "index" && field === "secondaryTypes") {
-    newValue = normalizeOrgTypeList(value, String(parseFrontmatter(content)?.orgType ?? ""));
+    newValue = normalizeOrgTypeList(parseListValue(value), String(parseFrontmatter(content)?.orgType ?? ""));
+  } else if (key === "index" && field === "salesMotion") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized !== "general" && normalized !== "tech") {
+      throw new Error(`Invalid salesMotion "${value}". Valid: general, tech`);
+    }
+    newValue = normalized;
   } else if (key === "index" && LIST_FIELDS.has(field)) {
     const list = parseListValue(value);
     if (field === "roles") {
@@ -45665,6 +45679,46 @@ import { join as join9 } from "node:path";
 import { readFileSync as readFileSync6, existsSync as existsSync5 } from "node:fs";
 import { join as join7, basename as basename3 } from "node:path";
 var HEADING_RE = /^#{2,4}\s+.+/;
+var BRACKET_ONLY_RE = /^\[[^[\]]+\]$/;
+function isPlaceholderCell(cell) {
+  const t = cell.trim();
+  return t.length === 0 || BRACKET_ONLY_RE.test(t);
+}
+function isPlaceholderOnlyLine(line) {
+  const t = line.trim();
+  if (t.startsWith("|") && t.endsWith("|") && t.length >= 2) {
+    const cells = t.slice(1, -1).split("|");
+    return cells.every(isPlaceholderCell);
+  }
+  return isPlaceholderCell(t);
+}
+var TABLE_SEPARATOR_RE3 = /^\|[-|\s:]+\|$/;
+function isTableRow(line) {
+  return line.startsWith("|") && line.endsWith("|") && line.length >= 2;
+}
+function stripPlaceholderLines(rawLines) {
+  const lines = rawLines.map((l) => l.trim());
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.length === 0 || line === "---") continue;
+    if (line.startsWith("| Date") || TABLE_SEPARATOR_RE3.test(line)) continue;
+    if (isTableRow(line) && TABLE_SEPARATOR_RE3.test(lines[i + 1] ?? "")) {
+      let j = i + 2;
+      const rows = [];
+      while (j < lines.length && isTableRow(lines[j])) {
+        rows.push(lines[j]);
+        j++;
+      }
+      const realRows = rows.filter((r) => !isPlaceholderOnlyLine(r));
+      if (realRows.length > 0) out.push(line, ...realRows);
+      i = j - 1;
+      continue;
+    }
+    if (!isPlaceholderOnlyLine(line)) out.push(line);
+  }
+  return out;
+}
 function extractHeadings(filePath) {
   if (!existsSync5(filePath)) return [];
   const { body } = splitFrontmatter(readFileSync6(filePath, "utf-8"));
@@ -45679,22 +45733,23 @@ function extractSections(filePath) {
   if (!existsSync5(filePath)) return /* @__PURE__ */ new Map();
   const { body } = splitFrontmatter(readFileSync6(filePath, "utf-8"));
   const lines = body.split("\n");
-  const sections = /* @__PURE__ */ new Map();
+  const rawSections = /* @__PURE__ */ new Map();
   let currentHeading = null;
   for (const line of lines) {
     const trimmed = line.trimEnd();
     if (trimmed === "---") continue;
     if (HEADING_RE.test(trimmed)) {
       currentHeading = trimmed;
-      if (!sections.has(currentHeading)) {
-        sections.set(currentHeading, []);
+      if (!rawSections.has(currentHeading)) {
+        rawSections.set(currentHeading, []);
       }
     } else if (currentHeading) {
-      const t = trimmed.trim();
-      if (t.length > 0 && !t.startsWith("|---") && !t.startsWith("| Date") && !t.startsWith("| ---")) {
-        sections.get(currentHeading).push(t);
-      }
+      rawSections.get(currentHeading).push(trimmed);
     }
+  }
+  const sections = /* @__PURE__ */ new Map();
+  for (const [heading, raw] of rawSections) {
+    sections.set(heading, stripPlaceholderLines(raw));
   }
   return sections;
 }
@@ -45990,7 +46045,7 @@ function ownBody(lines, headingIdx) {
   return { start: headingIdx + 1, end };
 }
 function contentLines(lines) {
-  return lines.map((l) => l.trim()).filter((t) => t.length > 0 && t !== "---" && !t.startsWith("|---") && !t.startsWith("| ---") && !t.startsWith("| Date"));
+  return stripPlaceholderLines(lines);
 }
 function findHeading(lines, heading, occurrence = 0) {
   for (let i = 0, seen = 0; i < lines.length; i++) {
@@ -46508,26 +46563,35 @@ async function downloadTemplate(repo, templateName, destDir, token, category) {
     if (!existsSync9(extractedTemplateDir)) {
       throw new Error(`Template "${templateName}" not found in repository`);
     }
-    mkdirSync5(destDir, { recursive: true });
     if (category) {
       const catDir = join11(extractedTemplateDir, category);
       if (!existsSync9(catDir)) {
         throw new Error(`Category "${category}" not found in ${templateName}`);
       }
-      const tmplJson = join11(extractedTemplateDir, "template.json");
-      if (existsSync9(tmplJson)) {
-        writeFileSync5(join11(destDir, "template.json"), readFileSync10(tmplJson));
-      }
-      const commonDir = join11(extractedTemplateDir, "COMMON");
-      if (existsSync9(commonDir)) {
-        cpSync3(commonDir, join11(destDir, "COMMON"), { recursive: true });
-      }
-      cpSync3(catDir, join11(destDir, category), { recursive: true });
-    } else {
-      cpSync3(extractedTemplateDir, destDir, { recursive: true });
     }
+    installExtractedTemplate(extractedTemplateDir, destDir, category);
   } finally {
     rmSync4(workDir, { recursive: true, force: true });
+  }
+}
+function installExtractedTemplate(extractedTemplateDir, destDir, category) {
+  if (category) {
+    const catDir = join11(extractedTemplateDir, category);
+    mkdirSync5(destDir, { recursive: true });
+    const tmplJson = join11(extractedTemplateDir, "template.json");
+    if (existsSync9(tmplJson)) {
+      writeFileSync5(join11(destDir, "template.json"), readFileSync10(tmplJson));
+    }
+    const commonDir = join11(extractedTemplateDir, "COMMON");
+    if (existsSync9(commonDir)) {
+      cpSync3(commonDir, join11(destDir, "COMMON"), { recursive: true });
+    }
+    rmSync4(join11(destDir, category), { recursive: true, force: true });
+    cpSync3(catDir, join11(destDir, category), { recursive: true });
+  } else {
+    rmSync4(destDir, { recursive: true, force: true });
+    mkdirSync5(destDir, { recursive: true });
+    cpSync3(extractedTemplateDir, destDir, { recursive: true });
   }
 }
 
@@ -46799,7 +46863,7 @@ function createMcpServer(store, config2, opts = {}) {
     (s, { contact, section, field, value }) => {
       const id = contactId(s, contact, true);
       updateField(s, id, section, field, value);
-      const note = resolveSection(section).key === "index" && field === "orgType" ? "\nNote: the dossier code and folder are unchanged (codes are permanent). Run crm_audit to see sections the new type adds, then crm_repair to insert them." : "";
+      const note = resolveSection(section).key === "index" && field === "orgType" ? "\nNote: the dossier code and folder are unchanged (codes are permanent). The previous type is no longer listed \u2014 add it to secondaryTypes to keep it. Run crm_audit to see sections the new type adds, then crm_repair to insert them." : "";
       return `Updated ${field} = "${value}" in ${section} for ${id}${note}`;
     }
   );

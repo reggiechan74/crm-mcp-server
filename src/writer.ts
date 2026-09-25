@@ -127,6 +127,9 @@ export function appendLog(store: Store, contactId: string, entry: LogEntry): voi
 /** INDEX.md fields that hold list values (comma-separated or JSON array string on input). */
 const LIST_FIELDS = new Set(['roles', 'aliases', 'assetClasses', 'secondaryTypes']);
 
+/** INDEX.md fields that only make sense on an Organization dossier. */
+const ORG_ONLY_FIELDS = new Set(['orgType', 'secondaryTypes', 'salesMotion']);
+
 /**
  * Parse a list-valued field's incoming string into a string array.
  * Accepts a JSON array string (`'["Client","Competitor"]'`) or a
@@ -156,6 +159,13 @@ function writeField(store: Store, contactId: string, section: string, field: str
   const { key, filePath } = sectionFilePath(store, contactPath, section);
   const content = readFileSync(filePath, 'utf-8');
 
+  if (key === 'index' && ORG_ONLY_FIELDS.has(field)) {
+    const category = store.getOutline(contactId).contact.category;
+    if (category !== 'Organization') {
+      throw new Error(`${field} applies to Organization dossiers only`);
+    }
+  }
+
   const extra: Record<string, unknown> = {};
   let newValue: unknown = value;
   if (key === 'index' && field === 'orgType') {
@@ -165,7 +175,13 @@ function writeField(store: Store, contactId: string, section: string, field: str
     const current = parseFrontmatter(content)?.secondaryTypes;
     if (current !== undefined) extra.secondaryTypes = normalizeOrgTypeList(current, code);
   } else if (key === 'index' && field === 'secondaryTypes') {
-    newValue = normalizeOrgTypeList(value, String(parseFrontmatter(content)?.orgType ?? ''));
+    newValue = normalizeOrgTypeList(parseListValue(value), String(parseFrontmatter(content)?.orgType ?? ''));
+  } else if (key === 'index' && field === 'salesMotion') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized !== 'general' && normalized !== 'tech') {
+      throw new Error(`Invalid salesMotion "${value}". Valid: general, tech`);
+    }
+    newValue = normalized;
   } else if (key === 'index' && LIST_FIELDS.has(field)) {
     const list = parseListValue(value);
     if (field === 'roles') {

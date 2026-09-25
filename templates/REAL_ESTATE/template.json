@@ -1,7 +1,7 @@
 {
   "name": "REAL_ESTATE",
   "description": "Real Estate CRM — profession-specific templates for 167 RE profession types across 18 categories",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "professions": {
     "BSB": "BROKER_SALES",
     "BLB": "BROKER_LEASING",

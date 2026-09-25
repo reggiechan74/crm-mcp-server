@@ -81,6 +81,77 @@ export interface AuditResult {
 
 const HEADING_RE = /^#{2,4}\s+.+/;
 
+// A whole cell/line consisting only of one bracketed token: an unfilled
+// placeholder (`[TO BE POPULATED]`, `[TO BE ADDED]`, `[TO BE ASSESSED]`,
+// `[TO BE DOCUMENTED]`), the confidence marker (`[V/I/A]`), or a bracketed
+// option list the template offers but the user hasn't chosen from
+// (`[Won / Lost]`). Never matches unbracketed real content.
+const BRACKET_ONLY_RE = /^\[[^[\]]+\]$/;
+
+function isPlaceholderCell(cell: string): boolean {
+  const t = cell.trim();
+  return t.length === 0 || BRACKET_ONLY_RE.test(t);
+}
+
+/**
+ * True when a content line carries no real information: either a bare
+ * placeholder token, or a table row whose every cell is a placeholder token
+ * or empty. Shared by the audit's duplicate-content extraction and the
+ * repair engine's dedup comparison so a section of nothing-but-placeholders
+ * is never treated as duplicated content.
+ */
+export function isPlaceholderOnlyLine(line: string): boolean {
+  const t = line.trim();
+  if (t.startsWith('|') && t.endsWith('|') && t.length >= 2) {
+    const cells = t.slice(1, -1).split('|');
+    return cells.every(isPlaceholderCell);
+  }
+  return isPlaceholderCell(t);
+}
+
+const TABLE_SEPARATOR_RE = /^\|[-|\s:]+\|$/;
+
+function isTableRow(line: string): boolean {
+  return line.startsWith('|') && line.endsWith('|') && line.length >= 2;
+}
+
+/**
+ * Reduce raw lines (a section's body, or a whole file's body) to lines that
+ * carry real information: drops blanks, the leftover `---` horizontal-rule
+ * marker, table separator rows, the interaction-log header (identical in
+ * every dossier, so never itself evidence of duplication), and placeholder
+ * lines. A table whose data rows are ALL placeholders carries no more
+ * information than its cells do, so its header and separator are dropped
+ * along with them; a table with at least one real row keeps its header and
+ * only its real rows (a placeholder row next to a real one still adds
+ * nothing on its own).
+ */
+export function stripPlaceholderLines(rawLines: string[]): string[] {
+  const lines = rawLines.map((l) => l.trim());
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.length === 0 || line === '---') continue;
+    if (line.startsWith('| Date') || TABLE_SEPARATOR_RE.test(line)) continue;
+
+    if (isTableRow(line) && TABLE_SEPARATOR_RE.test(lines[i + 1] ?? '')) {
+      let j = i + 2;
+      const rows: string[] = [];
+      while (j < lines.length && isTableRow(lines[j])) {
+        rows.push(lines[j]);
+        j++;
+      }
+      const realRows = rows.filter((r) => !isPlaceholderOnlyLine(r));
+      if (realRows.length > 0) out.push(line, ...realRows);
+      i = j - 1;
+      continue;
+    }
+
+    if (!isPlaceholderOnlyLine(line)) out.push(line);
+  }
+  return out;
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────
 
 /**
@@ -117,7 +188,7 @@ function extractSections(filePath: string): Map<string, string[]> {
   // horizontal rules and must not hide the content that follows them.
   const { body } = splitFrontmatter(readFileSync(filePath, 'utf-8'));
   const lines = body.split('\n');
-  const sections = new Map<string, string[]>();
+  const rawSections = new Map<string, string[]>();
   let currentHeading: string | null = null;
 
   for (const line of lines) {
@@ -126,15 +197,17 @@ function extractSections(filePath: string): Map<string, string[]> {
 
     if (HEADING_RE.test(trimmed)) {
       currentHeading = trimmed;
-      if (!sections.has(currentHeading)) {
-        sections.set(currentHeading, []);
+      if (!rawSections.has(currentHeading)) {
+        rawSections.set(currentHeading, []);
       }
     } else if (currentHeading) {
-      const t = trimmed.trim();
-      if (t.length > 0 && !t.startsWith('|---') && !t.startsWith('| Date') && !t.startsWith('| ---')) {
-        sections.get(currentHeading)!.push(t);
-      }
+      rawSections.get(currentHeading)!.push(trimmed);
     }
+  }
+
+  const sections = new Map<string, string[]>();
+  for (const [heading, raw] of rawSections) {
+    sections.set(heading, stripPlaceholderLines(raw));
   }
   return sections;
 }

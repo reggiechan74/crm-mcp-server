@@ -178,26 +178,46 @@ export async function downloadTemplate(
     if (!existsSync(extractedTemplateDir)) {
       throw new Error(`Template "${templateName}" not found in repository`);
     }
-
-    mkdirSync(destDir, { recursive: true });
     if (category) {
       const catDir = join(extractedTemplateDir, category);
       if (!existsSync(catDir)) {
         throw new Error(`Category "${category}" not found in ${templateName}`);
       }
-      const tmplJson = join(extractedTemplateDir, 'template.json');
-      if (existsSync(tmplJson)) {
-        writeFileSync(join(destDir, 'template.json'), readFileSync(tmplJson));
-      }
-      const commonDir = join(extractedTemplateDir, 'COMMON');
-      if (existsSync(commonDir)) {
-        cpSync(commonDir, join(destDir, 'COMMON'), { recursive: true });
-      }
-      cpSync(catDir, join(destDir, category), { recursive: true });
-    } else {
-      cpSync(extractedTemplateDir, destDir, { recursive: true });
     }
+
+    installExtractedTemplate(extractedTemplateDir, destDir, category);
   } finally {
     rmSync(workDir, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Install an already-extracted template directory into its final destination,
+ * replacing any stale files rather than merging with cpSync forever.
+ *
+ * - Category pull: only `destDir/<category>` is removed and replaced with the
+ *   freshly extracted category; COMMON and template.json are still merged in
+ *   (a category pull never touches sibling categories or their overlays).
+ * - Full-template pull: `destDir` itself is removed first, then the fresh
+ *   template is copied into a clean directory.
+ */
+export function installExtractedTemplate(extractedTemplateDir: string, destDir: string, category?: string): void {
+  if (category) {
+    const catDir = join(extractedTemplateDir, category);
+    mkdirSync(destDir, { recursive: true });
+    const tmplJson = join(extractedTemplateDir, 'template.json');
+    if (existsSync(tmplJson)) {
+      writeFileSync(join(destDir, 'template.json'), readFileSync(tmplJson));
+    }
+    const commonDir = join(extractedTemplateDir, 'COMMON');
+    if (existsSync(commonDir)) {
+      cpSync(commonDir, join(destDir, 'COMMON'), { recursive: true });
+    }
+    rmSync(join(destDir, category), { recursive: true, force: true });
+    cpSync(catDir, join(destDir, category), { recursive: true });
+  } else {
+    rmSync(destDir, { recursive: true, force: true });
+    mkdirSync(destDir, { recursive: true });
+    cpSync(extractedTemplateDir, destDir, { recursive: true });
   }
 }

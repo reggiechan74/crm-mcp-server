@@ -19,7 +19,7 @@ import { runAudit } from '../src/audit.js';
 import { runRepair, withIntegrityGuard } from '../src/repair.js';
 import { auditContact, repairContact } from '../src/maintenance.js';
 import { assertSafeTemplateName, parseTemplateRef } from '../src/templates.js';
-import { downloadTemplate } from '../src/github.js';
+import { downloadTemplate, installExtractedTemplate } from '../src/github.js';
 import { vectorSearch } from '../src/embeddings.js';
 
 const FIXTURES = join(import.meta.dirname, 'fixtures');
@@ -358,6 +358,48 @@ describe('template name validation', () => {
     await expect(downloadTemplate('o/r', 'OK', '/tmp/never', undefined, '../x')).rejects.toThrow(/Invalid category name/);
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
+  });
+});
+
+describe('installExtractedTemplate — upgrade path (F3)', () => {
+  it('a full-template install replaces destDir, removing a stale file the fresh extract does not have', () => {
+    const base = makeTempDir('crm-test-');
+    const extracted = join(base, 'extracted');
+    mkdirSync(extracted, { recursive: true });
+    writeFileSync(join(extracted, 'INDEX.md'), 'fresh index');
+
+    const destDir = join(base, 'dest');
+    mkdirSync(destDir, { recursive: true });
+    writeFileSync(join(destDir, 'stale.md'), 'stale content');
+
+    installExtractedTemplate(extracted, destDir);
+
+    expect(existsSync(join(destDir, 'stale.md'))).toBe(false);
+    expect(readFileSync(join(destDir, 'INDEX.md'), 'utf-8')).toBe('fresh index');
+  });
+
+  it('a category install replaces only that category, keeping sibling categories and merging COMMON/template.json', () => {
+    const base = makeTempDir('crm-test-');
+    const extracted = join(base, 'extracted');
+    mkdirSync(join(extracted, 'COMMON'), { recursive: true });
+    writeFileSync(join(extracted, 'COMMON', 'common.md'), 'fresh common');
+    writeFileSync(join(extracted, 'template.json'), '{"version":"1.1.0"}');
+    mkdirSync(join(extracted, 'ORGANIZATION'), { recursive: true });
+    writeFileSync(join(extracted, 'ORGANIZATION', 'fresh.md'), 'fresh org content');
+
+    const destDir = join(base, 'dest');
+    mkdirSync(join(destDir, 'ORGANIZATION'), { recursive: true });
+    writeFileSync(join(destDir, 'ORGANIZATION', 'stale.md'), 'stale org content');
+    mkdirSync(join(destDir, 'OTHER_CATEGORY'), { recursive: true });
+    writeFileSync(join(destDir, 'OTHER_CATEGORY', 'keep.md'), 'unrelated category, untouched');
+
+    installExtractedTemplate(extracted, destDir, 'ORGANIZATION');
+
+    expect(existsSync(join(destDir, 'ORGANIZATION', 'stale.md'))).toBe(false);
+    expect(readFileSync(join(destDir, 'ORGANIZATION', 'fresh.md'), 'utf-8')).toBe('fresh org content');
+    expect(readFileSync(join(destDir, 'OTHER_CATEGORY', 'keep.md'), 'utf-8')).toBe('unrelated category, untouched');
+    expect(readFileSync(join(destDir, 'COMMON', 'common.md'), 'utf-8')).toBe('fresh common');
+    expect(readFileSync(join(destDir, 'template.json'), 'utf-8')).toBe('{"version":"1.1.0"}');
   });
 });
 

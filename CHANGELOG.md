@@ -18,6 +18,7 @@ All notable changes to crm-mcp-server are documented here.
 - `crm_vector_search` errors when stored embeddings came from a different model than `embeddingModel`, and reports sections changed since `crm-mcp embed`.
 - Tools are registered with `registerTool` and MCP annotations (read-only / destructive hints). The server reports the package version, and its instructions list all 18 tools.
 - `crm-mcp mcp` now uses the same connect-first startup as the plugin entry; tool calls wait for the initial index.
+- Org dossiers created with the earlier (unreleased) layout keep their files; running `crm_audit`/`crm_repair` on them adds the new sections alongside the old ones — review and merge by hand.
 
 ### Fixed
 - Relationship `target_id` was never resolved, so `crm_connections` could not traverse past one hop or show inbound links. Targets now resolve by dossier code, name, or alias (unique matches only).

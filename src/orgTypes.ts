@@ -254,7 +254,8 @@ export function orgTemplateLayers(orgRoot: string, spec: OrgLayerSpec): string[]
     if (overlay) add(join(orgRoot, 'TYPES', overlay.dir));
   }
   for (const role of spec.roles ?? []) {
-    const overlay = ROLE_OVERLAYS[role as OrgRole];
+    const canonical = ORG_ROLES.find((r) => r.toLowerCase() === String(role).trim().toLowerCase());
+    const overlay = canonical ? ROLE_OVERLAYS[canonical] : undefined;
     if (overlay) add(join(orgRoot, 'ROLES', overlay));
   }
   if (spec.salesMotion === 'tech') add(join(orgRoot, 'MOTION', 'TECH_SALE'));

@@ -107,6 +107,14 @@ describe('org taxonomy', () => {
     expect(orgTemplateLayers(root, { orgType: 'OTH' })).toEqual([join(root, 'COMMON')]);
     expect(orgTemplateLayers(root, { orgType: 'LND', roles: ['Nope'] })).toEqual([join(root, 'COMMON')]);
   });
+
+  it('matches roles case-insensitively at layer resolution (F6)', () => {
+    const root = '/t';
+    expect(orgTemplateLayers(root, { orgType: 'OTH', roles: ['vendor'] }))
+      .toEqual([join(root, 'COMMON'), join(root, 'ROLES', 'VENDOR')]);
+    expect(orgTemplateLayers(root, { orgType: 'OTH', roles: ['COMPETITOR'] }))
+      .toEqual([join(root, 'COMMON'), join(root, 'ROLES', 'COMPETITOR')]);
+  });
 });
 
 describe('formatOrgTypeCatalog', () => {
