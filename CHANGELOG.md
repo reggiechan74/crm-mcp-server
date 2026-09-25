@@ -2,7 +2,9 @@
 
 All notable changes to crm-mcp-server are documented here.
 
-## [Unreleased]
+## [0.8.0] - 2026-09-25
+
+**Upgrading:** reinstall the plugin, then run `crm-mcp templates pull REAL_ESTATE/ORGANIZATION` to get the 1.1.0 organization templates. Set `"salesMotion": "tech"` in `~/.crm-mcp.json` if you sell software to the organizations you track.
 
 ### Added
 - **Organization dossiers.** New `Organization` category (`Organizations/`) with `[orgType]-[CID]-[SEQ]` codes from a grouped real-estate taxonomy (44 types in 11 groups — owners, lenders, brokerages, developers, operators, professional services, occupiers, public sector, technology, associations, other), secondaryTypes for multi-line firms, multi-valued roles, and templates composed from a neutral core plus one overlay per type group, role overlays (competitive, partnership, vendor) and an opt-in tech-sale layer. Confidentiality block in INDEX.md for info obtained via one relationship about another.
@@ -19,7 +21,7 @@ All notable changes to crm-mcp-server are documented here.
 - `crm_vector_search` errors when stored embeddings came from a different model than `embeddingModel`, and reports sections changed since `crm-mcp embed`.
 - Tools are registered with `registerTool` and MCP annotations (read-only / destructive hints). The server reports the package version, and its instructions list all 18 tools.
 - `crm-mcp mcp` now uses the same connect-first startup as the plugin entry; tool calls wait for the initial index.
-- Org dossiers created with the earlier (unreleased) layout keep their files; running `crm_audit`/`crm_repair` on them adds the new sections alongside the old ones — review and merge by hand.
+- Org dossiers created from pre-release organization templates keep their files; running `crm_audit`/`crm_repair` on them adds the new sections alongside the old ones — review and merge by hand.
 
 ### Fixed
 - Relationship `target_id` was never resolved, so `crm_connections` could not traverse past one hop or show inbound links. Targets now resolve by dossier code, name, or alias (unique matches only).
