@@ -6,6 +6,10 @@ import { lookupProfession } from './professions.js';
 import { stripBoilerplate } from './parser.js';
 import { createHash } from 'node:crypto';
 import type { Store } from './store.js';
+import {
+  ORG_TYPES, ORG_ROLES, ROLE_OVERLAYS, normalizeOrgType, generateCid, isValidCid,
+  orgFolderName, type OrgRole,
+} from './orgTypes.js';
 
 export interface LogEntry {
   date: string;       // "2026-03-04"
@@ -178,6 +182,9 @@ export interface CreateDossierInput {
   context?: string;      // How you met
   template?: string;     // Template name (looks in .templates/ then bundled templates/)
   profession?: string;   // 3-letter profession code (e.g. "BSB") — uses profession-based dossier code
+  orgType?: string;      // Organization only: REIT | INV | LP | OPR | DEV | LND | BRK | SAAS | DATA | SVC
+  cid?: string;          // Organization only: company identifier (ticker or abbreviation), 2-6 chars
+  roles?: string[];      // Organization only: multi-valued roles (Client, Competitor, …)
 }
 
 export interface CreateDossierResult {
@@ -236,6 +243,31 @@ function templateTypeForCategory(category: string): string {
 }
 
 /**
+ * Next sequence number for a dossier code prefix (e.g. "NE-JANSMI-" or "OPR-OXF-")
+ * by scanning INDEX.md dossierCode values under a category directory.
+ */
+function nextSequence(catPath: string, prefix: string): number {
+  let nextSeq = 1;
+  if (!existsSync(catPath)) return nextSeq;
+  for (const entry of readdirSync(catPath, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const indexPath = join(catPath, entry.name, 'INDEX.md');
+    if (!existsSync(indexPath)) continue;
+    try {
+      const content = readFileSync(indexPath, 'utf-8');
+      const match = content.match(/dossierCode:\s*"?([^"\n]+)"?/);
+      if (match && match[1].startsWith(prefix)) {
+        const seq = parseInt(match[1].substring(prefix.length), 10);
+        if (!isNaN(seq) && seq >= nextSeq) nextSeq = seq + 1;
+      }
+    } catch {
+      // skip unreadable
+    }
+  }
+  return nextSeq;
+}
+
+/**
  * Create a new contact dossier from template.
  */
 export function createDossier(store: Store, crmRoot: string, input: CreateDossierInput): CreateDossierResult {
@@ -244,6 +276,10 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
   const categoryDir = CATEGORY_DIRS[category];
   if (!categoryDir) {
     throw new Error(`Invalid category: "${input.category}". Valid: ${Object.keys(CATEGORY_DIRS).join(', ')}`);
+  }
+
+  if (category === 'Organization') {
+    return createOrgDossier(store, crmRoot, input);
   }
 
   // 2. Determine code prefix — profession code (3-letter) or category code (2-letter)
@@ -268,31 +304,7 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
   const f3l3 = generateF3L3(input.name);
 
   // 4. Determine next sequence number by scanning existing dossiers
-  const catPath = join(crmRoot, categoryDir);
-  let nextSeq = 1;
-  if (existsSync(catPath)) {
-    const prefix = `${codePrefix}-${f3l3}-`;
-    const entries = readdirSync(catPath, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      // Check INDEX.md for dossierCode matching our prefix
-      const indexPath = join(catPath, entry.name, 'INDEX.md');
-      if (!existsSync(indexPath)) continue;
-      try {
-        const content = readFileSync(indexPath, 'utf-8');
-        const match = content.match(/dossierCode:\s*"?([^"\n]+)"?/);
-        if (match && match[1].startsWith(prefix)) {
-          const seqStr = match[1].substring(prefix.length);
-          const seq = parseInt(seqStr, 10);
-          if (!isNaN(seq) && seq >= nextSeq) {
-            nextSeq = seq + 1;
-          }
-        }
-      } catch {
-        // skip unreadable
-      }
-    }
-  }
+  const nextSeq = nextSequence(join(crmRoot, categoryDir), `${codePrefix}-${f3l3}-`);
 
   const dossierCode = `${codePrefix}-${f3l3}-${String(nextSeq).padStart(3, '0')}`;
 
@@ -406,11 +418,88 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
 }
 
 /**
+ * Create an organization dossier: `[orgType]-[CID]-[SEQ]` code, `Organizations/[orgType]_[Name]`
+ * folder, composed from REAL_ESTATE/ORGANIZATION/COMMON plus one overlay per role.
+ */
+function createOrgDossier(store: Store, crmRoot: string, input: CreateDossierInput): CreateDossierResult {
+  if (input.profession) {
+    throw new Error('profession applies to person dossiers only; use orgType for organizations');
+  }
+  const orgType = input.orgType ? normalizeOrgType(input.orgType) : null;
+  if (!orgType) {
+    throw new Error(`Organization requires a valid orgType. Valid: ${Object.keys(ORG_TYPES).join(', ')}`);
+  }
+  const roles = input.roles ?? [];
+  const badRoles = roles.filter(r => !(ORG_ROLES as readonly string[]).includes(r));
+  if (badRoles.length > 0) {
+    throw new Error(`Invalid role(s): ${badRoles.join(', ')}. Valid: ${ORG_ROLES.join(', ')}`);
+  }
+  const cid = (input.cid ?? generateCid(input.name)).toUpperCase();
+  if (!isValidCid(cid)) {
+    throw new Error(`Invalid CID "${cid}": use 2-6 chars of A-Z, 0-9, "." (pass cid explicitly)`);
+  }
+
+  const orgTpl = join(getUserTemplatesDir(crmRoot), 'REAL_ESTATE', 'ORGANIZATION');
+  const commonDir = join(orgTpl, 'COMMON');
+  if (!existsSync(commonDir)) {
+    throw new Error('Organization template not installed locally. Run: crm-mcp templates pull REAL_ESTATE/ORGANIZATION');
+  }
+
+  const categoryDir = CATEGORY_DIRS.Organization;
+  const folderName = orgFolderName(orgType, input.name);
+  const destPath = join(crmRoot, categoryDir, folderName);
+  if (existsSync(destPath)) {
+    throw new Error(`Dossier folder already exists: ${destPath}`);
+  }
+
+  const prefix = `${orgType}-${cid}-`;
+  const dossierCode = `${prefix}${String(nextSequence(join(crmRoot, categoryDir), prefix)).padStart(3, '0')}`;
+
+  mkdirSync(join(crmRoot, categoryDir), { recursive: true });
+  cpSync(commonDir, destPath, { recursive: true });
+  const overlays = new Set(roles.map(r => ROLE_OVERLAYS[r as OrgRole]).filter((d): d is string => !!d));
+  for (const overlay of overlays) {
+    const src = join(orgTpl, 'ROLES', overlay);
+    if (existsSync(src)) cpSync(src, destPath, { recursive: true });
+  }
+
+  const todayStr = today();
+  replacePlaceholdersRecursive(destPath, {
+    name: input.name,
+    dossierCode,
+    organization: '',
+    category: 'Organization',
+    date: todayStr,
+    context: input.context ?? '',
+    profession: '',
+    orgType,
+  });
+
+  const indexPath = join(destPath, 'INDEX.md');
+  const { yaml: indexYaml, body: indexBody } = parseFrontmatterAndBody(readFileSync(indexPath, 'utf-8'));
+  indexYaml.name = input.name;
+  indexYaml.dossierCode = dossierCode;
+  indexYaml.category = 'Organization';
+  indexYaml.orgType = orgType;
+  indexYaml.roles = roles;
+  indexYaml.status = 'Active';
+  indexYaml.lastContactDate = todayStr;
+  indexYaml.lastUpdated = todayStr;
+  if (input.context) indexYaml.context = input.context;
+  delete indexYaml.tier;
+  writeFileSync(indexPath, reconstructFile(indexYaml, indexBody), 'utf-8');
+
+  const relPath = `${categoryDir}/${folderName}`;
+  store.indexOne(relPath);
+  return { id: dossierCode, path: relPath };
+}
+
+/**
  * Recursively replace placeholders in all .md files under a directory.
  */
 function replacePlaceholdersRecursive(
   dirPath: string,
-  replacements: { name: string; dossierCode: string; organization: string; category: string; date: string; context: string; profession: string },
+  replacements: { name: string; dossierCode: string; organization: string; category: string; date: string; context: string; profession: string; orgType?: string },
 ): void {
   const entries = readdirSync(dirPath, { withFileTypes: true });
   for (const entry of entries) {
@@ -429,6 +518,7 @@ function replacePlaceholdersRecursive(
         context: replacements.context,
         date: replacements.date,
         profession: replacements.profession,
+        orgType: replacements.orgType ?? '',
       };
       for (const [key, value] of Object.entries(vars)) {
         content = content.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);

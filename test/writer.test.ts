@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { join, resolve, dirname } from 'node:path';
-import { mkdtempSync, cpSync, readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, cpSync, readFileSync, existsSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createStore, type Store } from '../src/store.js';
@@ -361,5 +361,134 @@ describe('createDossier', () => {
     // Verify log.md was created (from simple template, no profile.md)
     expect(existsSync(join(tempDir, 'Network', 'WONDER_Alice', 'log.md'))).toBe(true);
     expect(existsSync(join(tempDir, 'Network', 'WONDER_Alice', 'profile.md'))).toBe(false);
+  });
+});
+
+describe('createDossier — Organization', () => {
+  it('creates code, folder, and COMMON files', () => {
+    const r = createDossier(store, tempDir, {
+      name: 'Oxford Properties', category: 'Organization', orgType: 'OPR', cid: 'OXF',
+      roles: ['Client', 'OperatingPartner'],
+    });
+    expect(r.id).toBe('OPR-OXF-001');
+    expect(r.path).toBe('Organizations/OPR_Oxford_Properties');
+    const dir = join(tempDir, r.path);
+    for (const f of ['INDEX.md', 'profile.md', 'portfolio.md', 'intelligence.md',
+      'stakeholders.md', 'pipeline.md', 'log.md']) {
+      expect(existsSync(join(dir, f)), f).toBe(true);
+    }
+    expect(existsSync(join(dir, 'competitive.md'))).toBe(false);
+    expect(existsSync(join(dir, 'partnership.md'))).toBe(false);
+  });
+
+  it('writes org fields into INDEX.md and indexes as Organization', () => {
+    const r = createDossier(store, tempDir, {
+      name: 'Oxford Properties', category: 'Organization', orgType: 'opr', cid: 'OXF',
+      roles: ['Client', 'OperatingPartner'],
+    });
+    const idx = readFileSync(join(tempDir, r.path, 'INDEX.md'), 'utf-8');
+    expect(idx).toMatch(/orgType: "?OPR"?/);
+    expect(idx).toContain('category: Organization');
+    expect(idx).toMatch(/roles:\n\s+- Client\n\s+- OperatingPartner/);
+    expect(idx).not.toContain('{{');
+    const found = store.searchContacts({ query: 'Oxford Properties' });
+    expect(found[0].id).toBe('OPR-OXF-001');
+    expect(found[0].category).toBe('Organization');
+  });
+
+  it('adds role overlays only for matching roles', () => {
+    const r = createDossier(store, tempDir, {
+      name: 'Rival Data', category: 'Organization', orgType: 'DATA',
+      roles: ['Competitor', 'IntegrationPartner', 'ChannelPartner'],
+    });
+    const dir = join(tempDir, r.path);
+    expect(existsSync(join(dir, 'competitive.md'))).toBe(true);
+    expect(existsSync(join(dir, 'partnership.md'))).toBe(true);
+  });
+
+  it('defaults CID from name and increments SEQ on collision', () => {
+    const a = createDossier(store, tempDir, { name: 'Acme Capital', category: 'Organization', orgType: 'INV' });
+    const b = createDossier(store, tempDir, { name: 'Alpha Commons', category: 'Organization', orgType: 'INV' });
+    expect(a.id).toBe('INV-AC-001');
+    expect(b.id).toBe('INV-AC-002');
+  });
+
+  it('sanitizes punctuation and accents in folder and CID', () => {
+    const r = createDossier(store, tempDir, { name: 'Ivanhoé Cambridge & Co.', category: 'Organization', orgType: 'INV' });
+    expect(r.path).toBe('Organizations/INV_Ivanhoe_Cambridge_Co');
+    expect(r.id).toBe('INV-ICC-001');
+  });
+
+  it('errors on duplicate org folder without partial writes', () => {
+    createDossier(store, tempDir, { name: 'Oxford Properties', category: 'Organization', orgType: 'OPR', cid: 'OXF' });
+    expect(() => createDossier(store, tempDir, {
+      name: 'Oxford Properties', category: 'Organization', orgType: 'OPR', cid: 'OX2',
+    })).toThrow(/already exists/);
+    expect(store.searchContacts({ query: 'Oxford' }).length).toBe(1);
+  });
+
+  it('allows same name under a different orgType', () => {
+    createDossier(store, tempDir, { name: 'Oxford Properties', category: 'Organization', orgType: 'OPR', cid: 'OXF' });
+    const r = createDossier(store, tempDir, { name: 'Oxford Properties', category: 'Organization', orgType: 'INV', cid: 'OXF' });
+    expect(r.id).toBe('INV-OXF-001');
+  });
+
+  it('requires a valid orgType', () => {
+    expect(() => createDossier(store, tempDir, { name: 'Acme', category: 'Organization' }))
+      .toThrow(/orgType.*REIT, INV/);
+    expect(() => createDossier(store, tempDir, { name: 'Acme', category: 'Organization', orgType: 'XYZ' }))
+      .toThrow(/orgType/);
+  });
+
+  it('rejects invalid or wrong-case roles with the valid list', () => {
+    expect(() => createDossier(store, tempDir, {
+      name: 'Acme', category: 'Organization', orgType: 'INV', roles: ['client'],
+    })).toThrow(/Invalid role\(s\): client\. Valid: Client, Prospect/);
+  });
+
+  it('rejects invalid CID and profession on orgs', () => {
+    expect(() => createDossier(store, tempDir, {
+      name: 'Acme', category: 'Organization', orgType: 'INV', cid: 'a&b',
+    })).toThrow(/Invalid CID/);
+    expect(() => createDossier(store, tempDir, { name: 'X', category: 'Organization', orgType: 'INV' }))
+      .toThrow(/Invalid CID/);
+    expect(() => createDossier(store, tempDir, {
+      name: 'Acme', category: 'Organization', orgType: 'INV', profession: 'BSB',
+    })).toThrow(/profession/);
+  });
+
+  it('errors clearly when the ORGANIZATION template is not installed', () => {
+    rmSync(join(tempDir, '.templates', 'REAL_ESTATE', 'ORGANIZATION'), { recursive: true, force: true });
+    expect(() => createDossier(store, tempDir, { name: 'Acme Co', category: 'Organization', orgType: 'INV' }))
+      .toThrow(/templates pull REAL_ESTATE\/ORGANIZATION/);
+  });
+
+  it('org sections resolve and index (portfolio, intelligence, pipeline)', () => {
+    const r = createDossier(store, tempDir, { name: 'Oxford Properties', category: 'Organization', orgType: 'OPR', cid: 'OXF' });
+    expect(store.getSection(r.id, 'portfolio')).toContain('SYSTEMS OF RECORD');
+    expect(store.getSection(r.id, 'intelligence')).toContain('TECHNOLOGY BUYING BEHAVIOR');
+    expect(store.getSection(r.id, 'pipeline')).toContain('ACTIVE OPPORTUNITIES');
+  });
+
+  it('crm_read index surfaces the confidentiality block', () => {
+    const r = createDossier(store, tempDir, { name: 'Oxford Properties', category: 'Organization', orgType: 'OPR', cid: 'OXF' });
+    const p = join(tempDir, r.path, 'INDEX.md');
+    writeFileSync(p, readFileSync(p, 'utf-8').replace('confidentiality: []',
+      'confidentiality:\n  - source: "Client X via Oxford"\n    rule: "Do not share"'));
+    store.indexOne(r.path);
+    expect(store.getSection(r.id, 'index')).toContain('Client X via Oxford');
+  });
+
+  it('crm_log appends into the interaction log, not the document registry', () => {
+    const r = createDossier(store, tempDir, { name: 'Oxford Properties', category: 'Organization', orgType: 'OPR', cid: 'OXF' });
+    appendLog(store, r.id, { date: '2026-09-24', type: 'Call', summary: 'Intro with Jane Doe (CIO)' });
+    const log = readFileSync(join(tempDir, r.path, 'log.md'), 'utf-8');
+    const interaction = log.slice(log.indexOf('## II. INTERACTION LOG'));
+    expect(interaction).toContain('| 2026-09-24 | Call | Intro with Jane Doe (CIO) |  |  |');
+  });
+
+  it('person dossiers are unchanged', () => {
+    const r = createDossier(store, tempDir, { name: 'Jane Smith', category: 'Network' });
+    expect(r.id).toBe('NE-JANSMI-001');
   });
 });
