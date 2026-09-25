@@ -27,6 +27,8 @@ export function parseDossierIndex(dossierPath: string): { contact: Contact; rela
   const parentDir = basename(dirname(dossierPath));
   const category = DIR_TO_CATEGORY[parentDir] ?? ('Network' as Category);
 
+  if (category === 'Organization') normalizeOrgMetadata(yaml);
+
   const aliasesRaw = yaml.aliases;
   const aliases = Array.isArray(aliasesRaw)
     ? JSON.stringify(aliasesRaw.map(String))
@@ -306,6 +308,21 @@ export function scanDossierSections(dossierPath: string): SectionMeta[] {
 export function extractRelationships(dossierPath: string, contactId: string): Relationship[] {
   const yaml = parseFrontmatter(readFileSync(join(dossierPath, 'INDEX.md'), 'utf-8'));
   return yaml ? relationshipsFromYaml(yaml, contactId) : [];
+}
+
+/**
+ * Canonical shape for indexed org metadata so SQL filters stay simple:
+ * orgType upper-case, secondaryTypes/roles as arrays (hand edits may use a
+ * comma-separated string). Unknown codes are kept, upper-cased.
+ */
+function normalizeOrgMetadata(yaml: Record<string, unknown>): void {
+  const list = (v: unknown): string[] =>
+    (Array.isArray(v) ? v.map(String) : typeof v === 'string' ? v.split(',') : [])
+      .map((s) => s.trim()).filter(Boolean);
+  if (yaml.orgType != null) yaml.orgType = String(yaml.orgType).trim().toUpperCase();
+  yaml.secondaryTypes = [...new Set(list(yaml.secondaryTypes).map((s) => s.toUpperCase()))]
+    .filter((s) => s !== yaml.orgType);
+  yaml.roles = list(yaml.roles);
 }
 
 function relationshipsFromYaml(yaml: Record<string, unknown>, contactId: string): Relationship[] {
