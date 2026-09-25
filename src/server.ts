@@ -13,7 +13,10 @@ import { ALL_AUDIT_PASSES, auditContact, repairContact } from './maintenance.js'
 import type { Config, Relationship } from './types.js';
 import { resolveSection } from './types.js';
 import { lookupProfession } from './professions.js';
-import { ORG_TYPE_CODES, ORG_GROUP_KEYS, ORG_ROLES, formatOrgTypeCatalog } from './orgTypes.js';
+import {
+  ORG_TYPE_CODES, ORG_GROUP_KEYS, ORG_ROLES, formatOrgTypeCatalog,
+  normalizeOrgType, normalizeOrgGroup, normalizeOrgRole,
+} from './orgTypes.js';
 import {
   listLocalTemplates, ensureManifest, isCustomized, readTemplateInfo,
   computeContentHash, writeManifest, countFiles, parseTemplateRef,
@@ -188,6 +191,17 @@ function buildInstructions(store: Store | null, config: Config): string {
   return lines.join('\n');
 }
 
+/**
+ * Enum fields that accept any casing/padding: the advertised JSON schema still
+ * lists the exact choices, and input like " pm " is canonicalized to "PM"
+ * before validation. Unknown values pass through unchanged and fail the enum.
+ */
+const caseless = <T extends readonly [string, ...string[]]>(values: T, canon: (v: string) => string | null) =>
+  z.preprocess((v) => (typeof v === 'string' ? canon(v) ?? v : v), z.enum(values));
+const orgTypeField = () => caseless(ORG_TYPE_CODES, normalizeOrgType);
+const orgGroupField = () => caseless(ORG_GROUP_KEYS, normalizeOrgGroup);
+const orgRoleField = () => caseless(ORG_ROLES, normalizeOrgRole);
+
 const READ_ONLY: ToolAnnotations = { readOnlyHint: true };
 const WRITE: ToolAnnotations = { readOnlyHint: false, destructiveHint: false };
 const DESTRUCTIVE: ToolAnnotations = { readOnlyHint: false, destructiveHint: true };
@@ -246,9 +260,9 @@ export function createMcpServer(store: Store | null, config: Config, opts: Serve
       category: z.string().optional().describe('Filter by category: Client, Network, Family, etc.'),
       status: z.string().optional().describe('Filter by status: ACTIVE, DORMANT, etc.'),
       profession: z.string().optional().describe('Filter by 3-letter profession code (e.g., BSB for Sales Broker)'),
-      roles: z.array(z.enum(ORG_ROLES)).optional().describe('Organization roles that must ALL be present'),
-      orgType: z.enum(ORG_TYPE_CODES).optional().describe('Organization type code — matches primary or secondary type (see crm_org_types)'),
-      orgGroup: z.enum(ORG_GROUP_KEYS).optional().describe('Organization type group, e.g. LENDING (see crm_org_types)'),
+      roles: z.array(orgRoleField()).optional().describe('Organization roles that must ALL be present (any case)'),
+      orgType: orgTypeField().optional().describe('Organization type code, any case — matches primary or secondary type (see crm_org_types)'),
+      orgGroup: orgGroupField().optional().describe('Organization type group, any case, e.g. LENDING (see crm_org_types)'),
       limit: z.number().optional().default(20).describe('Max results (default 20)'),
       paths: z.boolean().optional().default(false).describe('Include the absolute dossier folder path per result (off by default to keep results compact)'),
     },
@@ -442,10 +456,10 @@ export function createMcpServer(store: Store | null, config: Config, opts: Serve
       organization: z.string().optional().describe('Organization name'),
       context: z.string().optional().describe('How you met or relationship context'),
       profession: z.string().optional().describe('3-letter profession code (e.g., BSB for Sales Broker). Generates profession-based dossier code.'),
-      orgType: z.enum(ORG_TYPE_CODES).optional().describe('Organization only: primary type code (see crm_org_types). Sets the dossier code prefix.'),
-      secondaryTypes: z.array(z.enum(ORG_TYPE_CODES)).optional().describe('Organization only: other lines of business, e.g. ["PM","INV"] for a brokerage that also manages and invests'),
+      orgType: orgTypeField().optional().describe('Organization only: primary type code, any case (see crm_org_types). Sets the dossier code prefix.'),
+      secondaryTypes: z.array(orgTypeField()).optional().describe('Organization only: other lines of business, e.g. ["PM","INV"] for a brokerage that also manages and invests'),
       cid: z.string().optional().describe('Organization only: company identifier, 2-6 chars (ticker if public, e.g. "PLD")'),
-      roles: z.array(z.enum(ORG_ROLES)).optional().describe('Organization only: your relationship roles with this org'),
+      roles: z.array(orgRoleField()).optional().describe('Organization only: your relationship roles with this org (any case)'),
       techSale: z.boolean().optional().describe('Organization only: add the tech-sale layer (tech stack, SaaS pipeline). Defaults to the salesMotion setting.'),
     },
     WRITE,
@@ -468,7 +482,7 @@ export function createMcpServer(store: Store | null, config: Config, opts: Serve
     'crm_org_types',
     'List organization type codes by group, the relationship roles, and which dossier file each group, role or the tech-sale motion adds. Use before crm_create for an organization.',
     {
-      group: z.enum(ORG_GROUP_KEYS).optional().describe('Show one group only, e.g. LENDING'),
+      group: orgGroupField().optional().describe('Show one group only, any case, e.g. LENDING'),
     },
     READ_ONLY,
     (_s, { group }) => formatOrgTypeCatalog(group),

@@ -76,4 +76,14 @@ describe('org updates', () => {
     expect(store.getContactPath('BRK-CBRE-001')).toBe('Organizations/BRK_CBRE'); // code/folder unchanged
     expect(() => updateField(store, 'BRK-CBRE-001', 'index', 'orgType', 'LND')).toThrow(/Invalid org type/);
   });
+
+  it('crm_update and creation accept roles in any case', () => {
+    updateField(store, 'DEBT-ARES-001', 'index', 'roles', 'lender, BORROWER');
+    const yaml = parseFrontmatter(readFileSync(join(root, 'Organizations', 'DEBT_Ares', 'INDEX.md'), 'utf-8'))!;
+    expect(yaml.roles).toEqual(['Lender', 'Borrower']);
+    const r = createDossier(store, root, { name: 'Case Co', category: 'Organization', orgType: 'pm', cid: 'CASE', roles: ['client'] });
+    const idx = parseFrontmatter(readFileSync(join(root, r.path, 'INDEX.md'), 'utf-8'))!;
+    expect(idx.roles).toEqual(['Client']);
+    expect(() => updateField(store, 'DEBT-ARES-001', 'index', 'roles', 'nope')).toThrow(/Invalid role/);
+  });
 });

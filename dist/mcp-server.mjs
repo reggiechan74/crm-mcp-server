@@ -44225,6 +44225,14 @@ function normalizeOrgType(input) {
   const upper = input.trim().toUpperCase();
   return Object.hasOwn(ORG_TYPES, upper) ? upper : null;
 }
+function normalizeOrgRole(input) {
+  const needle = input.trim().toLowerCase();
+  return ORG_ROLES.find((r) => r.toLowerCase() === needle) ?? null;
+}
+function normalizeOrgGroup(input) {
+  const upper = input.trim().toUpperCase();
+  return Object.hasOwn(ORG_GROUPS, upper) ? upper : null;
+}
 function groupOf(code) {
   const t = normalizeOrgType(code);
   return t ? ORG_TYPES[t].group : null;
@@ -44290,7 +44298,7 @@ function orgTemplateLayers(orgRoot, spec) {
     if (overlay) add(join4(orgRoot, "TYPES", overlay.dir));
   }
   for (const role of spec.roles ?? []) {
-    const canonical = ORG_ROLES.find((r) => r.toLowerCase() === String(role).trim().toLowerCase());
+    const canonical = normalizeOrgRole(String(role));
     const overlay = canonical ? ROLE_OVERLAYS[canonical] : void 0;
     if (overlay) add(join4(orgRoot, "ROLES", overlay));
   }
@@ -45240,6 +45248,13 @@ function appendLog(store, contactId, entry) {
 }
 var LIST_FIELDS = /* @__PURE__ */ new Set(["roles", "aliases", "assetClasses", "secondaryTypes"]);
 var ORG_ONLY_FIELDS = /* @__PURE__ */ new Set(["orgType", "secondaryTypes", "salesMotion"]);
+function canonicalRoles(roles) {
+  const bad = roles.filter((r) => !normalizeOrgRole(r));
+  if (bad.length > 0) {
+    throw new Error(`Invalid role(s): ${bad.join(", ")}. Valid: ${ORG_ROLES.join(", ")}`);
+  }
+  return [...new Set(roles.map((r) => normalizeOrgRole(r)))];
+}
 function parseListValue(value) {
   const trimmed = value.trim();
   if (trimmed.startsWith("[")) {
@@ -45282,13 +45297,7 @@ ${formatOrgTypeChoices()}`);
     newValue = normalized;
   } else if (key === "index" && LIST_FIELDS.has(field)) {
     const list = parseListValue(value);
-    if (field === "roles") {
-      const badRoles = list.filter((r) => !ORG_ROLES.includes(r));
-      if (badRoles.length > 0) {
-        throw new Error(`Invalid role(s): ${badRoles.join(", ")}. Valid: ${ORG_ROLES.join(", ")}`);
-      }
-    }
-    newValue = list;
+    newValue = field === "roles" ? canonicalRoles(list) : list;
   }
   atomicWriteFileSync(filePath, updateFrontmatter(content, { [field]: newValue, ...extra, lastUpdated: today() }));
   return { key, contactPath };
@@ -45486,11 +45495,7 @@ function createOrgDossier(store, crmRoot, input) {
     throw new Error(`Organization requires a valid orgType. Valid:
 ${formatOrgTypeChoices()}`);
   }
-  const roles = input.roles ?? [];
-  const badRoles = roles.filter((r) => !ORG_ROLES.includes(r));
-  if (badRoles.length > 0) {
-    throw new Error(`Invalid role(s): ${badRoles.join(", ")}. Valid: ${ORG_ROLES.join(", ")}`);
-  }
+  const roles = canonicalRoles(input.roles ?? []);
   const secondaryTypes = normalizeOrgTypeList(input.secondaryTypes ?? [], orgType);
   const salesMotion = input.salesMotion === "tech" ? "tech" : "general";
   const cid = (input.cid ?? generateCid(input.name)).toUpperCase();
@@ -46708,6 +46713,10 @@ function buildInstructions(store, config2) {
   }
   return lines.join("\n");
 }
+var caseless = (values, canon) => external_exports3.preprocess((v) => typeof v === "string" ? canon(v) ?? v : v, external_exports3.enum(values));
+var orgTypeField = () => caseless(ORG_TYPE_CODES, normalizeOrgType);
+var orgGroupField = () => caseless(ORG_GROUP_KEYS, normalizeOrgGroup);
+var orgRoleField = () => caseless(ORG_ROLES, normalizeOrgRole);
 var READ_ONLY = { readOnlyHint: true };
 var WRITE = { readOnlyHint: false, destructiveHint: false };
 var DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true };
@@ -46743,9 +46752,9 @@ function createMcpServer(store, config2, opts = {}) {
       category: external_exports3.string().optional().describe("Filter by category: Client, Network, Family, etc."),
       status: external_exports3.string().optional().describe("Filter by status: ACTIVE, DORMANT, etc."),
       profession: external_exports3.string().optional().describe("Filter by 3-letter profession code (e.g., BSB for Sales Broker)"),
-      roles: external_exports3.array(external_exports3.enum(ORG_ROLES)).optional().describe("Organization roles that must ALL be present"),
-      orgType: external_exports3.enum(ORG_TYPE_CODES).optional().describe("Organization type code \u2014 matches primary or secondary type (see crm_org_types)"),
-      orgGroup: external_exports3.enum(ORG_GROUP_KEYS).optional().describe("Organization type group, e.g. LENDING (see crm_org_types)"),
+      roles: external_exports3.array(orgRoleField()).optional().describe("Organization roles that must ALL be present (any case)"),
+      orgType: orgTypeField().optional().describe("Organization type code, any case \u2014 matches primary or secondary type (see crm_org_types)"),
+      orgGroup: orgGroupField().optional().describe("Organization type group, any case, e.g. LENDING (see crm_org_types)"),
       limit: external_exports3.number().optional().default(20).describe("Max results (default 20)"),
       paths: external_exports3.boolean().optional().default(false).describe("Include the absolute dossier folder path per result (off by default to keep results compact)")
     },
@@ -46916,10 +46925,10 @@ function createMcpServer(store, config2, opts = {}) {
       organization: external_exports3.string().optional().describe("Organization name"),
       context: external_exports3.string().optional().describe("How you met or relationship context"),
       profession: external_exports3.string().optional().describe("3-letter profession code (e.g., BSB for Sales Broker). Generates profession-based dossier code."),
-      orgType: external_exports3.enum(ORG_TYPE_CODES).optional().describe("Organization only: primary type code (see crm_org_types). Sets the dossier code prefix."),
-      secondaryTypes: external_exports3.array(external_exports3.enum(ORG_TYPE_CODES)).optional().describe('Organization only: other lines of business, e.g. ["PM","INV"] for a brokerage that also manages and invests'),
+      orgType: orgTypeField().optional().describe("Organization only: primary type code, any case (see crm_org_types). Sets the dossier code prefix."),
+      secondaryTypes: external_exports3.array(orgTypeField()).optional().describe('Organization only: other lines of business, e.g. ["PM","INV"] for a brokerage that also manages and invests'),
       cid: external_exports3.string().optional().describe('Organization only: company identifier, 2-6 chars (ticker if public, e.g. "PLD")'),
-      roles: external_exports3.array(external_exports3.enum(ORG_ROLES)).optional().describe("Organization only: your relationship roles with this org"),
+      roles: external_exports3.array(orgRoleField()).optional().describe("Organization only: your relationship roles with this org (any case)"),
       techSale: external_exports3.boolean().optional().describe("Organization only: add the tech-sale layer (tech stack, SaaS pipeline). Defaults to the salesMotion setting.")
     },
     WRITE,
@@ -46947,7 +46956,7 @@ function createMcpServer(store, config2, opts = {}) {
     "crm_org_types",
     "List organization type codes by group, the relationship roles, and which dossier file each group, role or the tech-sale motion adds. Use before crm_create for an organization.",
     {
-      group: external_exports3.enum(ORG_GROUP_KEYS).optional().describe("Show one group only, e.g. LENDING")
+      group: orgGroupField().optional().describe("Show one group only, any case, e.g. LENDING")
     },
     READ_ONLY,
     (_s, { group }) => formatOrgTypeCatalog(group)

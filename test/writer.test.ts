@@ -152,8 +152,8 @@ describe('updateField — org roles (F1)', () => {
     const org = createDossier(store, tempDir, {
       name: 'Gamma Capital', category: 'Organization', orgType: 'INV', cid: 'GAM', roles: ['Client'],
     });
-    expect(() => updateField(store, org.id, 'index', 'roles', 'client'))
-      .toThrow(/Invalid role\(s\): client\. Valid: Client, Prospect/);
+    expect(() => updateField(store, org.id, 'index', 'roles', 'client, Landowner'))
+      .toThrow(/Invalid role\(s\): Landowner\. Valid: Client, Prospect/);
   });
 
   it('re-derives works_at immediately when a person\'s organization field is updated', () => {
@@ -550,10 +550,10 @@ describe('createDossier — Organization', () => {
       .toThrow(/orgType/);
   });
 
-  it('rejects invalid or wrong-case roles with the valid list', () => {
+  it('rejects unknown roles with the valid list (case is not an error)', () => {
     expect(() => createDossier(store, tempDir, {
-      name: 'Acme', category: 'Organization', orgType: 'INV', roles: ['client'],
-    })).toThrow(/Invalid role\(s\): client\. Valid: Client, Prospect/);
+      name: 'Acme', category: 'Organization', orgType: 'INV', roles: ['client', 'Landowner'],
+    })).toThrow(/Invalid role\(s\): Landowner\. Valid: Client, Prospect/);
   });
 
   it('rejects invalid CID and profession on orgs', () => {

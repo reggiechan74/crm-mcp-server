@@ -10,6 +10,7 @@ All notable changes to crm-mcp-server are documented here.
 - `crm_search` `roles` (AND), `orgType` (matches primary or secondary) and `orgGroup` filters; `crm_create` `orgType`, `secondaryTypes`, `cid`, `roles` and `techSale` inputs with enumerated choices; new `crm_org_types` catalog tool; `salesMotion` setting (`"general"` | `"tech"`). Audit/repair check organizations against their composed template, and repair creates a missing overlay file from the template.
 
 ### Changed
+- Organization type codes, type groups and roles are accepted in any case everywhere (`pm`, `Lending`, `client`); tool schemas still list the exact choices, and values are stored in canonical form.
 - `crm_connections` now prints each edge as `- Source → Target (type) — context` (all edges, not only organizations), because resolved inbound links now appear alongside outbound ones.
 - **Writes require an exact contact match.** `crm_update`, `crm_log` and `crm_repair` accept a dossier code, folder name/path, or a name/alias that matches exactly (case-insensitive); an input matching several contacts (including a bare folder name that exists under two categories) is an error. The substring/full-text fallback is now used by read tools only, so a typo can no longer write to a different person's dossier.
 - `crm_bulk_update` requires `category` or `status`, updates every match (no 1000-row cap), reports per-contact errors (including dossiers that fail to reindex, without rolling back the rest), and reindexes once.

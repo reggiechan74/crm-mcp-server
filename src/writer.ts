@@ -4,7 +4,7 @@ import { CATEGORY_CODES, CATEGORY_DIRS, resolveSection, type Category, type Sale
 import { lookupProfession } from './professions.js';
 import type { Store } from './store.js';
 import {
-  formatOrgTypeChoices, ORG_ROLES, normalizeOrgType, normalizeOrgTypeList, orgTemplateLayers,
+  formatOrgTypeChoices, ORG_ROLES, normalizeOrgRole, normalizeOrgType, normalizeOrgTypeList, orgTemplateLayers,
   generateCid, isValidCid, orgFolderName,
 } from './orgTypes.js';
 import { parseFrontmatter, splitFrontmatter, updateFrontmatter } from './frontmatter.js';
@@ -131,6 +131,18 @@ const LIST_FIELDS = new Set(['roles', 'aliases', 'assetClasses', 'secondaryTypes
 const ORG_ONLY_FIELDS = new Set(['orgType', 'secondaryTypes', 'salesMotion']);
 
 /**
+ * Canonical role spellings (any case accepted), deduplicated. Throws listing
+ * every unknown role.
+ */
+function canonicalRoles(roles: string[]): string[] {
+  const bad = roles.filter((r) => !normalizeOrgRole(r));
+  if (bad.length > 0) {
+    throw new Error(`Invalid role(s): ${bad.join(', ')}. Valid: ${ORG_ROLES.join(', ')}`);
+  }
+  return [...new Set(roles.map((r) => normalizeOrgRole(r)!))];
+}
+
+/**
  * Parse a list-valued field's incoming string into a string array.
  * Accepts a JSON array string (`'["Client","Competitor"]'`) or a
  * comma-separated string (`'Client, Competitor'`); trims items and drops empties.
@@ -184,13 +196,7 @@ function writeField(store: Store, contactId: string, section: string, field: str
     newValue = normalized;
   } else if (key === 'index' && LIST_FIELDS.has(field)) {
     const list = parseListValue(value);
-    if (field === 'roles') {
-      const badRoles = list.filter((r) => !(ORG_ROLES as readonly string[]).includes(r));
-      if (badRoles.length > 0) {
-        throw new Error(`Invalid role(s): ${badRoles.join(', ')}. Valid: ${ORG_ROLES.join(', ')}`);
-      }
-    }
-    newValue = list;
+    newValue = field === 'roles' ? canonicalRoles(list) : list;
   }
 
   atomicWriteFileSync(filePath, updateFrontmatter(content, { [field]: newValue, ...extra, lastUpdated: today() }));
@@ -525,11 +531,7 @@ function createOrgDossier(store: Store, crmRoot: string, input: CreateDossierInp
   if (!orgType) {
     throw new Error(`Organization requires a valid orgType. Valid:\n${formatOrgTypeChoices()}`);
   }
-  const roles = input.roles ?? [];
-  const badRoles = roles.filter(r => !(ORG_ROLES as readonly string[]).includes(r));
-  if (badRoles.length > 0) {
-    throw new Error(`Invalid role(s): ${badRoles.join(', ')}. Valid: ${ORG_ROLES.join(', ')}`);
-  }
+  const roles = canonicalRoles(input.roles ?? []);
   const secondaryTypes = normalizeOrgTypeList(input.secondaryTypes ?? [], orgType);
   const salesMotion: SalesMotion = input.salesMotion === 'tech' ? 'tech' : 'general';
   const cid = (input.cid ?? generateCid(input.name)).toUpperCase();
