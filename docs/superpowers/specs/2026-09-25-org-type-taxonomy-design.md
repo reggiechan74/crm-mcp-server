@@ -144,7 +144,7 @@ Copy order at creation (each step `cpSync` onto the dossier folder):
 4. Role overlays, each distinct overlay once
 5. `MOTION/TECH_SALE` when the effective sales motion is `tech`
 
-**Overlay rule:** overlays only add files. The single permitted replacement is `MOTION/TECH_SALE/pipeline.md` over `COMMON/pipeline.md`. Enforced by a test over the template tree. A missing overlay directory (older installed templates) is skipped silently at creation; the audit then reports its sections as missing.
+**Overlay rule:** overlays only add files. The single permitted replacement is `MOTION/TECH_SALE/pipeline.md` over `COMMON/pipeline.md`. Enforced by a test over the template tree. A missing overlay directory (templates installed before this change) is skipped at creation, and `crm_create` returns a warning naming the fix (`crm-mcp templates pull REAL_ESTATE/ORGANIZATION`). The audit cannot report sections from a template layer that is not installed, so the warning is the user's signal.
 
 A shared function `orgTemplateLayers(templatesRoot, { orgType, secondaryTypes, roles, salesMotion }): string[]` returns the ordered directory list. Both creation and audit use it.
 
