@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { loadConfig } from '../src/config.js';
 
 describe('loadConfig', () => {
@@ -37,5 +37,30 @@ describe('loadConfig', () => {
     expect(Array.isArray(config.templates)).toBe(true);
     // defaultTemplate is always a string
     expect(typeof config.defaultTemplate).toBe('string');
+  });
+});
+
+describe('salesMotion', () => {
+  it('defaults to general', () => {
+    const origHome = process.env.HOME;
+    delete process.env.CRM_SALES_MOTION;
+    process.env.HOME = '/tmp/no-config-home';
+    expect(loadConfig().salesMotion).toBe('general');
+    process.env.HOME = origHome;
+  });
+
+  it('reads the env override', () => {
+    process.env.CRM_SALES_MOTION = 'tech';
+    expect(loadConfig().salesMotion).toBe('tech');
+    delete process.env.CRM_SALES_MOTION;
+  });
+
+  it('falls back to general with a warning on an unknown value', () => {
+    const warn = vi.spyOn(console, 'error').mockImplementation(() => {});
+    process.env.CRM_SALES_MOTION = 'saas';
+    expect(loadConfig().salesMotion).toBe('general');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('salesMotion'));
+    warn.mockRestore();
+    delete process.env.CRM_SALES_MOTION;
   });
 });

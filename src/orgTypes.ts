@@ -199,6 +199,39 @@ export function normalizeOrgTypeList(input: unknown, primary?: string): OrgType[
   return out;
 }
 
+/** Human-readable catalog for the crm_org_types tool. */
+export function formatOrgTypeCatalog(group?: string): string {
+  let keys: OrgGroup[] = ORG_GROUP_KEYS;
+  if (group) {
+    const key = group.trim().toUpperCase();
+    if (!Object.hasOwn(ORG_GROUPS, key)) {
+      throw new Error(`Invalid org group: ${group}. Valid: ${ORG_GROUP_KEYS.join(', ')}`);
+    }
+    keys = [key as OrgGroup];
+  }
+  const lines: string[] = [];
+  for (const key of keys) {
+    const g = ORG_GROUPS[key];
+    lines.push(`## ${g.label} (${key}) — ${g.overlay ? `adds ${g.overlay.file}` : 'no extra file'}`);
+    for (const [code, label] of Object.entries(g.types)) lines.push(`- ${code} — ${label}`);
+    lines.push('');
+  }
+  if (!group) {
+    const byOverlay = new Map<string, string[]>();
+    for (const [role, dir] of Object.entries(ROLE_OVERLAYS)) {
+      byOverlay.set(dir!, [...(byOverlay.get(dir!) ?? []), role]);
+    }
+    const overlayFile: Record<string, string> = { COMPETITOR: 'competitive.md', PARTNER: 'partnership.md', VENDOR: 'vendor.md' };
+    lines.push('## Roles');
+    lines.push(ORG_ROLES.join(', '));
+    for (const [dir, roles] of byOverlay) lines.push(`- ${roles.join(', ')} → ${overlayFile[dir] ?? dir}`);
+    lines.push('');
+    lines.push('## Sales motion');
+    lines.push('- tech — adds tech-stack.md and the SaaS pipeline (POC → Security Review → MSA). Set "salesMotion": "tech" in ~/.crm-mcp.json, or pass techSale to crm_create.');
+  }
+  return lines.join('\n').trimEnd();
+}
+
 export interface OrgLayerSpec {
   orgType: string;
   secondaryTypes?: string[];

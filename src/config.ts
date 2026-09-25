@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import type { Config } from './types.js';
+import { SALES_MOTIONS, type Config, type SalesMotion } from './types.js';
 
 export function loadConfig(): Config {
   const home = homedir();
@@ -23,5 +23,13 @@ export function loadConfig(): Config {
   const templateRepo = process.env.CRM_TEMPLATE_REPO || fileConfig.templateRepo || 'reggiechan74/crm-mcp-server';
   const githubToken = process.env.CRM_GITHUB_TOKEN || fileConfig.githubToken || undefined;
 
-  return { crmRoot, dbPath, embeddingModel, templates, defaultTemplate, templateRepo, githubToken };
+  const rawMotion = process.env.CRM_SALES_MOTION || fileConfig.salesMotion || 'general';
+  let salesMotion: SalesMotion = 'general';
+  if ((SALES_MOTIONS as readonly string[]).includes(rawMotion)) {
+    salesMotion = rawMotion as SalesMotion;
+  } else {
+    console.error(`crm-mcp: unknown salesMotion "${rawMotion}" — using "general" (valid: ${SALES_MOTIONS.join(', ')})`);
+  }
+
+  return { crmRoot, dbPath, embeddingModel, templates, defaultTemplate, templateRepo, githubToken, salesMotion };
 }

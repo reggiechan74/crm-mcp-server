@@ -11,7 +11,9 @@ import { vectorSearch } from './embeddings.js';
 import { formatExport } from './export.js';
 import { ALL_AUDIT_PASSES, auditContact, repairContact } from './maintenance.js';
 import type { Config, Relationship } from './types.js';
+import { resolveSection } from './types.js';
 import { lookupProfession } from './professions.js';
+import { ORG_TYPE_CODES, ORG_GROUP_KEYS, ORG_ROLES, formatOrgTypeCatalog } from './orgTypes.js';
 import {
   listLocalTemplates, ensureManifest, isCustomized, readTemplateInfo,
   computeContentHash, writeManifest, countFiles, parseTemplateRef,
@@ -41,6 +43,7 @@ export const TOOL_SUMMARIES = {
   crm_log: 'append interaction log entry',
   crm_vector_search: 'semantic search over dossier content (requires crm-mcp embed)',
   crm_create: 'create a person or organization dossier from template',
+  crm_org_types: 'list organization types, groups, roles and the template file each adds',
   crm_bulk_update: 'update an INDEX.md field across contacts matching a filter',
   crm_export: 'export contacts as JSON, CSV, or markdown',
   crm_audit: 'analyze dossier structural health',
@@ -243,19 +246,21 @@ export function createMcpServer(store: Store | null, config: Config, opts: Serve
       category: z.string().optional().describe('Filter by category: Client, Network, Family, etc.'),
       status: z.string().optional().describe('Filter by status: ACTIVE, DORMANT, etc.'),
       profession: z.string().optional().describe('Filter by 3-letter profession code (e.g., BSB for Sales Broker)'),
-      roles: z.array(z.string()).optional().describe('Organization roles that must ALL be present (e.g., ["Client","OperatingPartner"])'),
-      orgType: z.string().optional().describe('Organization type code: REIT, INV, LP, OPR, DEV, LND, BRK, SAAS, DATA, SVC'),
+      roles: z.array(z.enum(ORG_ROLES)).optional().describe('Organization roles that must ALL be present'),
+      orgType: z.enum(ORG_TYPE_CODES).optional().describe('Organization type code — matches primary or secondary type (see crm_org_types)'),
+      orgGroup: z.enum(ORG_GROUP_KEYS).optional().describe('Organization type group, e.g. LENDING (see crm_org_types)'),
       limit: z.number().optional().default(20).describe('Max results (default 20)'),
       paths: z.boolean().optional().default(false).describe('Include the absolute dossier folder path per result (off by default to keep results compact)'),
     },
     READ_ONLY,
-    (s, { query, category, status, profession, roles, orgType, limit, paths }) => {
-      const results = s.searchContacts({ query, category, status, profession, roles, orgType, limit });
+    (s, { query, category, status, profession, roles, orgType, orgGroup, limit, paths }) => {
+      const results = s.searchContacts({ query, category, status, profession, roles, orgType, orgGroup, limit });
       if (results.length === 0) return 'No contacts found.';
       const header = `| ID | Name | Org | Category | Status | Last Contact |${paths ? ' Path |' : ''}`;
       const sep = `|-----|------|-----|----------|--------|-------------|${paths ? '------|' : ''}`;
       const rows = results.map(r => {
-        const org = r.orgType ? `${r.orgType}${r.roles?.length ? ` [${r.roles.join(', ')}]` : ''}` : (r.organization || '-');
+        const types = r.orgType ? `${r.orgType}${r.secondaryTypes?.length ? ` (+${r.secondaryTypes.join(', ')})` : ''}` : '';
+        const org = r.orgType ? `${types}${r.roles?.length ? ` [${r.roles.join(', ')}]` : ''}` : (r.organization || '-');
         const base = `| ${r.id} | ${r.name} | ${org} | ${r.category} | ${r.status} | ${r.lastContact || '-'} |`;
         return paths ? `${base} ${r.path ? join(config.crmRoot, r.path) : '-'} |` : base;
       });
@@ -293,7 +298,7 @@ export function createMcpServer(store: Store | null, config: Config, opts: Serve
   // ── crm_read ─────────────────────────────────────────────────────────
   tool(
     'crm_read',
-    'Read a specific section of a contact\'s dossier. Returns cleaned content with boilerplate stripped. Standard sections: index, profile, log, intelligence-profile, intelligence-strategic, intelligence-risk, medical, medical-genetics, medical-pharmacogenomics, medical-labs, education. Profession-specific sections: deals, assignments, projects, portfolio, matters, assessments, jurisdictions, policies, campaigns, entities, holdings, programs, assets, services, engagements. Organization sections: index, profile, portfolio, intelligence, stakeholders, pipeline, log, competitive, partnership. Any custom file visible in crm_outline is also addressable by its relative path (e.g., "intelligence/intelligence-unsent").',
+    'Read a specific section of a contact\'s dossier. Returns cleaned content with boilerplate stripped. Standard sections: index, profile, log, intelligence-profile, intelligence-strategic, intelligence-risk, medical, medical-genetics, medical-pharmacogenomics, medical-labs, education. Profession-specific sections: deals, assignments, projects, portfolio, matters, assessments, jurisdictions, policies, campaigns, entities, holdings, programs, assets, services, engagements. Organization sections: index, profile, intelligence, stakeholders, pipeline, log, plus type files (portfolio, lending, deal-flow, projects, managed-portfolio, engagements, occupancy, programs, product, membership) and role/motion files (competitive, partnership, vendor, tech-stack). Any custom file visible in crm_outline is also addressable by its relative path (e.g., "intelligence/intelligence-unsent").',
     {
       contact: z.string().describe('Contact name or dossier code'),
       section: z.string().describe('Section name (e.g., "profile", "deals", "assignments")'),
@@ -376,7 +381,10 @@ export function createMcpServer(store: Store | null, config: Config, opts: Serve
     (s, { contact, section, field, value }) => {
       const id = contactId(s, contact, true);
       updateField(s, id, section, field, value);
-      return `Updated ${field} = "${value}" in ${section} for ${id}`;
+      const note = resolveSection(section).key === 'index' && field === 'orgType'
+        ? '\nNote: the dossier code and folder are unchanged (codes are permanent). Run crm_audit to see sections the new type adds, then crm_repair to insert them.'
+        : '';
+      return `Updated ${field} = "${value}" in ${section} for ${id}${note}`;
     },
   );
 
@@ -427,22 +435,43 @@ export function createMcpServer(store: Store | null, config: Config, opts: Serve
   // ── crm_create ───────────────────────────────────────────────────────
   tool(
     'crm_create',
-    'Create a new contact or organization dossier from template. For companies use category "Organization" with orgType (and optional cid, roles).',
+    'Create a new contact or organization dossier from template. For companies use category "Organization" with orgType (see crm_org_types), optionally secondaryTypes, cid, roles and techSale.',
     {
       name: z.string().describe("Full name (e.g., 'Jane Smith')"),
       category: z.string().describe('Category: Client, Network, Family, Personal, Prospect, Organization, etc.'),
       organization: z.string().optional().describe('Organization name'),
       context: z.string().optional().describe('How you met or relationship context'),
       profession: z.string().optional().describe('3-letter profession code (e.g., BSB for Sales Broker). Generates profession-based dossier code.'),
-      orgType: z.string().optional().describe('Organization only: REIT, INV, LP, OPR, DEV, LND, BRK, SAAS, DATA, SVC'),
+      orgType: z.enum(ORG_TYPE_CODES).optional().describe('Organization only: primary type code (see crm_org_types). Sets the dossier code prefix.'),
+      secondaryTypes: z.array(z.enum(ORG_TYPE_CODES)).optional().describe('Organization only: other lines of business, e.g. ["PM","INV"] for a brokerage that also manages and invests'),
       cid: z.string().optional().describe('Organization only: company identifier, 2-6 chars (ticker if public, e.g. "PLD")'),
-      roles: z.array(z.string()).optional().describe('Organization only: Client, Prospect, IntegrationPartner, ChannelPartner, Competitor, OperatingPartner, Investor, Lender, Employer, TalentTarget'),
+      roles: z.array(z.enum(ORG_ROLES)).optional().describe('Organization only: your relationship roles with this org'),
+      techSale: z.boolean().optional().describe('Organization only: add the tech-sale layer (tech stack, SaaS pipeline). Defaults to the salesMotion setting.'),
     },
     WRITE,
-    (s, { name, category, organization, context, profession, orgType, cid, roles }) => {
-      const result = createDossier(s, config.crmRoot, { name, category, organization, context, profession, orgType, cid, roles });
-      return `Created dossier ${result.id} at ${result.path}`;
+    (s, { name, category, organization, context, profession, orgType, secondaryTypes, cid, roles, techSale }) => {
+      if (category !== 'Organization' && techSale !== undefined) {
+        throw new Error('techSale applies to Organization dossiers only');
+      }
+      const salesMotion = category === 'Organization'
+        ? (techSale === undefined ? (config.salesMotion ?? 'general') : techSale ? 'tech' : 'general')
+        : undefined;
+      const result = createDossier(s, config.crmRoot, {
+        name, category, organization, context, profession, orgType, secondaryTypes, cid, roles, salesMotion,
+      });
+      return [`Created dossier ${result.id} at ${result.path}`, ...result.warnings.map((w) => `Warning: ${w}`)].join('\n');
     },
+  );
+
+  // ── crm_org_types ────────────────────────────────────────────────────
+  tool(
+    'crm_org_types',
+    'List organization type codes by group, the relationship roles, and which dossier file each group, role or the tech-sale motion adds. Use before crm_create for an organization.',
+    {
+      group: z.enum(ORG_GROUP_KEYS).optional().describe('Show one group only, e.g. LENDING'),
+    },
+    READ_ONLY,
+    (_s, { group }) => formatOrgTypeCatalog(group),
   );
 
   // ── crm_bulk_update ──────────────────────────────────────────────────
