@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { join } from 'node:path';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import {
   parseIndexYaml,
   stripBoilerplate,
@@ -157,5 +159,36 @@ describe('extractRelationships', () => {
   it('sets sourceId correctly', () => {
     const rels = extractRelationships(DOSSIER, 'NE-TESCON-001');
     expect(rels.every(r => r.sourceId === 'NE-TESCON-001')).toBe(true);
+  });
+
+  function dossierWith(linked: string): string {
+    const dir = join(mkdtempSync(join(tmpdir(), 'crm-rel-')), 'Organizations', 'OPR_Test');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'INDEX.md'),
+      `---\nname: "Test Org"\ndossierCode: "OPR-TST-001"\nlinkedContacts:\n${linked}\n---\n\n# Test Org\n`);
+    return dir;
+  }
+
+  it('parses object-form entries with type and context', () => {
+    const rels = extractRelationships(dossierWith(
+      '  - { name: "INV-XYZ-001", type: operating_partner_of, context: "TX MF" }'), 'OPR-TST-001');
+    expect(rels).toEqual([{
+      sourceId: 'OPR-TST-001', targetId: '', targetName: 'INV-XYZ-001',
+      type: 'operating_partner_of', context: 'TX MF', bidirectional: false,
+    }]);
+  });
+
+  it('falls back to associated for unknown types', () => {
+    const rels = extractRelationships(dossierWith('  - { name: "Acme", type: frenemy }'), 'OPR-TST-001');
+    expect(rels[0].type).toBe('associated');
+    expect(rels[0].context).toBe('');
+  });
+
+  it('mixes legacy strings and objects, drops empty names', () => {
+    const rels = extractRelationships(dossierWith(
+      '  - "Jane Doe (VP)"\n  - { name: "Acme", type: competes_with }\n  - { type: lp_in }'), 'OPR-TST-001');
+    expect(rels.map(r => [r.targetName, r.type])).toEqual([
+      ['Jane Doe', 'associated'], ['Acme', 'competes_with'],
+    ]);
   });
 });
