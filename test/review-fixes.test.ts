@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { makeTempDir } from './helpers/tmp.js';
 import { join, resolve, dirname } from 'node:path';
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { createStore, type Store } from '../src/store.js';
@@ -446,6 +446,33 @@ describe('review follow-ups', () => {
     expect(() => resolveContact(store, 'TEST_Contact', { strict: true })).toThrow(/matches 2 dossier folders/);
     expect(resolveContact(store, 'Clients/TEST_Contact', { strict: true })).toBe('CL-OTHPER-001');
     expect(resolveContact(store, join(root, 'Network', 'TEST_Contact'), { strict: true })).toBe('NE-TESCON-001');
+  });
+
+  it('strict mode does not ignore the category in a path input', () => {
+    expect(resolveContact(store, 'Clients/TEST_Contact', { strict: true })).toBeNull();
+    expect(resolveContact(store, 'Network/TEST_Contact', { strict: true })).toBe('NE-TESCON-001');
+    expect(resolveContact(store, 'TEST_Contact', { strict: true })).toBe('NE-TESCON-001');
+  });
+
+  it.skipIf(process.getuid?.() === 0)('indexMany rolls back only a dossier that fails mid-index and keeps its old rows', () => {
+    const profile = join(root, 'Network', 'ADECOY_Den', 'profile.md');
+    writeFileSync(profile, 'Quokka notes\n');
+    store.indexAll();
+    const idx = join(root, 'Network', 'TEST_Contact', 'INDEX.md');
+    writeFileSync(idx, readFileSync(idx, 'utf-8').replace('status: Active', 'status: Dormant'));
+    chmodSync(profile, 0o000);
+    try {
+      const { failed } = store.indexMany(['Network/ADECOY_Den', 'Network/TEST_Contact']);
+      expect(failed.map(f => f.path)).toEqual(['Network/ADECOY_Den']);
+      expect(store.getContactPath('NE-ADADEC-099')).toBe('Network/ADECOY_Den');
+      expect(store.fullTextSearch('Quokka').map(r => r.id)).toEqual(['NE-ADADEC-099']);
+      expect(store.getOutline('NE-TESCON-001').contact.status).toBe('Dormant');
+      expect(() => store.indexOne('Network/ADECOY_Den')).toThrow();
+      expect(store.getContactPath('NE-ADADEC-099')).toBe('Network/ADECOY_Den');
+    } finally {
+      chmodSync(profile, 0o644);
+    }
+    store.indexOne('Network/ADECOY_Den'); // no transaction left open
   });
 
   it('odd file names on disk do not break indexing or updates', () => {

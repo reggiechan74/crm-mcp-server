@@ -95,6 +95,9 @@ export function resolveContact(store: Store, contact: string, opts: { strict?: b
     return p != null && (pathMatch === p || pathMatch.endsWith(`/${p}`));
   });
   if (exactPath.length === 1) return exactPath[0];
+  // A path with a category ("Clients/X") that matched no dossier exactly must
+  // not fall back to a same-named folder elsewhere when writing.
+  if (opts.strict && pathMatch.includes('/') && byFolder.length > 0) return null;
   if (byFolder.length === 1) return byFolder[0];
   if (byFolder.length > 1) {
     if (opts.strict) {
