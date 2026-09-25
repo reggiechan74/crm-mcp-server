@@ -13,11 +13,11 @@
  * snapshot is restored and nothing is left changed on disk.
  */
 
-import { readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, writeFileSync, existsSync, rmSync, mkdirSync } from 'node:fs';
+import { join, basename, dirname } from 'node:path';
 import { AuditResult, runAudit, buildRoutingTable } from './audit.js';
-import { collectMdFiles } from './fsutil.js';
-import { updateFrontmatter } from './frontmatter.js';
+import { collectMdFiles, today } from './fsutil.js';
+import { parseFrontmatter, splitFrontmatter, updateFrontmatter } from './frontmatter.js';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -281,7 +281,7 @@ function applyDedup(
  */
 function applyOrdering(
   dossierDir: string,
-  templateDir: string,
+  templateDirs: string | string[],
   audit: AuditResult,
   fixCodes: string[],
   applied: string[],
@@ -297,7 +297,7 @@ function applyOrdering(
 
   // Template heading order per file
   const templateOrder = new Map<string, string[]>();
-  for (const [heading, file] of buildRoutingTable(templateDir)) {
+  for (const [heading, file] of buildRoutingTable(templateDirs)) {
     if (!templateOrder.has(file)) templateOrder.set(file, []);
     templateOrder.get(file)!.push(heading);
   }
@@ -349,25 +349,74 @@ function applyOrdering(
   }
 }
 
+/** Last layer that ships `relPath` — the file the composed template actually uses. */
+function templateSource(templateDirs: string[], relPath: string): string | null {
+  for (let i = templateDirs.length - 1; i >= 0; i--) {
+    const candidate = join(templateDirs[i], relPath);
+    if (existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+/**
+ * Fill a template file's placeholders for this dossier: name and dossier code
+ * come from the dossier's INDEX.md; other {{…}} placeholders become empty.
+ * Inside frontmatter values are JSON-escaped (templates double-quote them).
+ */
+function fillTemplate(content: string, dossierDir: string): string {
+  const index = existsSync(join(dossierDir, 'INDEX.md'))
+    ? parseFrontmatter(readFileSync(join(dossierDir, 'INDEX.md'), 'utf-8')) ?? {}
+    : {};
+  const vars: Record<string, string> = {
+    name: String(index.name ?? basename(dossierDir)),
+    dossierCode: String(index.dossierCode ?? ''),
+    date: today(),
+  };
+  const { body } = splitFrontmatter(content);
+  const head = content.slice(0, content.length - body.length);
+  const fill = (text: string, escape: boolean) =>
+    text.replace(/\{\{(\w+)\}\}/g, (_m, key: string) => {
+      const value = vars[key] ?? '';
+      return escape ? JSON.stringify(value).slice(1, -1) : value;
+    });
+  return fill(head, true) + fill(body, false);
+}
+
 function applyMissing(
   dossierDir: string,
+  templateDirs: string[],
   audit: AuditResult,
   fixCodes: string[],
   applied: string[],
   failed: string[],
 ): void {
+  const createdFromTemplate = new Set<string>();
   for (const finding of audit.findings.missing) {
     if (!selected(finding.code, fixCodes)) continue;
 
     try {
       const filePath = join(dossierDir, finding.file);
+      if (createdFromTemplate.has(finding.file)) {
+        applied.push(finding.code);
+        continue;
+      }
+      if (!existsSync(filePath)) {
+        // Whole file missing (e.g. an overlay added after creation): copy it
+        // from the template so it gets frontmatter and every section at once.
+        const source = templateSource(templateDirs, finding.file);
+        if (source) {
+          mkdirSync(dirname(filePath), { recursive: true });
+          writeFileSync(filePath, fillTemplate(readFileSync(source, 'utf-8'), dossierDir));
+          createdFromTemplate.add(finding.file);
+          applied.push(finding.code);
+          continue;
+        }
+      }
       let content = '';
       if (existsSync(filePath)) {
         content = readFileSync(filePath, 'utf-8');
         if (!content.endsWith('\n')) content += '\n';
       }
-
-      // Append the heading as a placeholder
       content += `${finding.section}\n\n`;
       writeFileSync(filePath, content);
       applied.push(finding.code);
@@ -409,25 +458,26 @@ function applyStale(
 
 export function runRepair(
   dossierDir: string,
-  templateDir: string,
+  templateDirs: string | string[],
   audit: AuditResult,
   fixCodes: string[],
 ): RepairResult {
   const applied: string[] = [];
   const failed: string[] = [];
+  const layers = Array.isArray(templateDirs) ? templateDirs : [templateDirs];
 
   // Apply fixes in dependency order
   const outcome = withIntegrityGuard(dossierDir, () => {
     applyMoves(dossierDir, audit, fixCodes, applied, failed);
     applyDedup(dossierDir, audit, fixCodes, applied, failed);
-    applyOrdering(dossierDir, templateDir, audit, fixCodes, applied, failed);
-    applyMissing(dossierDir, audit, fixCodes, applied, failed);
+    applyOrdering(dossierDir, layers, audit, fixCodes, applied, failed);
+    applyMissing(dossierDir, layers, audit, fixCodes, applied, failed);
     applyStale(dossierDir, audit, fixCodes, applied, failed);
   });
   if (outcome.rolledBack) failed.push(...applied.splice(0));
 
   // Run fresh compliance check
-  const freshAudit = runAudit(dossierDir, templateDir, ['compliance']);
+  const freshAudit = runAudit(dossierDir, layers, ['compliance']);
 
   const lineDelta = outcome.linesAfter - outcome.linesBefore;
   return {

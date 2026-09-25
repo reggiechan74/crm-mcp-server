@@ -20,7 +20,7 @@ import {
 } from './templates.js';
 import { listRemoteTemplates, downloadTemplate } from './github.js';
 
-export { resolveTemplateDir } from './maintenance.js';
+export { resolveTemplateDirs } from './maintenance.js';
 
 /** Package version, read at runtime (dist/*.mjs and src/*.ts both sit one level below package.json). */
 function readVersion(): string {

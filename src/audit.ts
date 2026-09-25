@@ -182,23 +182,25 @@ function readFrontmatter(filePath: string): Map<string, string> {
 // ── Public API ───────────────────────────────────────────────────────
 
 /**
- * Build a routing table from a template directory.
- *
- * Reads every .md file under `templateDir`, extracts headings (## - ####),
- * and maps each heading string to its relative file path.
- * H1 headings are ignored — they are document titles, not sections.
+ * Build a routing table (heading → relative file) from one template
+ * directory or an ordered list of layers. A layer that ships a file replaces
+ * every heading earlier layers mapped to that same file, then adds its own —
+ * so an overriding file (e.g. MOTION/TECH_SALE/pipeline.md) defines that
+ * file's expected headings. H1 headings are ignored.
  */
-export function buildRoutingTable(templateDir: string): Map<string, string> {
+export function buildRoutingTable(templateDirs: string | string[]): Map<string, string> {
+  const layers = Array.isArray(templateDirs) ? templateDirs : [templateDirs];
   const table = new Map<string, string>();
-  const mdFiles = collectMdFiles(templateDir);
-
-  for (const relPath of mdFiles) {
-    const headings = extractHeadings(join(templateDir, relPath));
-    for (const h of headings) {
-      table.set(h, relPath);
+  for (const dir of layers) {
+    const files = collectMdFiles(dir);
+    const shipped = new Set(files);
+    for (const [heading, file] of [...table]) {
+      if (shipped.has(file)) table.delete(heading);
+    }
+    for (const relPath of files) {
+      for (const h of extractHeadings(join(dir, relPath))) table.set(h, relPath);
     }
   }
-
   return table;
 }
 
@@ -211,11 +213,12 @@ export function buildRoutingTable(templateDir: string): Map<string, string> {
  */
 export function runAudit(
   dossierDir: string,
-  templateDir: string,
+  templateDirs: string | string[],
   passes: AuditPass[],
 ): AuditResult {
   const contact = basename(dossierDir);
-  const templateName = basename(templateDir);
+  const layers = Array.isArray(templateDirs) ? templateDirs : [templateDirs];
+  const templateName = basename(layers[0] ?? '');
 
   // Always initialize all finding arrays
   const findings: AuditFindings = {
@@ -226,7 +229,7 @@ export function runAudit(
     missing: [],
   };
 
-  const routingTable = buildRoutingTable(templateDir);
+  const routingTable = buildRoutingTable(layers);
 
   // Build dossier heading map: file -> set of headings
   const dossierHeadings = new Map<string, Set<string>>();
