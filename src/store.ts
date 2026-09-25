@@ -18,7 +18,7 @@ import fg from 'fast-glob';
 import { readFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
-import { AUTO_WORKS_AT_CONTEXT } from './orgTypes.js';
+import { AUTO_WORKS_AT_CONTEXT, ORG_ROLES } from './orgTypes.js';
 
 export interface Store {
   db: Database;
@@ -294,18 +294,28 @@ export function createStore(dbPath: string, crmRoot: string): Store {
     };
 
     const all = buildIndex(contacts, true);
-    const update = db.prepare('UPDATE relationships SET target_id = ? WHERE rowid = ?');
+    const update = db.prepare('UPDATE relationships SET target_id = ? WHERE rowid = ? AND target_id IS NOT ?');
     for (const row of db.prepare('SELECT rowid, target_name FROM relationships').all() as any[]) {
-      update.run(unique(all, row.target_name), row.rowid);
+      const resolved = unique(all, row.target_name);
+      update.run(resolved, row.rowid, resolved);
     }
 
     const orgs = contacts.filter(c => c.category === 'Organization');
     const orgIndex = buildIndex(orgs, false);
     const orgName = new Map(orgs.map(o => [o.id, o.name]));
+    // At this point every remaining `works_at` row is hand-authored (the auto
+    // rows were deleted above) and its target_id was just resolved by the
+    // loop above — use it to avoid inserting a duplicate auto edge to the
+    // same org even when the manual row names the org by code or alias
+    // rather than by the exact `organization` field string.
+    const hasManualWorksAt = db.prepare(
+      "SELECT 1 FROM relationships WHERE source_id = ? AND type = 'works_at' AND target_id = ? LIMIT 1",
+    );
     for (const c of contacts) {
       if (c.category === 'Organization' || !c.organization) continue;
       const orgId = unique(orgIndex, c.organization);
       if (!orgId) continue;
+      if (hasManualWorksAt.get(c.id, orgId)) continue;
       stmts.insertRelationshipIfAbsent.run(c.id, orgId, orgName.get(orgId)!, 'works_at', AUTO_WORKS_AT_CONTEXT, 0);
     }
   }
@@ -362,17 +372,27 @@ export function createStore(dbPath: string, crmRoot: string): Store {
     },
 
     indexOne(dossierRelPath: string): void {
-      // Remove existing data for this dossier (if re-indexing)
+      // Scan the filesystem (parseIndexYaml) before opening the transaction,
+      // consistent with indexAll — avoids holding the write lock during I/O.
       const dossierPath = join(crmRoot, dossierRelPath);
       const contact = parseIndexYaml(dossierPath);
-      if (contact.id) {
-        db.prepare('DELETE FROM contacts WHERE id = ?').run(contact.id);
-        db.prepare('DELETE FROM relationships WHERE source_id = ?').run(contact.id);
-        db.prepare('DELETE FROM content_fts WHERE contact_id = ?').run(contact.id);
-        db.prepare('DELETE FROM content_cache WHERE contact_id = ?').run(contact.id);
-      }
-      indexDossier(dossierRelPath);
-      resolveRelationshipTargets();
+
+      // Wrap the deletes, re-index, and relationship resolution in a single
+      // transaction — without this, resolveRelationshipTargets' per-row
+      // UPDATEs each auto-commit (one fsync per relationship row).
+      const runIndexOne = db.transaction(() => {
+        // Remove existing data for this dossier (if re-indexing)
+        if (contact.id) {
+          db.prepare('DELETE FROM contacts WHERE id = ?').run(contact.id);
+          db.prepare('DELETE FROM relationships WHERE source_id = ?').run(contact.id);
+          db.prepare('DELETE FROM content_fts WHERE contact_id = ?').run(contact.id);
+          db.prepare('DELETE FROM content_cache WHERE contact_id = ?').run(contact.id);
+        }
+        indexDossier(dossierRelPath);
+        resolveRelationshipTargets();
+      });
+
+      runIndexOne();
     },
 
     searchContacts(filters): SearchResult[] {
@@ -412,7 +432,19 @@ export function createStore(dbPath: string, crmRoot: string): Store {
         conditions.push("json_extract(metadata_json, '$.orgType') = ?");
         params.push(orgType.toUpperCase());
       }
-      for (const role of roles ?? []) {
+      // Normalize each requested role to its canonical ORG_ROLES spelling,
+      // case-insensitively — 'client' should match stored 'Client'. Throw
+      // (rather than fail open to zero results) on an unrecognized role.
+      const normalizedRoles = (roles ?? []).map((role) => {
+        const canonical = (ORG_ROLES as readonly string[]).find(
+          (r) => r.toLowerCase() === role.trim().toLowerCase(),
+        );
+        if (!canonical) {
+          throw new Error(`Invalid role(s): ${role}. Valid: ${ORG_ROLES.join(', ')}`);
+        }
+        return canonical;
+      });
+      for (const role of normalizedRoles) {
         conditions.push("EXISTS (SELECT 1 FROM json_each(contacts.metadata_json, '$.roles') WHERE value = ?)");
         params.push(role);
       }
@@ -438,7 +470,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
           ${status ? 'AND c.status = ?' : ''}
           ${profession ? 'AND c.profession = ?' : ''}
           ${orgType ? "AND json_extract(c.metadata_json, '$.orgType') = ?" : ''}
-          ${(roles ?? []).map(() => "AND EXISTS (SELECT 1 FROM json_each(c.metadata_json, '$.roles') WHERE value = ?)").join('\n')}
+          ${normalizedRoles.map(() => "AND EXISTS (SELECT 1 FROM json_each(c.metadata_json, '$.roles') WHERE value = ?)").join('\n')}
           ORDER BY rank
           LIMIT ?
         `;
@@ -447,7 +479,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
         if (status) ftsParams.push(status);
         if (profession) ftsParams.push(profession);
         if (orgType) ftsParams.push(orgType.toUpperCase());
-        for (const role of roles ?? []) ftsParams.push(role);
+        for (const role of normalizedRoles) ftsParams.push(role);
         ftsParams.push(limit);
 
         const ftsRows = db.prepare(ftsSql).all(...ftsParams);

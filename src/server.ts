@@ -43,8 +43,12 @@ function respond(text: string) {
  * Returns null if not found.
  */
 export function resolveContact(store: Store, contact: string): string | null {
-  // 1. Dossier code (e.g. "CL-RANMUL-002", "SAAS-CHER-001") — use it directly.
-  if (/^[A-Z]{2,4}-/.test(contact)) {
+  // 1. Dossier code (e.g. "CL-RANMUL-002", "SAAS-CHER-001") — use it directly,
+  //    but only when it actually resolves to a known contact. A folder name
+  //    like "CHAN-LEE_Amy" also matches this shape (a 2-4 letter prefix
+  //    followed by "-"), so we must not short-circuit on shape alone — fall
+  //    through to the folder lookup and name search below when it doesn't.
+  if (/^[A-Z]{2,4}-/.test(contact) && store.getContactPath(contact) != null) {
     return contact;
   }
   // 2. Dossier folder name or full folder path (e.g. "MENSAH-CHAN_Izzy") —
@@ -182,7 +186,12 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
     async ({ query, category, status, profession, roles, orgType, limit, paths }) => {
       const err = requireConfigured(config);
       if (err) return respond(err);
-      const results = store!.searchContacts({ query, category, status, profession, roles, orgType, limit });
+      let results;
+      try {
+        results = store!.searchContacts({ query, category, status, profession, roles, orgType, limit });
+      } catch (e: any) {
+        return respond(`Error: ${e.message}`);
+      }
       if (results.length === 0) return respond('No contacts found.');
       const header = `| ID | Name | Org | Category | Status | Last Contact |${paths ? ' Path |' : ''}`;
       const sep = `|-----|------|-----|----------|--------|-------------|${paths ? '------|' : ''}`;

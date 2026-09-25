@@ -124,6 +124,49 @@ describe('updateField', () => {
   });
 });
 
+describe('updateField — org roles (F1)', () => {
+  it('writes a comma-separated roles update as a YAML list and keeps both roles searchable', () => {
+    const org = createDossier(store, tempDir, {
+      name: 'Acme Capital', category: 'Organization', orgType: 'INV', cid: 'ACM', roles: ['Client'],
+    });
+    updateField(store, org.id, 'index', 'roles', 'Client, Competitor');
+
+    const indexContent = readFileSync(join(tempDir, org.path, 'INDEX.md'), 'utf-8');
+    expect(indexContent).toMatch(/roles:\n\s+- Client\n\s+- Competitor/);
+
+    expect(store.searchContacts({ roles: ['Client'] }).map(r => r.id)).toContain(org.id);
+    expect(store.searchContacts({ roles: ['Competitor'] }).map(r => r.id)).toContain(org.id);
+  });
+
+  it('accepts a JSON array string for roles', () => {
+    const org = createDossier(store, tempDir, {
+      name: 'Beta Capital', category: 'Organization', orgType: 'INV', cid: 'BET', roles: ['Client'],
+    });
+    updateField(store, org.id, 'index', 'roles', '["Client","Competitor"]');
+    expect(store.searchContacts({ roles: ['Competitor'] }).map(r => r.id)).toContain(org.id);
+  });
+
+  it('throws Invalid role(s) for an unknown role', () => {
+    const org = createDossier(store, tempDir, {
+      name: 'Gamma Capital', category: 'Organization', orgType: 'INV', cid: 'GAM', roles: ['Client'],
+    });
+    expect(() => updateField(store, org.id, 'index', 'roles', 'client'))
+      .toThrow(/Invalid role\(s\): client\. Valid: Client, Prospect/);
+  });
+
+  it('re-derives works_at immediately when a person\'s organization field is updated', () => {
+    const org = createDossier(store, tempDir, {
+      name: 'Delta Capital', category: 'Organization', orgType: 'INV', cid: 'DEL',
+    });
+    const person = createDossier(store, tempDir, { name: 'New Person', category: 'Network' });
+    updateField(store, person.id, 'index', 'organization', 'Delta Capital');
+
+    const rels = store.getConnections(person.id);
+    const w = rels.find(r => r.type === 'works_at');
+    expect(w).toMatchObject({ targetId: org.id });
+  });
+});
+
 describe('generateF3L3', () => {
   it('handles simple first/last name', () => {
     expect(generateF3L3('Ross Bratt')).toBe('ROSBRA');
@@ -251,6 +294,15 @@ describe('createDossier', () => {
   it('throws for invalid category', () => {
     expect(() => createDossier(store, tempDir, { name: 'Test User', category: 'Invalid' }))
       .toThrow(/Invalid category/);
+  });
+
+  it('throws when org-only inputs are given for a non-Organization category (F7)', () => {
+    expect(() => createDossier(store, tempDir, { name: 'Test User', category: 'Network', orgType: 'INV' }))
+      .toThrow(/orgType, cid and roles apply to Organization dossiers only/);
+    expect(() => createDossier(store, tempDir, { name: 'Test User', category: 'Network', cid: 'ABC' }))
+      .toThrow(/orgType, cid and roles apply to Organization dossiers only/);
+    expect(() => createDossier(store, tempDir, { name: 'Test User', category: 'Network', roles: ['Client'] }))
+      .toThrow(/orgType, cid and roles apply to Organization dossiers only/);
   });
 
   it('creates dossier with 3-letter profession code', () => {
@@ -485,6 +537,19 @@ describe('createDossier — Organization', () => {
     const log = readFileSync(join(tempDir, r.path, 'log.md'), 'utf-8');
     const interaction = log.slice(log.indexOf('## II. INTERACTION LOG'));
     expect(interaction).toContain('| 2026-09-24 | Call | Intro with Jane Doe (CIO) |  |  |');
+  });
+
+  it('falls back to the CID for the folder stem when the name has no ASCII letters (F5)', () => {
+    const r = createDossier(store, tempDir, {
+      name: '三井不動産', category: 'Organization', orgType: 'INV', cid: 'MFI',
+    });
+    expect(r.path).toBe('Organizations/INV_MFI');
+  });
+
+  it('still requires a valid CID for an all-non-ASCII name without one (F5)', () => {
+    expect(() => createDossier(store, tempDir, {
+      name: '三井不動産', category: 'Organization', orgType: 'INV',
+    })).toThrow(/Invalid CID/);
   });
 
   it('person dossiers are unchanged', () => {

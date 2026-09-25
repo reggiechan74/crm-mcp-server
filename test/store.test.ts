@@ -344,6 +344,55 @@ describe('relationship resolution', () => {
     expect(rows[0].target_id).toBe('OPR-OXF-001');
     s.close();
   });
+
+  it('does not duplicate a hand-authored works_at edge that names the org by dossier code (F4)', () => {
+    const root = mkdtempSync(join(tmpdir(), 'crm-manual-works-at-code-'));
+    writeDossier(root, 'Organizations/OPR_Oxford', [
+      'name: "Oxford Properties"', 'dossierCode: "OPR-OXF-001"', 'orgType: OPR', 'roles:', '  - Client',
+    ].join('\n'));
+    writeDossier(root, 'Network/DOE_Jane', [
+      'name: "Jane Doe"', 'dossierCode: "NE-JANDOE-001"', 'organization: "Oxford Properties"',
+      'linkedContacts:',
+      '  - { name: "OPR-OXF-001", type: works_at }',
+    ].join('\n'));
+    const s = createStore(':memory:', root);
+    s.indexAll();
+    const rows = s.db.prepare(
+      "SELECT * FROM relationships WHERE source_id = 'NE-JANDOE-001' AND type = 'works_at'",
+    ).all() as any[];
+    expect(rows.length).toBe(1);
+    expect(rows[0].target_id).toBe('OPR-OXF-001');
+    s.close();
+  });
+
+  it('leaves an unrelated edge\'s target_id unchanged after indexOne of another dossier (F2)', () => {
+    const root = graphRoot();
+    const s = createStore(':memory:', root);
+    s.indexAll();
+    // Unrelated dossier with no relationships of its own.
+    s.indexOne('Network/TWIN_Sam');
+    const rels = s.getConnections('OPR-OXF-001');
+    const op = rels.find(r => r.type === 'operating_partner_of');
+    expect(op!.targetId).toBe('INV-XYZ-001');
+    s.close();
+  });
+});
+
+describe('searchContacts — case-insensitive role search (F6)', () => {
+  it('finds orgs with Client when searching lowercase "client"', () => {
+    const s = createStore(':memory:', graphRoot());
+    s.indexAll();
+    expect(s.searchContacts({ roles: ['client'] }).map(r => r.id).sort())
+      .toEqual(['INV-XYZ-001', 'OPR-OXF-001']);
+    s.close();
+  });
+
+  it('throws Invalid role(s) for an unknown role rather than failing open', () => {
+    const s = createStore(':memory:', graphRoot());
+    s.indexAll();
+    expect(() => s.searchContacts({ roles: ['Nope'] })).toThrow(/Invalid role\(s\): Nope\. Valid:/);
+    s.close();
+  });
 });
 
 describe('searchContacts org filters', () => {

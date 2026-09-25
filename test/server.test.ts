@@ -63,6 +63,28 @@ describe('resolveContact — folder-name inputs resolve to the right contact', (
     expect(resolveContact(store, 'NE-BOBSMI-100')).toBe('NE-BOBSMI-100');
     store.close();
   });
+
+  it('passes through a real dossier code from the fixtures store unchanged (F3)', () => {
+    const store = createStore(':memory:', FIXTURES);
+    store.indexAll();
+    expect(resolveContact(store, 'NE-TESCON-001')).toBe('NE-TESCON-001');
+    store.close();
+  });
+
+  it('does not swallow a folder name that happens to look like a dossier code (F3)', () => {
+    // "CHAN-LEE_Amy" matches the dossier-code shape (/^[A-Z]{2,4}-/) but is
+    // actually a folder name — it must fall through to the folder lookup.
+    const root = mkdtempSync(join(tmpdir(), 'crm-srv-f3-'));
+    mkdirSync(join(root, 'Network/CHAN-LEE_Amy'), { recursive: true });
+    writeFileSync(
+      join(root, 'Network/CHAN-LEE_Amy/INDEX.md'),
+      '---\nname: "Amy Chan-Lee"\ndossierCode: "NE-AMYCHA-001"\nstatus: Active\n---\n',
+    );
+    const store = createStore(':memory:', root);
+    store.indexAll();
+    expect(resolveContact(store, 'CHAN-LEE_Amy')).toBe('NE-AMYCHA-001');
+    store.close();
+  });
 });
 
 describe('audit and repair tools', () => {
