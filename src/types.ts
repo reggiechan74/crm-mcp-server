@@ -73,6 +73,10 @@ export interface SearchResult {
   roles?: string[];
 }
 
+export const SALES_MOTIONS = ['general', 'tech'] as const;
+/** How the user sells to organizations: `tech` adds the SaaS-sale template layer. */
+export type SalesMotion = typeof SALES_MOTIONS[number];
+
 export interface Config {
   crmRoot: string;
   dbPath: string;
@@ -81,6 +85,7 @@ export interface Config {
   defaultTemplate: string;   // template to use when none specified
   templateRepo: string;      // GitHub repo for remote templates (owner/repo)
   githubToken?: string;      // optional GitHub token for private repos / rate limits
+  salesMotion?: SalesMotion; // 'general' (default) | 'tech' — adds the tech-sale org template layer
 }
 
 export const DOSSIER_SECTIONS = [

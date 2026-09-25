@@ -4,7 +4,7 @@ import { CATEGORY_CODES, CATEGORY_DIRS, resolveSection, type Category } from './
 import { lookupProfession } from './professions.js';
 import type { Store } from './store.js';
 import {
-  ORG_TYPES, ORG_ROLES, ROLE_OVERLAYS, normalizeOrgType, generateCid, isValidCid,
+  formatOrgTypeChoices, ORG_ROLES, ROLE_OVERLAYS, normalizeOrgType, generateCid, isValidCid,
   orgFolderName, type OrgRole,
 } from './orgTypes.js';
 import { parseFrontmatter, splitFrontmatter, updateFrontmatter } from './frontmatter.js';
@@ -236,7 +236,7 @@ export interface CreateDossierInput {
   context?: string;      // How you met
   template?: string;     // Template name (looks in .templates/ then bundled templates/)
   profession?: string;   // 3-letter profession code (e.g. "BSB") — uses profession-based dossier code
-  orgType?: string;      // Organization only: REIT | INV | LP | OPR | DEV | LND | BRK | SAAS | DATA | SVC
+  orgType?: string;      // Organization only: a code from ORG_TYPES (see crm_org_types)
   cid?: string;          // Organization only: company identifier (ticker or abbreviation), 2-6 chars
   roles?: string[];      // Organization only: multi-valued roles (Client, Competitor, …)
 }
@@ -494,7 +494,7 @@ function createOrgDossier(store: Store, crmRoot: string, input: CreateDossierInp
   }
   const orgType = input.orgType ? normalizeOrgType(input.orgType) : null;
   if (!orgType) {
-    throw new Error(`Organization requires a valid orgType. Valid: ${Object.keys(ORG_TYPES).join(', ')}`);
+    throw new Error(`Organization requires a valid orgType. Valid:\n${formatOrgTypeChoices()}`);
   }
   const roles = input.roles ?? [];
   const badRoles = roles.filter(r => !(ORG_ROLES as readonly string[]).includes(r));
