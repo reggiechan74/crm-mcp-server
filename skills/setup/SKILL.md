@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Diagnostic for when the CRM plugin won't connect. Syncs the marketplace clone to the latest pushed code and validates the MCP server boots. Use for "crm not connecting", "fix crm mcp", "rebuild crm", "update crm", "Failed to reconnect to plugin:crm:crm", or on a fresh environment.
+description: Diagnostic for when the CRM plugin won't connect. Syncs the marketplace clone to the latest pushed code, validates the MCP server boots, and installs the bare /crm shortcut. Use for "crm not connecting", "fix crm mcp", "rebuild crm", "update crm", "Failed to reconnect to plugin:crm:crm", or on a fresh environment.
 allowed-tools:
   - Bash
 ---
@@ -17,7 +17,7 @@ diagnostic for the two things that can still leave the plugin disconnected:
 1. **Stale code** — the auto-updater hasn't pulled the latest `dist/` into the
    marketplace clone yet. Step 1 forces it (idempotent).
 2. **Stale connection state** — Claude Code is holding a dead MCP connection.
-   Step 3 reloads it.
+   Step 4 reloads it.
 
 **Symptom this fixes:** "Failed to reconnect to plugin:crm:crm" at session start.
 
@@ -53,7 +53,16 @@ cd /tmp && echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protoc
 **Pass:** response starts with `{"result":{"protocolVersion":` and lists CRM tools.
 **Fail:** `Cannot find module 'node:sqlite'` — Node is older than 22.5; upgrade it.
 
-### Step 3 — Reload MCP in Claude Code
+### Step 3 — Install the bare `/crm` shortcut (idempotent)
+Plugin skills are always namespaced (`/crm:lookup`), so a bare `/crm` needs a
+personal skill. Install or refresh it from the plugin:
+```bash
+mkdir -p "$HOME/.claude/skills/crm" && cp "$HOME/.claude/plugins/marketplaces/crm-mcp-server/personal-skills/crm/SKILL.md" "$HOME/.claude/skills/crm/SKILL.md" && echo "Installed /crm shortcut"
+```
+`/crm <name>` then runs `/crm:lookup <name>`. It is user-invoked only, so it
+never competes with `/crm:lookup` for automatic triggering.
+
+### Step 4 — Reload MCP in Claude Code
 Tell the user: run `/mcp` to reconnect the plugin. If `/mcp` still reports
 "Failed to reconnect," restart Claude Code to clear stale connection state.
 

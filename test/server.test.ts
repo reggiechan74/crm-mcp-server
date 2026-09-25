@@ -126,3 +126,25 @@ describe('org tool helpers', () => {
     store.close();
   });
 });
+
+describe('server instructions', () => {
+  it('tell the model to find people through the index, not by searching files', async () => {
+    const { InMemoryTransport } = await import('@modelcontextprotocol/sdk/inMemory.js');
+    const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
+    const store = createStore(':memory:', FIXTURES);
+    store.indexAll();
+    const config = { crmRoot: FIXTURES, dbPath: ':memory:', embeddingModel: 't', templates: [], defaultTemplate: 'simple', templateRepo: 'o/r' };
+    const server = createMcpServer(store, config);
+    const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverSide);
+    const client = new Client({ name: 't', version: '0' });
+    await client.connect(clientSide);
+    const text = client.getInstructions() ?? '';
+    expect(text).toContain('To find a person or company, use crm_search');
+    expect(text).toContain('do not grep, glob or read files in the CRM folder');
+    expect(text).toContain('/crm:lookup');
+    await client.close();
+    store.close();
+  });
+});
+

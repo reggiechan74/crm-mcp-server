@@ -47087,6 +47087,7 @@ function buildInstructions(store, config2) {
   }
   lines.push("");
   lines.push("Workflow: crm_search \u2192 crm_outline \u2192 crm_read (progressive disclosure, 10x token savings)");
+  lines.push("To find a person or company, use crm_search (paths: true returns the dossier folder) \u2014 do not grep, glob or read files in the CRM folder to locate records; the index already has them. For a quick lookup, the /crm:lookup skill does this end to end.");
   lines.push("");
   lines.push("Tools:");
   for (const [name, summary] of Object.entries(TOOL_SUMMARIES)) {

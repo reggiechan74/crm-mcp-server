@@ -2,6 +2,15 @@
 
 All notable changes to crm-mcp-server are documented here.
 
+## [0.8.1] - 2026-09-25
+
+### Added
+- **`/crm:lookup` skill** — triggers when you mention the CRM or ask to look someone up ("check the crm for X", "pull up X", "who is X", "what's X's email"). Finds the record through the SQLite index (`crm_search` → `crm_outline` → at most one `crm_read`) and returns the dossier path and section files, instead of searching the repo. Loads the CRM tools itself when Claude Code defers MCP tools.
+- **Bare `/crm` shortcut** — `/crm:setup` now installs a personal `~/.claude/skills/crm` skill so `/crm <name>` runs the lookup (plugin skills are always namespaced, so this can't ship inside the plugin).
+
+### Changed
+- The MCP server's instructions now tell the model to find people and companies with `crm_search` and never to grep or read the CRM folder to locate records.
+
 ## [0.8.0] - 2026-09-25
 
 **Upgrading:** reinstall the plugin, then run `crm-mcp templates pull REAL_ESTATE/ORGANIZATION` to get the 1.1.0 organization templates. Set `"salesMotion": "tech"` in `~/.crm-mcp.json` if you sell software to the organizations you track.

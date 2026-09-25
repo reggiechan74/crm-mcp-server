@@ -1,12 +1,12 @@
 # CRM MCP Server
 
-[![Version](https://img.shields.io/badge/Version-0.8.0-FF6B35)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-0.8.1-FF6B35)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.5-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP Tools](https://img.shields.io/badge/MCP_Tools-18-8B5CF6)](https://modelcontextprotocol.io/)
-[![Tests](https://img.shields.io/badge/Tests-329-2EA043)](test/)
-[![Skills](https://img.shields.io/badge/Skills-23-E879F9)](skills/)
+[![Tests](https://img.shields.io/badge/Tests-330-2EA043)](test/)
+[![Skills](https://img.shields.io/badge/Skills-24-E879F9)](skills/)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-F97316?logo=anthropic&logoColor=white)](https://claude.ai/code)
 
 A personal CRM system built as an [MCP](https://modelcontextprotocol.io/) server for [Claude Code](https://claude.ai/code). Manage contacts, dossiers, and relationship intelligence through natural conversation — no GUI needed.
@@ -215,7 +215,15 @@ The server exposes 18 MCP tools:
 
 ## Skills
 
-The plugin bundles 23 skills that orchestrate MCP tools into higher-level workflows. Skills trigger automatically from natural conversation — just describe what you need.
+The plugin bundles 24 skills that orchestrate MCP tools into higher-level workflows. Skills trigger automatically from natural conversation — just describe what you need.
+
+### Lookup
+
+| Skill | Trigger Examples | Model |
+|-------|-----------------|:-----:|
+| `lookup` | "crm", "check the crm for [name]", "look up [name]", "pull up [name]'s file", "who is [name]", "what's [name]'s email", "when did I last talk to [name]" — or type `/crm [name]` | any |
+
+`lookup` answers from the SQLite index (one search, one outline, at most one section read — roughly 100–500 tokens) and returns the dossier path and section files instead of searching the repo. Plugin skills are always namespaced (`/crm:lookup`); `/crm:setup` also installs a personal `~/.claude/skills/crm` shortcut so a bare `/crm [name]` works.
 
 ### Preparation
 
