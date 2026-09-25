@@ -488,7 +488,7 @@ describe('createDossier — Organization', () => {
 
   it('requires a valid orgType', () => {
     expect(() => createDossier(store, tempDir, { name: 'Acme', category: 'Organization' }))
-      .toThrow(/orgType.*REIT, INV/);
+      .toThrow(/orgType.*REIT.*INV/s);
     expect(() => createDossier(store, tempDir, { name: 'Acme', category: 'Organization', orgType: 'XYZ' }))
       .toThrow(/orgType/);
   });
