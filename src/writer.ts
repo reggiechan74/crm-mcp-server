@@ -1,11 +1,11 @@
 import { readFileSync, mkdirSync, readdirSync, cpSync, existsSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { CATEGORY_CODES, CATEGORY_DIRS, resolveSection, type Category } from './types.js';
+import { join, relative } from 'node:path';
+import { CATEGORY_CODES, CATEGORY_DIRS, resolveSection, type Category, type SalesMotion } from './types.js';
 import { lookupProfession } from './professions.js';
 import type { Store } from './store.js';
 import {
-  formatOrgTypeChoices, ORG_ROLES, ROLE_OVERLAYS, normalizeOrgType, generateCid, isValidCid,
-  orgFolderName, type OrgRole,
+  formatOrgTypeChoices, ORG_ROLES, normalizeOrgType, normalizeOrgTypeList, orgTemplateLayers,
+  generateCid, isValidCid, orgFolderName,
 } from './orgTypes.js';
 import { parseFrontmatter, splitFrontmatter, updateFrontmatter } from './frontmatter.js';
 import { atomicWriteFileSync, isWithin, today } from './fsutil.js';
@@ -239,11 +239,14 @@ export interface CreateDossierInput {
   orgType?: string;      // Organization only: a code from ORG_TYPES (see crm_org_types)
   cid?: string;          // Organization only: company identifier (ticker or abbreviation), 2-6 chars
   roles?: string[];      // Organization only: multi-valued roles (Client, Competitor, …)
+  secondaryTypes?: string[]; // Organization only: additional org type codes (multi-line firms)
+  salesMotion?: SalesMotion; // Organization only: 'tech' adds the tech-sale template layer (default 'general')
 }
 
 export interface CreateDossierResult {
   id: string;            // Generated dossier code
   path: string;          // Relative path to new dossier
+  warnings: string[];    // Non-fatal issues (e.g. a template overlay that is not installed)
 }
 
 // Reverse lookup: Category → 2-letter code
@@ -344,8 +347,9 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
     return createOrgDossier(store, crmRoot, input);
   }
 
-  if (input.orgType || input.cid || (input.roles && input.roles.length > 0)) {
-    throw new Error('orgType, cid and roles apply to Organization dossiers only');
+  if (input.orgType || input.cid || (input.roles && input.roles.length > 0)
+    || (input.secondaryTypes && input.secondaryTypes.length > 0) || input.salesMotion) {
+    throw new Error('orgType, cid, roles, secondaryTypes and salesMotion apply to Organization dossiers only');
   }
 
   // 2. Determine code prefix — profession code (3-letter) or category code (2-letter)
@@ -481,7 +485,7 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
   const relPath = `${categoryDir}/${folderName}`;
   store.indexOne(relPath);
 
-  return { id: dossierCode, path: relPath };
+  return { id: dossierCode, path: relPath, warnings: [] };
 }
 
 /**
@@ -501,6 +505,8 @@ function createOrgDossier(store: Store, crmRoot: string, input: CreateDossierInp
   if (badRoles.length > 0) {
     throw new Error(`Invalid role(s): ${badRoles.join(', ')}. Valid: ${ORG_ROLES.join(', ')}`);
   }
+  const secondaryTypes = normalizeOrgTypeList(input.secondaryTypes ?? [], orgType);
+  const salesMotion: SalesMotion = input.salesMotion === 'tech' ? 'tech' : 'general';
   const cid = (input.cid ?? generateCid(input.name)).toUpperCase();
   if (!isValidCid(cid)) {
     throw new Error(`Invalid CID "${cid}": use 2-6 chars of A-Z, 0-9, "." (pass cid explicitly)`);
@@ -529,11 +535,16 @@ function createOrgDossier(store: Store, crmRoot: string, input: CreateDossierInp
   }
 
   mkdirSync(join(crmRoot, categoryDir), { recursive: true });
-  cpSync(commonDir, destPath, { recursive: true });
-  const overlays = new Set(roles.map(r => ROLE_OVERLAYS[r as OrgRole]).filter((d): d is string => !!d));
-  for (const overlay of overlays) {
-    const src = join(orgTpl, 'ROLES', overlay);
-    if (existsSync(src)) cpSync(src, destPath, { recursive: true });
+  const warnings: string[] = [];
+  for (const layer of orgTemplateLayers(orgTpl, { orgType, secondaryTypes, roles, salesMotion })) {
+    if (existsSync(layer)) {
+      cpSync(layer, destPath, { recursive: true });
+    } else {
+      warnings.push(
+        `Template overlay ${relative(orgTpl, layer).split('\\').join('/')} is not installed — ` +
+        'run: crm-mcp templates pull REAL_ESTATE/ORGANIZATION',
+      );
+    }
   }
 
   const todayStr = today();
@@ -555,6 +566,8 @@ function createOrgDossier(store: Store, crmRoot: string, input: CreateDossierInp
     category: 'Organization',
     orgType,
     roles,
+    secondaryTypes,
+    salesMotion,
     status: 'Active',
     lastContactDate: todayStr,
     lastUpdated: todayStr,
@@ -564,7 +577,7 @@ function createOrgDossier(store: Store, crmRoot: string, input: CreateDossierInp
 
   const relPath = `${categoryDir}/${folderName}`;
   store.indexOne(relPath);
-  return { id: dossierCode, path: relPath };
+  return { id: dossierCode, path: relPath, warnings };
 }
 
 /**
