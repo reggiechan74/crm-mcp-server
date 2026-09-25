@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { makeTempDir } from './helpers/tmp.js';
 import { join } from 'node:path';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -162,7 +163,7 @@ describe('extractRelationships', () => {
   });
 
   function dossierWith(linked: string): string {
-    const dir = join(mkdtempSync(join(tmpdir(), 'crm-rel-')), 'Organizations', 'OPR_Test');
+    const dir = join(makeTempDir('crm-rel-'), 'Organizations', 'OPR_Test');
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'INDEX.md'),
       `---\nname: "Test Org"\ndossierCode: "OPR-TST-001"\nlinkedContacts:\n${linked}\n---\n\n# Test Org\n`);

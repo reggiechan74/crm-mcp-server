@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { makeTempDir } from './helpers/tmp.js';
 import { join, resolve, dirname } from 'node:path';
 import { mkdtempSync, cpSync, readFileSync, existsSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -27,7 +28,7 @@ function getBundledTemplatesDir(): string {
 
 beforeEach(() => {
   // Copy fixtures to temp dir so writes don't pollute test data
-  tempDir = mkdtempSync(join(tmpdir(), 'crm-test-'));
+  tempDir = makeTempDir('crm-test-');
   cpSync(join(import.meta.dirname, 'fixtures'), tempDir, { recursive: true });
 
   // Install bundled templates into .templates/ so createDossier can find them
@@ -316,7 +317,7 @@ describe('createDossier', () => {
 
     // Verify profession is in YAML frontmatter
     const indexContent = readFileSync(join(tempDir, 'Network', 'BRATT_Ross', 'INDEX.md'), 'utf-8');
-    expect(indexContent).toContain('profession: BSB');
+    expect(indexContent).toMatch(/profession: "?BSB"?\n/);
   });
 
   it('profession dossier includes tracking file', () => {

@@ -1,8 +1,8 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync, cpSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, cpSync, rmSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { execSync } from 'node:child_process';
-import type { TemplateInfo } from './templates.js';
+import { execFileSync } from 'node:child_process';
+import { assertSafeTemplateName, type TemplateInfo } from './templates.js';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -49,9 +49,13 @@ export async function listRemoteTemplates(
   // Check cache
   const cachePath = cacheFilePath(crmRoot);
   if (existsSync(cachePath)) {
-    const cache: RemoteCache = JSON.parse(readFileSync(cachePath, 'utf-8'));
-    const age = Date.now() - new Date(cache.fetchedAt).getTime();
-    if (age < CACHE_TTL_MS) return cache.templates;
+    try {
+      const cache: RemoteCache = JSON.parse(readFileSync(cachePath, 'utf-8'));
+      const age = Date.now() - new Date(cache.fetchedAt).getTime();
+      if (age < CACHE_TTL_MS && Array.isArray(cache.templates)) return cache.templates;
+    } catch {
+      // Corrupt cache — refetch below
+    }
   }
 
   // Fetch directory listing
@@ -61,7 +65,9 @@ export async function listRemoteTemplates(
     throw new Error(`GitHub API error: ${resp.status} ${resp.statusText}`);
   }
   const entries = await resp.json() as Array<{ name: string; type: string }>;
-  const dirs = entries.filter(e => e.type === 'dir');
+  // Only plain identifiers — names come from the network and are later used
+  // in URLs, paths and archive member names.
+  const dirs = entries.filter(e => e.type === 'dir' && /^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(e.name));
 
   // Fetch template.json for each
   const templates: RemoteTemplate[] = [];
@@ -120,6 +126,11 @@ export async function downloadTemplate(
   token?: string,
   category?: string,
 ): Promise<void> {
+  // Validate before any network or filesystem work: these names become tar
+  // member paths and destination directories.
+  assertSafeTemplateName(templateName);
+  if (category !== undefined) assertSafeTemplateName(category, 'category');
+
   const url = `https://api.github.com/repos/${repo}/tarball/main`;
   const resp = await fetch(url, {
     headers: githubHeaders(token),
@@ -131,88 +142,62 @@ export async function downloadTemplate(
 
   // The tarball has a top-level directory like "owner-repo-sha/"
   // We need to extract templates/{templateName}/ from it
-  const templatePrefix = `templates/${templateName}/`;
+  const allowedPrefixes: string[] = category
+    ? [
+        `templates/${templateName}/template.json`,
+        `templates/${templateName}/COMMON/`,
+        `templates/${templateName}/${category}/`,
+      ]
+    : [`templates/${templateName}/`];
 
-  // Build the set of path prefixes to extract
-  const allowedPrefixes: string[] = [];
-  if (category) {
-    allowedPrefixes.push(`templates/${templateName}/template.json`);
-    allowedPrefixes.push(`templates/${templateName}/COMMON/`);
-    allowedPrefixes.push(`templates/${templateName}/${category}/`);
-  } else {
-    allowedPrefixes.push(templatePrefix);
-  }
-
-  mkdirSync(destDir, { recursive: true });
-
-  // Write to temp file first, then extract
-  const tmpFile = join(tmpdir(), `crm-mcp-tarball-${Date.now()}.tar.gz`);
+  const workDir = mkdtempSync(join(tmpdir(), 'crm-mcp-'));
+  const tmpFile = join(workDir, 'repo.tar.gz');
+  const tmpExtract = join(workDir, 'extract');
 
   try {
-    const arrayBuffer = await resp.arrayBuffer();
-    writeFileSync(tmpFile, Buffer.from(arrayBuffer));
+    writeFileSync(tmpFile, Buffer.from(await resp.arrayBuffer()));
+    mkdirSync(tmpExtract);
 
-    // First, find the top-level directory name in the tarball
-    const listOutput = execSync(`tar tzf "${tmpFile}" | head -1`, { encoding: 'utf-8' });
-    const topDir = listOutput.trim().split('/')[0];
-
-    // Build the list of paths to extract
-    const extractPaths = allowedPrefixes.map(p => `${topDir}/${p}`);
-
-    // Extract to a temp directory
-    const tmpExtract = join(tmpdir(), `crm-mcp-extract-${Date.now()}`);
-    mkdirSync(tmpExtract, { recursive: true });
-
-    try {
-      execSync(
-        `tar xzf "${tmpFile}" -C "${tmpExtract}" ${extractPaths.map(p => `"${p}"`).join(' ')}`,
-        { encoding: 'utf-8' },
-      );
-    } catch {
-      // Some paths may not exist (e.g., COMMON/ in non-composite templates) — that's OK
-      // Try extracting what we can
-      for (const p of extractPaths) {
-        try {
-          execSync(`tar xzf "${tmpFile}" -C "${tmpExtract}" "${p}" 2>/dev/null`, { encoding: 'utf-8' });
-        } catch { /* skip missing paths */ }
-      }
+    // Find the top-level directory name in the tarball. execFileSync passes
+    // arguments directly to tar — no shell is involved anywhere below.
+    const listing = execFileSync('tar', ['tzf', tmpFile], { encoding: 'utf-8', maxBuffer: 256 * 1024 * 1024 });
+    const topDir = listing.split('\n', 1)[0].trim().split('/')[0];
+    if (!topDir || topDir === '..' || topDir.startsWith('/')) {
+      throw new Error('Unexpected tarball layout');
     }
 
-    // Move extracted files to destination
-    const extractedTemplateDir = join(tmpExtract, topDir, 'templates', templateName);
+    // Extract each wanted prefix separately so a missing optional path
+    // (e.g. COMMON/ in a non-composite template) does not abort the rest.
+    for (const p of allowedPrefixes) {
+      try {
+        execFileSync('tar', ['xzf', tmpFile, '-C', tmpExtract, `${topDir}/${p}`], { stdio: 'ignore' });
+      } catch { /* path not present in archive */ }
+    }
 
+    const extractedTemplateDir = join(tmpExtract, topDir, 'templates', templateName);
     if (!existsSync(extractedTemplateDir)) {
       throw new Error(`Template "${templateName}" not found in repository`);
     }
 
+    mkdirSync(destDir, { recursive: true });
     if (category) {
-      // Copy specific pieces
+      const catDir = join(extractedTemplateDir, category);
+      if (!existsSync(catDir)) {
+        throw new Error(`Category "${category}" not found in ${templateName}`);
+      }
       const tmplJson = join(extractedTemplateDir, 'template.json');
       if (existsSync(tmplJson)) {
         writeFileSync(join(destDir, 'template.json'), readFileSync(tmplJson));
       }
       const commonDir = join(extractedTemplateDir, 'COMMON');
       if (existsSync(commonDir)) {
-        const destCommon = join(destDir, 'COMMON');
-        mkdirSync(destCommon, { recursive: true });
-        cpSync(commonDir, destCommon, { recursive: true });
+        cpSync(commonDir, join(destDir, 'COMMON'), { recursive: true });
       }
-      const catDir = join(extractedTemplateDir, category);
-      if (existsSync(catDir)) {
-        const destCat = join(destDir, category);
-        mkdirSync(destCat, { recursive: true });
-        cpSync(catDir, destCat, { recursive: true });
-      } else {
-        throw new Error(`Category "${category}" not found in ${templateName}`);
-      }
+      cpSync(catDir, join(destDir, category), { recursive: true });
     } else {
       cpSync(extractedTemplateDir, destDir, { recursive: true });
     }
-
-    // Clean up temp extract directory
-    rmSync(tmpExtract, { recursive: true, force: true });
   } finally {
-    // Clean up temp tarball
-    rmSync(tmpFile, { force: true });
+    rmSync(workDir, { recursive: true, force: true });
   }
 }

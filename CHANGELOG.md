@@ -11,10 +11,26 @@ All notable changes to crm-mcp-server are documented here.
 
 ### Changed
 - `crm_connections` now prints each edge as `- Source → Target (type) — context` (all edges, not only organizations), because resolved inbound links now appear alongside outbound ones.
+- **Writes require an exact contact match.** `crm_update`, `crm_log` and `crm_repair` accept a dossier code, folder name, or a name/alias that matches exactly (case-insensitive); an input matching several contacts is an error. The substring/full-text fallback is now used by read tools only, so a typo can no longer write to a different person's dossier.
+- `crm_bulk_update` requires `category` or `status`, updates every match (no 1000-row cap), reports per-contact errors, and reindexes once.
+- `crm_repair` refuses to run if the dossier changed since `crm_audit`, reindexes afterwards, and restores every file if the repair would lose more than 15% of distinct content lines (`rolledBack: true`). Dedup only collapses a section whose content is identical to the canonical copy, and never removes its subsections.
+- Frontmatter writes preserve comments, key order and quoting (yaml Document API) and are atomic (temp file + rename). Malformed frontmatter is reported instead of rewritten.
+- `crm_vector_search` errors when stored embeddings came from a different model than `embeddingModel`, and reports sections changed since `crm-mcp embed`.
+- Tools are registered with `registerTool` and MCP annotations (read-only / destructive hints). The server reports the package version, and its instructions list all 17 tools.
+- `crm-mcp mcp` now uses the same connect-first startup as the plugin entry; tool calls wait for the initial index.
 
 ### Fixed
 - Relationship `target_id` was never resolved, so `crm_connections` could not traverse past one hop or show inbound links. Targets now resolve by dossier code, name, or alias (unique matches only).
 - `resolveContact` now recognizes 4-letter dossier-code prefixes (`SAAS-…`, `REIT-…`, `DATA-…`).
+- **Security:** `crm_templates_pull` / `crm-mcp templates pull` passed the template name into a shell command (`execSync`), allowing command injection and path traversal. Template and category names are now validated (`[A-Za-z0-9_-]`) and `tar` runs via `execFileSync` with no shell.
+- **Security:** section names could address files outside the dossier folder (`../…`) for both `crm_read` and `crm_update`. Sections are now resolved to a canonical key and file, and traversal/absolute paths are rejected.
+- `crm_log` appended to the last table in `log.md`, which in the PROFESSIONAL, REAL_ESTATE and PERSONAL templates is not the interaction log. It now targets the `Date | Type | Summary` table (starting one if absent) and escapes `|` and newlines.
+- Section spellings (`INDEX.md`, `Index`, `profile.md`) created duplicate cache/FTS rows, and `crm_update` via `INDEX.md` skipped list parsing and the full reindex.
+- `crm_repair` did not reindex, ordering fixes used an unstable comparator, and a failed move could drop a section from both files.
+- Audit treated any `---` horizontal rule as frontmatter, hiding the content after it.
+- `crm_create`: `$&`/`$1` in names were expanded, quotes in names broke YAML, and path characters in names reached the folder path.
+- Startup instructions re-read every section file before the handshake; stats now come from the index. `indexOne` leaves no stale rows when a dossier code changes or a folder is deleted, and unchanged sections reuse cached cleaned content.
+- Tests no longer leak temp directories (previously exhausted `/tmp` inodes).
 
 ## [0.7.3] - 2026-09-24
 

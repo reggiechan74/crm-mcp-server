@@ -4001,10 +4001,10 @@ var require_resolve_block_map = __commonJS({
       let offset = bm.offset;
       let commentEnd = null;
       for (const collItem of bm.items) {
-        const { start, key, sep, value } = collItem;
+        const { start, key, sep: sep2, value } = collItem;
         const keyProps = resolveProps.resolveProps(start, {
           indicator: "explicit-key-ind",
-          next: key ?? sep?.[0],
+          next: key ?? sep2?.[0],
           offset,
           onError,
           parentIndent: bm.indent,
@@ -4018,7 +4018,7 @@ var require_resolve_block_map = __commonJS({
             else if ("indent" in key && key.indent !== bm.indent)
               onError(offset, "BAD_INDENT", startColMsg);
           }
-          if (!keyProps.anchor && !keyProps.tag && !sep) {
+          if (!keyProps.anchor && !keyProps.tag && !sep2) {
             commentEnd = keyProps.end;
             if (keyProps.comment) {
               if (map2.comment)
@@ -4042,7 +4042,7 @@ var require_resolve_block_map = __commonJS({
         ctx.atKey = false;
         if (utilMapIncludes.mapIncludes(ctx, map2.items, keyNode))
           onError(keyStart, "DUPLICATE_KEY", "Map keys must be unique");
-        const valueProps = resolveProps.resolveProps(sep ?? [], {
+        const valueProps = resolveProps.resolveProps(sep2 ?? [], {
           indicator: "map-value-ind",
           next: value,
           offset: keyNode.range[2],
@@ -4058,7 +4058,7 @@ var require_resolve_block_map = __commonJS({
             if (ctx.options.strict && keyProps.start < valueProps.found.offset - 1024)
               onError(keyNode.range, "KEY_OVER_1024_CHARS", "The : indicator must be at most 1024 chars after the start of an implicit block mapping key");
           }
-          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : composeEmptyNode(ctx, offset, sep, null, valueProps, onError);
+          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : composeEmptyNode(ctx, offset, sep2, null, valueProps, onError);
           if (ctx.schema.compat)
             utilFlowIndentCheck.flowIndentCheck(bm.indent, value, onError);
           offset = valueNode.range[2];
@@ -4149,7 +4149,7 @@ var require_resolve_end = __commonJS({
       let comment = "";
       if (end) {
         let hasSpace = false;
-        let sep = "";
+        let sep2 = "";
         for (const token of end) {
           const { source, type } = token;
           switch (type) {
@@ -4163,13 +4163,13 @@ var require_resolve_end = __commonJS({
               if (!comment)
                 comment = cb;
               else
-                comment += sep + cb;
-              sep = "";
+                comment += sep2 + cb;
+              sep2 = "";
               break;
             }
             case "newline":
               if (comment)
-                sep += source;
+                sep2 += source;
               hasSpace = true;
               break;
             default:
@@ -4212,18 +4212,18 @@ var require_resolve_flow_collection = __commonJS({
       let offset = fc.offset + fc.start.source.length;
       for (let i = 0; i < fc.items.length; ++i) {
         const collItem = fc.items[i];
-        const { start, key, sep, value } = collItem;
+        const { start, key, sep: sep2, value } = collItem;
         const props = resolveProps.resolveProps(start, {
           flow: fcName,
           indicator: "explicit-key-ind",
-          next: key ?? sep?.[0],
+          next: key ?? sep2?.[0],
           offset,
           onError,
           parentIndent: fc.indent,
           startOnNewline: false
         });
         if (!props.found) {
-          if (!props.anchor && !props.tag && !sep && !value) {
+          if (!props.anchor && !props.tag && !sep2 && !value) {
             if (i === 0 && props.comma)
               onError(props.comma, "UNEXPECTED_TOKEN", `Unexpected , in ${fcName}`);
             else if (i < fc.items.length - 1)
@@ -4277,8 +4277,8 @@ var require_resolve_flow_collection = __commonJS({
             }
           }
         }
-        if (!isMap && !sep && !props.found) {
-          const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep, null, props, onError);
+        if (!isMap && !sep2 && !props.found) {
+          const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep2, null, props, onError);
           coll.items.push(valueNode);
           offset = valueNode.range[2];
           if (isBlock(value))
@@ -4290,7 +4290,7 @@ var require_resolve_flow_collection = __commonJS({
           if (isBlock(key))
             onError(keyNode.range, "BLOCK_IN_FLOW", blockMsg);
           ctx.atKey = false;
-          const valueProps = resolveProps.resolveProps(sep ?? [], {
+          const valueProps = resolveProps.resolveProps(sep2 ?? [], {
             flow: fcName,
             indicator: "map-value-ind",
             next: value,
@@ -4301,8 +4301,8 @@ var require_resolve_flow_collection = __commonJS({
           });
           if (valueProps.found) {
             if (!isMap && !props.found && ctx.options.strict) {
-              if (sep)
-                for (const st of sep) {
+              if (sep2)
+                for (const st of sep2) {
                   if (st === valueProps.found)
                     break;
                   if (st.type === "newline") {
@@ -4319,7 +4319,7 @@ var require_resolve_flow_collection = __commonJS({
             else
               onError(valueProps.start, "MISSING_CHAR", `Missing , or : between ${fcName} items`);
           }
-          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : valueProps.found ? composeEmptyNode(ctx, valueProps.end, sep, null, valueProps, onError) : null;
+          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : valueProps.found ? composeEmptyNode(ctx, valueProps.end, sep2, null, valueProps, onError) : null;
           if (valueNode) {
             if (isBlock(value))
               onError(valueNode.range, "BLOCK_IN_FLOW", blockMsg);
@@ -4499,7 +4499,7 @@ var require_resolve_block_scalar = __commonJS({
           chompStart = i + 1;
       }
       let value = "";
-      let sep = "";
+      let sep2 = "";
       let prevMoreIndented = false;
       for (let i = 0; i < contentStart; ++i)
         value += lines[i][0].slice(trimIndent) + "\n";
@@ -4516,24 +4516,24 @@ var require_resolve_block_scalar = __commonJS({
           indent = "";
         }
         if (type === Scalar.Scalar.BLOCK_LITERAL) {
-          value += sep + indent.slice(trimIndent) + content;
-          sep = "\n";
+          value += sep2 + indent.slice(trimIndent) + content;
+          sep2 = "\n";
         } else if (indent.length > trimIndent || content[0] === "	") {
-          if (sep === " ")
-            sep = "\n";
-          else if (!prevMoreIndented && sep === "\n")
-            sep = "\n\n";
-          value += sep + indent.slice(trimIndent) + content;
-          sep = "\n";
+          if (sep2 === " ")
+            sep2 = "\n";
+          else if (!prevMoreIndented && sep2 === "\n")
+            sep2 = "\n\n";
+          value += sep2 + indent.slice(trimIndent) + content;
+          sep2 = "\n";
           prevMoreIndented = true;
         } else if (content === "") {
-          if (sep === "\n")
+          if (sep2 === "\n")
             value += "\n";
           else
-            sep = "\n";
+            sep2 = "\n";
         } else {
-          value += sep + content;
-          sep = " ";
+          value += sep2 + content;
+          sep2 = " ";
           prevMoreIndented = false;
         }
       }
@@ -4716,25 +4716,25 @@ var require_resolve_flow_scalar = __commonJS({
         trimBoth = /^[ \t]+|[ \t]+$/g;
       }
       let res = match[1].replace(trimEnd, "");
-      let sep = " ";
+      let sep2 = " ";
       let pos = line.lastIndex;
       while (match = line.exec(source)) {
         const lm = match[1].replace(trimBoth, "");
         if (lm === "") {
-          if (sep === "\n")
-            res += sep;
+          if (sep2 === "\n")
+            res += sep2;
           else
-            sep = "\n";
+            sep2 = "\n";
         } else {
-          res += sep + lm;
-          sep = " ";
+          res += sep2 + lm;
+          sep2 = " ";
         }
         pos = line.lastIndex;
       }
       const last = /[ \t]*(.*)/sy;
       last.lastIndex = pos;
       match = last.exec(source);
-      return res + sep + (match?.[1] ?? "");
+      return res + sep2 + (match?.[1] ?? "");
     }
     function doubleQuotedValue(source, onError) {
       let res = "";
@@ -5544,14 +5544,14 @@ var require_cst_stringify = __commonJS({
         }
       }
     }
-    function stringifyItem({ start, key, sep, value }) {
+    function stringifyItem({ start, key, sep: sep2, value }) {
       let res = "";
       for (const st of start)
         res += st.source;
       if (key)
         res += stringifyToken(key);
-      if (sep)
-        for (const st of sep)
+      if (sep2)
+        for (const st of sep2)
           res += st.source;
       if (value)
         res += stringifyToken(value);
@@ -6718,18 +6718,18 @@ var require_parser = __commonJS({
         if (this.type === "map-value-ind") {
           const prev = getPrevProps(this.peek(2));
           const start = getFirstKeyStartProps(prev);
-          let sep;
+          let sep2;
           if (scalar.end) {
-            sep = scalar.end;
-            sep.push(this.sourceToken);
+            sep2 = scalar.end;
+            sep2.push(this.sourceToken);
             delete scalar.end;
           } else
-            sep = [this.sourceToken];
+            sep2 = [this.sourceToken];
           const map2 = {
             type: "block-map",
             offset: scalar.offset,
             indent: scalar.indent,
-            items: [{ start, key: scalar, sep }]
+            items: [{ start, key: scalar, sep: sep2 }]
           };
           this.onKeyLine = true;
           this.stack[this.stack.length - 1] = map2;
@@ -6882,15 +6882,15 @@ var require_parser = __commonJS({
                 } else if (isFlowToken(it.key) && !includesToken(it.sep, "newline")) {
                   const start2 = getFirstKeyStartProps(it.start);
                   const key = it.key;
-                  const sep = it.sep;
-                  sep.push(this.sourceToken);
+                  const sep2 = it.sep;
+                  sep2.push(this.sourceToken);
                   delete it.key;
                   delete it.sep;
                   this.stack.push({
                     type: "block-map",
                     offset: this.offset,
                     indent: this.indent,
-                    items: [{ start: start2, key, sep }]
+                    items: [{ start: start2, key, sep: sep2 }]
                   });
                 } else if (start.length > 0) {
                   it.sep = it.sep.concat(start, this.sourceToken);
@@ -7084,13 +7084,13 @@ var require_parser = __commonJS({
             const prev = getPrevProps(parent);
             const start = getFirstKeyStartProps(prev);
             fixFlowSeqItems(fc);
-            const sep = fc.end.splice(1, fc.end.length);
-            sep.push(this.sourceToken);
+            const sep2 = fc.end.splice(1, fc.end.length);
+            sep2.push(this.sourceToken);
             const map2 = {
               type: "block-map",
               offset: fc.offset,
               indent: fc.indent,
-              items: [{ start, key: fc, sep }]
+              items: [{ start, key: fc, sep: sep2 }]
             };
             this.onKeyLine = true;
             this.stack[this.stack.length - 1] = map2;
@@ -7249,7 +7249,7 @@ var require_public_api = __commonJS({
         return docs;
       return Object.assign([], { empty: true }, composer$1.streamInfo());
     }
-    function parseDocument(source, options = {}) {
+    function parseDocument2(source, options = {}) {
       const { lineCounter: lineCounter2, prettyErrors } = parseOptions(options);
       const parser$1 = new parser.Parser(lineCounter2?.addNewLine);
       const composer$1 = new composer.Composer(options);
@@ -7275,7 +7275,7 @@ var require_public_api = __commonJS({
       } else if (options === void 0 && reviver && typeof reviver === "object") {
         options = reviver;
       }
-      const doc = parseDocument(src, options);
+      const doc = parseDocument2(src, options);
       if (!doc)
         return null;
       doc.warnings.forEach((warning) => log.warn(doc.options.logLevel, warning));
@@ -7311,7 +7311,7 @@ var require_public_api = __commonJS({
     }
     exports.parse = parse3;
     exports.parseAllDocuments = parseAllDocuments;
-    exports.parseDocument = parseDocument;
+    exports.parseDocument = parseDocument2;
     exports.stringify = stringify;
   }
 });
@@ -10796,15 +10796,15 @@ var require_pattern = __commonJS({
     exports.removeDuplicateSlashes = removeDuplicateSlashes;
     function partitionAbsoluteAndRelative(patterns) {
       const absolute = [];
-      const relative5 = [];
+      const relative3 = [];
       for (const pattern of patterns) {
         if (isAbsolute(pattern)) {
           absolute.push(pattern);
         } else {
-          relative5.push(pattern);
+          relative3.push(pattern);
         }
       }
-      return [absolute, relative5];
+      return [absolute, relative3];
     }
     exports.partitionAbsoluteAndRelative = partitionAbsoluteAndRelative;
     function isAbsolute(pattern) {
@@ -11225,11 +11225,11 @@ var require_out = __commonJS({
       async.read(path, getSettings(optionsOrSettingsOrCallback), callback);
     }
     exports.stat = stat;
-    function statSync6(path, optionsOrSettings) {
+    function statSync3(path, optionsOrSettings) {
       const settings = getSettings(optionsOrSettings);
       return sync.read(path, settings);
     }
-    exports.statSync = statSync6;
+    exports.statSync = statSync3;
     function getSettings(settingsOrOptions = {}) {
       if (settingsOrOptions instanceof settings_1.default) {
         return settingsOrOptions;
@@ -11894,41 +11894,41 @@ var require_queue = __commonJS({
       queue.drained = drained;
       return queue;
       function push(value) {
-        var p = new Promise(function(resolve3, reject) {
+        var p = new Promise(function(resolve4, reject) {
           pushCb(value, function(err, result) {
             if (err) {
               reject(err);
               return;
             }
-            resolve3(result);
+            resolve4(result);
           });
         });
         p.catch(noop);
         return p;
       }
       function unshift(value) {
-        var p = new Promise(function(resolve3, reject) {
+        var p = new Promise(function(resolve4, reject) {
           unshiftCb(value, function(err, result) {
             if (err) {
               reject(err);
               return;
             }
-            resolve3(result);
+            resolve4(result);
           });
         });
         p.catch(noop);
         return p;
       }
       function drained() {
-        var p = new Promise(function(resolve3) {
+        var p = new Promise(function(resolve4) {
           process.nextTick(function() {
             if (queue.idle()) {
-              resolve3();
+              resolve4();
             } else {
               var previousDrain = queue.drain;
               queue.drain = function() {
                 if (typeof previousDrain === "function") previousDrain();
-                resolve3();
+                resolve4();
                 queue.drain = previousDrain;
               };
             }
@@ -12414,9 +12414,9 @@ var require_stream3 = __commonJS({
         });
       }
       _getStat(filepath) {
-        return new Promise((resolve3, reject) => {
+        return new Promise((resolve4, reject) => {
           this._stat(filepath, this._fsStatSettings, (error48, stats) => {
-            return error48 === null ? resolve3(stats) : reject(error48);
+            return error48 === null ? resolve4(stats) : reject(error48);
           });
         });
       }
@@ -12440,10 +12440,10 @@ var require_async5 = __commonJS({
         this._readerStream = new stream_1.default(this._settings);
       }
       dynamic(root, options) {
-        return new Promise((resolve3, reject) => {
+        return new Promise((resolve4, reject) => {
           this._walkAsync(root, options, (error48, entries) => {
             if (error48 === null) {
-              resolve3(entries);
+              resolve4(entries);
             } else {
               reject(error48);
             }
@@ -12453,10 +12453,10 @@ var require_async5 = __commonJS({
       async static(patterns, options) {
         const entries = [];
         const stream = this._readerStream.static(patterns, options);
-        return new Promise((resolve3, reject) => {
+        return new Promise((resolve4, reject) => {
           stream.once("error", reject);
           stream.on("data", (entry) => entries.push(entry));
-          stream.once("end", () => resolve3(entries));
+          stream.once("end", () => resolve4(entries));
         });
       }
     };
@@ -16064,7 +16064,7 @@ var require_compile2 = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve3.call(this, root, ref);
+      let _sch = resolve4.call(this, root, ref);
       if (_sch === void 0) {
         const schema = (_a2 = root.localRefs) === null || _a2 === void 0 ? void 0 : _a2[ref];
         const { schemaId } = this.opts;
@@ -16091,7 +16091,7 @@ var require_compile2 = __commonJS({
     function sameSchemaEnv(s1, s2) {
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
-    function resolve3(root, ref) {
+    function resolve4(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -16921,7 +16921,7 @@ var require_fast_uri = __commonJS({
       }
       return uri;
     }
-    function resolve3(baseURI, relativeURI, options) {
+    function resolve4(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const {
         parsed: baseParsed,
@@ -16954,49 +16954,49 @@ var require_fast_uri = __commonJS({
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    function resolveComponent(base, relative5, options, skipNormalization) {
+    function resolveComponent(base, relative3, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
         base = parse3(serialize(base, options), options);
-        relative5 = parse3(serialize(relative5, options), options);
+        relative3 = parse3(serialize(relative3, options), options);
       }
       options = options || {};
-      if (!options.tolerant && relative5.scheme) {
-        target.scheme = relative5.scheme;
-        target.userinfo = relative5.userinfo;
-        target.host = relative5.host;
-        target.port = relative5.port;
-        target.path = removeDotSegments(relative5.path || "");
-        target.query = relative5.query;
+      if (!options.tolerant && relative3.scheme) {
+        target.scheme = relative3.scheme;
+        target.userinfo = relative3.userinfo;
+        target.host = relative3.host;
+        target.port = relative3.port;
+        target.path = removeDotSegments(relative3.path || "");
+        target.query = relative3.query;
       } else {
-        if (relative5.userinfo !== void 0 || relative5.host !== void 0 || relative5.port !== void 0) {
-          target.userinfo = relative5.userinfo;
-          target.host = relative5.host;
-          target.port = relative5.port;
-          target.path = removeDotSegments(relative5.path || "");
-          target.query = relative5.query;
+        if (relative3.userinfo !== void 0 || relative3.host !== void 0 || relative3.port !== void 0) {
+          target.userinfo = relative3.userinfo;
+          target.host = relative3.host;
+          target.port = relative3.port;
+          target.path = removeDotSegments(relative3.path || "");
+          target.query = relative3.query;
         } else {
-          if (!relative5.path) {
+          if (!relative3.path) {
             target.path = base.path;
-            if (relative5.query !== void 0) {
-              target.query = relative5.query;
+            if (relative3.query !== void 0) {
+              target.query = relative3.query;
             } else {
               target.query = base.query;
             }
           } else {
-            if (relative5.path[0] === "/") {
-              target.path = removeDotSegments(relative5.path);
+            if (relative3.path[0] === "/") {
+              target.path = removeDotSegments(relative3.path);
             } else {
               if ((base.userinfo !== void 0 || base.host !== void 0 || base.port !== void 0) && !base.path) {
-                target.path = "/" + relative5.path;
+                target.path = "/" + relative3.path;
               } else if (!base.path) {
-                target.path = relative5.path;
+                target.path = relative3.path;
               } else {
-                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative5.path;
+                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative3.path;
               }
               target.path = removeDotSegments(target.path);
             }
-            target.query = relative5.query;
+            target.query = relative3.query;
           }
           target.userinfo = base.userinfo;
           target.host = base.host;
@@ -17004,7 +17004,7 @@ var require_fast_uri = __commonJS({
         }
         target.scheme = base.scheme;
       }
-      target.fragment = relative5.fragment;
+      target.fragment = relative3.fragment;
       return target;
     }
     function equal(uriA, uriB, options) {
@@ -17290,7 +17290,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize,
-      resolve: resolve3,
+      resolve: resolve4,
       resolveComponent,
       equal,
       serialize,
@@ -20288,10 +20288,11 @@ __export(embeddings_exports, {
   vectorSearch: () => vectorSearch
 });
 async function getEmbedder(model) {
-  if (!embedder) {
+  if (!embedder || embedderModel !== model) {
     const { pipeline } = await import("@huggingface/transformers");
     const isGemma = model.toLowerCase().includes("gemma");
     embedder = await pipeline("feature-extraction", model, isGemma ? { dtype: "q8" } : {});
+    embedderModel = model;
   }
   return embedder;
 }
@@ -20374,92 +20375,76 @@ function cosineSimilarity(a, b) {
   if (denom === 0) return 0;
   return dot / denom;
 }
-function ensureEmbeddingsTable(store) {
-  store.db.exec(`
-    CREATE TABLE IF NOT EXISTS embeddings (
-      id INTEGER PRIMARY KEY,
-      contact_id TEXT,
-      section TEXT,
-      chunk_index INTEGER,
-      chunk_text TEXT,
-      embedding BLOB,
-      UNIQUE(contact_id, section, chunk_index)
-    );
-  `);
-}
 async function generateEmbeddings(store, config2) {
-  const model = config2.embeddingModel || "Xenova/all-MiniLM-L6-v2";
+  const model = config2.embeddingModel;
   const pipe2 = await getEmbedder(model);
-  ensureEmbeddingsTable(store);
-  store.db.exec("DELETE FROM embeddings");
-  const insertStmt = store.db.prepare(`
-    INSERT OR REPLACE INTO embeddings (contact_id, section, chunk_index, chunk_text, embedding)
-    VALUES (?, ?, ?, ?, ?)
-  `);
-  const rows = store.db.prepare("SELECT contact_id, section, cleaned_content FROM content_cache").all();
-  let indexed = 0;
+  const rows = [];
   let skipped = 0;
-  for (const row of rows) {
-    const content = row.cleaned_content?.trim();
-    if (!content || content.length === 0) {
-      skipped++;
-      continue;
-    }
-    const chunks = chunkText(content);
+  for (const section of store.getSectionContents()) {
+    const chunks = chunkText(section.content.trim());
     if (chunks.length === 0) {
       skipped++;
       continue;
     }
     for (let i = 0; i < chunks.length; i++) {
       const output = await pipe2(chunks[i], { pooling: "mean", normalize: true });
-      const embedding = new Float32Array(output.data);
-      const buffer = Buffer.from(embedding.buffer);
-      insertStmt.run(row.contact_id, row.section, i, chunks[i], buffer);
-      indexed++;
+      rows.push({
+        contactId: section.contactId,
+        section: section.section,
+        chunkIndex: i,
+        chunkText: chunks[i],
+        embedding: Buffer.from(new Float32Array(output.data).buffer),
+        fileHash: section.fileHash
+      });
     }
   }
-  return { indexed, skipped };
+  store.replaceEmbeddings(model, rows);
+  return { indexed: rows.length, skipped };
 }
 async function vectorSearch(store, config2, query, limit = 5) {
-  const model = config2.embeddingModel || "Xenova/all-MiniLM-L6-v2";
+  const stored = store.getEmbeddings();
+  if (stored.length === 0) return { results: [], staleSections: 0 };
+  const model = config2.embeddingModel;
+  const storedModel = store.getEmbeddingModel();
+  if (storedModel && storedModel !== model) {
+    throw new Error(
+      `Embeddings were generated with "${storedModel}" but the configured model is "${model}". Re-run 'crm-mcp embed'.`
+    );
+  }
   const pipe2 = await getEmbedder(model);
-  ensureEmbeddingsTable(store);
   const queryOutput = await pipe2(query, { pooling: "mean", normalize: true });
   const queryEmbedding = new Float32Array(queryOutput.data);
-  const rows = store.db.prepare(`
-      SELECT e.contact_id, e.section, e.chunk_text, e.embedding, c.name as contact_name
-      FROM embeddings e
-      JOIN contacts c ON c.id = e.contact_id
-    `).all();
-  if (rows.length === 0) return [];
-  const scored = rows.map((row) => {
+  const staleSections = new Set(stored.filter((r) => r.stale).map((r) => `${r.contactId}\0${r.section}`)).size;
+  const scored = stored.map((row) => {
     const embedding = new Float32Array(
       row.embedding.buffer,
       row.embedding.byteOffset,
       row.embedding.byteLength / 4
     );
     return {
-      contactId: row.contact_id,
-      contactName: row.contact_name,
+      contactId: row.contactId,
+      contactName: row.contactName,
       section: row.section,
-      chunk: row.chunk_text,
+      chunk: row.chunkText,
       score: cosineSimilarity(queryEmbedding, embedding)
     };
   });
   scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, limit);
+  return { results: scored.slice(0, limit), staleSections };
 }
-var embedder;
+var embedder, embedderModel;
 var init_embeddings = __esm({
   "src/embeddings.ts"() {
     "use strict";
     embedder = null;
+    embedderModel = null;
   }
 });
 
 // src/templates.ts
 var templates_exports = {};
 __export(templates_exports, {
+  assertSafeTemplateName: () => assertSafeTemplateName,
   computeContentHash: () => computeContentHash,
   countFiles: () => countFiles,
   dirSize: () => dirSize,
@@ -20470,30 +20455,44 @@ __export(templates_exports, {
   isCustomized: () => isCustomized,
   listLocalTemplates: () => listLocalTemplates,
   migrateManifest: () => migrateManifest,
+  parseTemplateRef: () => parseTemplateRef,
   readManifest: () => readManifest,
   readTemplateInfo: () => readTemplateInfo,
   writeManifest: () => writeManifest
 });
-import { existsSync as existsSync7, readFileSync as readFileSync7, writeFileSync as writeFileSync3, mkdirSync as mkdirSync3, readdirSync as readdirSync5, cpSync as cpSync2, statSync as statSync5 } from "node:fs";
-import { join as join7, relative as relative4, resolve, dirname as dirname3 } from "node:path";
+import { existsSync as existsSync8, readFileSync as readFileSync8, writeFileSync as writeFileSync4, mkdirSync as mkdirSync3, readdirSync as readdirSync3, cpSync as cpSync2, statSync as statSync2 } from "node:fs";
+import { join as join9, relative as relative2, resolve as resolve2, dirname as dirname4 } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createHash as createHash3 } from "node:crypto";
+import { createHash as createHash2 } from "node:crypto";
+function assertSafeTemplateName(name, label = "template") {
+  if (!SAFE_TEMPLATE_NAME_RE.test(name)) {
+    throw new Error(`Invalid ${label} name: "${name}" (use letters, digits, "_" or "-")`);
+  }
+}
+function parseTemplateRef(ref) {
+  const parts = ref.split("/");
+  if (parts.length > 2) throw new Error(`Invalid template reference: "${ref}"`);
+  const [templateName, category] = parts;
+  assertSafeTemplateName(templateName);
+  if (category !== void 0) assertSafeTemplateName(category, "category");
+  return { templateName, category: category || void 0 };
+}
 function getBundledTemplatesDir() {
   const thisFile = fileURLToPath(import.meta.url);
-  const thisDir = dirname3(thisFile);
+  const thisDir = dirname4(thisFile);
   const candidates = [
-    resolve(thisDir, "..", "templates"),
-    resolve(thisDir, "..", "..", "templates")
+    resolve2(thisDir, "..", "templates"),
+    resolve2(thisDir, "..", "..", "templates")
   ];
   for (const dir of candidates) {
-    if (existsSync7(dir)) return dir;
+    if (existsSync8(dir)) return dir;
   }
   throw new Error(`Bundled templates directory not found (searched: ${candidates.join(", ")})`);
 }
 function computeContentHash(dirPath) {
   const files = collectFiles(dirPath);
   files.sort((a, b) => a.relPath.localeCompare(b.relPath));
-  const hash2 = createHash3("sha256");
+  const hash2 = createHash2("sha256");
   for (const f of files) {
     hash2.update(f.relPath);
     hash2.update("\0");
@@ -20504,49 +20503,49 @@ function computeContentHash(dirPath) {
 function collectFiles(dirPath, basePath) {
   const base = basePath ?? dirPath;
   const result = [];
-  const entries = readdirSync5(dirPath, { withFileTypes: true });
+  const entries = readdirSync3(dirPath, { withFileTypes: true });
   for (const entry of entries) {
-    const fullPath = join7(dirPath, entry.name);
+    const fullPath = join9(dirPath, entry.name);
     if (entry.isDirectory()) {
       result.push(...collectFiles(fullPath, base));
     } else {
-      const relPath = relative4(base, fullPath);
-      const content = readFileSync7(fullPath, "utf-8");
+      const relPath = relative2(base, fullPath);
+      const content = readFileSync8(fullPath, "utf-8");
       result.push({ relPath, content });
     }
   }
   return result;
 }
 function manifestPath(crmRoot) {
-  return join7(crmRoot, ".templates", ".manifest.json");
+  return join9(crmRoot, ".templates", ".manifest.json");
 }
 function readManifest(crmRoot) {
   const path = manifestPath(crmRoot);
-  if (!existsSync7(path)) return null;
-  return JSON.parse(readFileSync7(path, "utf-8"));
+  if (!existsSync8(path)) return null;
+  return JSON.parse(readFileSync8(path, "utf-8"));
 }
 function writeManifest(crmRoot, manifest) {
-  const dir = join7(crmRoot, ".templates");
+  const dir = join9(crmRoot, ".templates");
   mkdirSync3(dir, { recursive: true });
-  writeFileSync3(manifestPath(crmRoot), JSON.stringify(manifest, null, 2) + "\n");
+  writeFileSync4(manifestPath(crmRoot), JSON.stringify(manifest, null, 2) + "\n");
 }
 function migrateManifest(crmRoot) {
-  const templatesDir = join7(crmRoot, ".templates");
+  const templatesDir = join9(crmRoot, ".templates");
   const manifest = {
     schemaVersion: 1,
     installedAt: (/* @__PURE__ */ new Date()).toISOString(),
     templates: {}
   };
-  if (!existsSync7(templatesDir)) return manifest;
-  const entries = readdirSync5(templatesDir, { withFileTypes: true });
+  if (!existsSync8(templatesDir)) return manifest;
+  const entries = readdirSync3(templatesDir, { withFileTypes: true });
   for (const entry of entries) {
     if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
-    const tmplDir = join7(templatesDir, entry.name);
-    const tmplJson = join7(tmplDir, "template.json");
+    const tmplDir = join9(templatesDir, entry.name);
+    const tmplJson = join9(tmplDir, "template.json");
     let version2 = "0.0.0";
-    if (existsSync7(tmplJson)) {
+    if (existsSync8(tmplJson)) {
       try {
-        const meta3 = JSON.parse(readFileSync7(tmplJson, "utf-8"));
+        const meta3 = JSON.parse(readFileSync8(tmplJson, "utf-8"));
         version2 = meta3.version || "0.0.0";
       } catch {
       }
@@ -20572,8 +20571,8 @@ function ensureManifest(crmRoot) {
 function isCustomized(crmRoot, templateName, manifest) {
   const entry = manifest.templates[templateName];
   if (!entry) return false;
-  const tmplDir = join7(crmRoot, ".templates", templateName);
-  if (!existsSync7(tmplDir)) return false;
+  const tmplDir = join9(crmRoot, ".templates", templateName);
+  if (!existsSync8(tmplDir)) return false;
   const currentHash = computeContentHash(tmplDir);
   return currentHash !== entry.contentHash;
 }
@@ -20581,8 +20580,8 @@ function listLocalTemplates(crmRoot) {
   const manifest = ensureManifest(crmRoot);
   const result = [];
   for (const [name, entry] of Object.entries(manifest.templates)) {
-    const tmplDir = join7(crmRoot, ".templates", name);
-    if (!existsSync7(tmplDir)) continue;
+    const tmplDir = join9(crmRoot, ".templates", name);
+    if (!existsSync8(tmplDir)) continue;
     result.push({
       name,
       version: entry.version,
@@ -20594,31 +20593,31 @@ function listLocalTemplates(crmRoot) {
   return result;
 }
 function readTemplateInfo(templateDir) {
-  const jsonPath = join7(templateDir, "template.json");
-  if (!existsSync7(jsonPath)) return null;
-  return JSON.parse(readFileSync7(jsonPath, "utf-8"));
+  const jsonPath = join9(templateDir, "template.json");
+  if (!existsSync8(jsonPath)) return null;
+  return JSON.parse(readFileSync8(jsonPath, "utf-8"));
 }
 function installTemplate(opts) {
   const { crmRoot, templateName, sourceDir, source, category } = opts;
-  const destBase = join7(crmRoot, ".templates", templateName);
+  const destBase = join9(crmRoot, ".templates", templateName);
   if (category) {
-    const commonSrc = join7(sourceDir, "COMMON");
-    const catSrc = join7(sourceDir, category);
-    const tmplJsonSrc = join7(sourceDir, "template.json");
-    if (!existsSync7(catSrc)) {
+    const commonSrc = join9(sourceDir, "COMMON");
+    const catSrc = join9(sourceDir, category);
+    const tmplJsonSrc = join9(sourceDir, "template.json");
+    if (!existsSync8(catSrc)) {
       throw new Error(`Category "${category}" not found in ${templateName}`);
     }
     mkdirSync3(destBase, { recursive: true });
-    if (existsSync7(tmplJsonSrc)) {
-      const content = readFileSync7(tmplJsonSrc, "utf-8");
-      writeFileSync3(join7(destBase, "template.json"), content);
+    if (existsSync8(tmplJsonSrc)) {
+      const content = readFileSync8(tmplJsonSrc, "utf-8");
+      writeFileSync4(join9(destBase, "template.json"), content);
     }
-    if (existsSync7(commonSrc)) {
-      const destCommon = join7(destBase, "COMMON");
+    if (existsSync8(commonSrc)) {
+      const destCommon = join9(destBase, "COMMON");
       mkdirSync3(destCommon, { recursive: true });
       cpSync2(commonSrc, destCommon, { recursive: true });
     }
-    const destCat = join7(destBase, category);
+    const destCat = join9(destBase, category);
     mkdirSync3(destCat, { recursive: true });
     cpSync2(catSrc, destCat, { recursive: true });
   } else {
@@ -20645,8 +20644,8 @@ function installTemplate(opts) {
 function installBundledTemplates(crmRoot, templateNames) {
   const bundledDir = getBundledTemplatesDir();
   for (const name of templateNames) {
-    const src = join7(bundledDir, name);
-    if (!existsSync7(src)) {
+    const src = join9(bundledDir, name);
+    if (!existsSync8(src)) {
       throw new Error(`Bundled template "${name}" not found at ${src}`);
     }
     installTemplate({
@@ -20659,12 +20658,12 @@ function installBundledTemplates(crmRoot, templateNames) {
   return ensureManifest(crmRoot);
 }
 function countFiles(dirPath) {
-  if (!existsSync7(dirPath)) return 0;
+  if (!existsSync8(dirPath)) return 0;
   let count = 0;
-  const entries = readdirSync5(dirPath, { withFileTypes: true });
+  const entries = readdirSync3(dirPath, { withFileTypes: true });
   for (const entry of entries) {
     if (entry.isDirectory()) {
-      count += countFiles(join7(dirPath, entry.name));
+      count += countFiles(join9(dirPath, entry.name));
     } else {
       count++;
     }
@@ -20672,22 +20671,24 @@ function countFiles(dirPath) {
   return count;
 }
 function dirSize(dirPath) {
-  if (!existsSync7(dirPath)) return 0;
+  if (!existsSync8(dirPath)) return 0;
   let size = 0;
-  const entries = readdirSync5(dirPath, { withFileTypes: true });
+  const entries = readdirSync3(dirPath, { withFileTypes: true });
   for (const entry of entries) {
-    const fullPath = join7(dirPath, entry.name);
+    const fullPath = join9(dirPath, entry.name);
     if (entry.isDirectory()) {
       size += dirSize(fullPath);
     } else {
-      size += statSync5(fullPath).size;
+      size += statSync2(fullPath).size;
     }
   }
   return size;
 }
+var SAFE_TEMPLATE_NAME_RE;
 var init_templates = __esm({
   "src/templates.ts"() {
     "use strict";
+    SAFE_TEMPLATE_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
   }
 });
 
@@ -20697,12 +20698,12 @@ __export(github_exports, {
   downloadTemplate: () => downloadTemplate,
   listRemoteTemplates: () => listRemoteTemplates
 });
-import { existsSync as existsSync8, readFileSync as readFileSync8, writeFileSync as writeFileSync4, mkdirSync as mkdirSync4, cpSync as cpSync3, rmSync as rmSync2 } from "node:fs";
-import { join as join8 } from "node:path";
+import { existsSync as existsSync9, readFileSync as readFileSync9, writeFileSync as writeFileSync5, mkdirSync as mkdirSync4, cpSync as cpSync3, rmSync as rmSync4, mkdtempSync } from "node:fs";
+import { join as join10 } from "node:path";
 import { tmpdir } from "node:os";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 function cacheFilePath(crmRoot) {
-  return join8(crmRoot, ".templates", ".remote-cache.json");
+  return join10(crmRoot, ".templates", ".remote-cache.json");
 }
 function githubHeaders(token) {
   const headers = {
@@ -20714,10 +20715,13 @@ function githubHeaders(token) {
 }
 async function listRemoteTemplates(repo, crmRoot, token) {
   const cachePath = cacheFilePath(crmRoot);
-  if (existsSync8(cachePath)) {
-    const cache2 = JSON.parse(readFileSync8(cachePath, "utf-8"));
-    const age = Date.now() - new Date(cache2.fetchedAt).getTime();
-    if (age < CACHE_TTL_MS) return cache2.templates;
+  if (existsSync9(cachePath)) {
+    try {
+      const cache2 = JSON.parse(readFileSync9(cachePath, "utf-8"));
+      const age = Date.now() - new Date(cache2.fetchedAt).getTime();
+      if (age < CACHE_TTL_MS && Array.isArray(cache2.templates)) return cache2.templates;
+    } catch {
+    }
   }
   const url2 = `https://api.github.com/repos/${repo}/contents/templates`;
   const resp = await fetch(url2, { headers: githubHeaders(token) });
@@ -20725,7 +20729,7 @@ async function listRemoteTemplates(repo, crmRoot, token) {
     throw new Error(`GitHub API error: ${resp.status} ${resp.statusText}`);
   }
   const entries = await resp.json();
-  const dirs = entries.filter((e) => e.type === "dir");
+  const dirs = entries.filter((e) => e.type === "dir" && /^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(e.name));
   const templates = [];
   for (const dir of dirs) {
     try {
@@ -20752,12 +20756,14 @@ async function listRemoteTemplates(repo, crmRoot, token) {
     } catch {
     }
   }
-  mkdirSync4(join8(crmRoot, ".templates"), { recursive: true });
+  mkdirSync4(join10(crmRoot, ".templates"), { recursive: true });
   const cache = { fetchedAt: (/* @__PURE__ */ new Date()).toISOString(), templates };
-  writeFileSync4(cachePath, JSON.stringify(cache, null, 2) + "\n");
+  writeFileSync5(cachePath, JSON.stringify(cache, null, 2) + "\n");
   return templates;
 }
 async function downloadTemplate(repo, templateName, destDir, token, category) {
+  assertSafeTemplateName(templateName);
+  if (category !== void 0) assertSafeTemplateName(category, "category");
   const url2 = `https://api.github.com/repos/${repo}/tarball/main`;
   const resp = await fetch(url2, {
     headers: githubHeaders(token),
@@ -20766,73 +20772,59 @@ async function downloadTemplate(repo, templateName, destDir, token, category) {
   if (!resp.ok) {
     throw new Error(`GitHub tarball download failed: ${resp.status} ${resp.statusText}`);
   }
-  const templatePrefix = `templates/${templateName}/`;
-  const allowedPrefixes = [];
-  if (category) {
-    allowedPrefixes.push(`templates/${templateName}/template.json`);
-    allowedPrefixes.push(`templates/${templateName}/COMMON/`);
-    allowedPrefixes.push(`templates/${templateName}/${category}/`);
-  } else {
-    allowedPrefixes.push(templatePrefix);
-  }
-  mkdirSync4(destDir, { recursive: true });
-  const tmpFile = join8(tmpdir(), `crm-mcp-tarball-${Date.now()}.tar.gz`);
+  const allowedPrefixes = category ? [
+    `templates/${templateName}/template.json`,
+    `templates/${templateName}/COMMON/`,
+    `templates/${templateName}/${category}/`
+  ] : [`templates/${templateName}/`];
+  const workDir = mkdtempSync(join10(tmpdir(), "crm-mcp-"));
+  const tmpFile = join10(workDir, "repo.tar.gz");
+  const tmpExtract = join10(workDir, "extract");
   try {
-    const arrayBuffer = await resp.arrayBuffer();
-    writeFileSync4(tmpFile, Buffer.from(arrayBuffer));
-    const listOutput = execSync(`tar tzf "${tmpFile}" | head -1`, { encoding: "utf-8" });
-    const topDir = listOutput.trim().split("/")[0];
-    const extractPaths = allowedPrefixes.map((p) => `${topDir}/${p}`);
-    const tmpExtract = join8(tmpdir(), `crm-mcp-extract-${Date.now()}`);
-    mkdirSync4(tmpExtract, { recursive: true });
-    try {
-      execSync(
-        `tar xzf "${tmpFile}" -C "${tmpExtract}" ${extractPaths.map((p) => `"${p}"`).join(" ")}`,
-        { encoding: "utf-8" }
-      );
-    } catch {
-      for (const p of extractPaths) {
-        try {
-          execSync(`tar xzf "${tmpFile}" -C "${tmpExtract}" "${p}" 2>/dev/null`, { encoding: "utf-8" });
-        } catch {
-        }
+    writeFileSync5(tmpFile, Buffer.from(await resp.arrayBuffer()));
+    mkdirSync4(tmpExtract);
+    const listing = execFileSync("tar", ["tzf", tmpFile], { encoding: "utf-8", maxBuffer: 256 * 1024 * 1024 });
+    const topDir = listing.split("\n", 1)[0].trim().split("/")[0];
+    if (!topDir || topDir === ".." || topDir.startsWith("/")) {
+      throw new Error("Unexpected tarball layout");
+    }
+    for (const p of allowedPrefixes) {
+      try {
+        execFileSync("tar", ["xzf", tmpFile, "-C", tmpExtract, `${topDir}/${p}`], { stdio: "ignore" });
+      } catch {
       }
     }
-    const extractedTemplateDir = join8(tmpExtract, topDir, "templates", templateName);
-    if (!existsSync8(extractedTemplateDir)) {
+    const extractedTemplateDir = join10(tmpExtract, topDir, "templates", templateName);
+    if (!existsSync9(extractedTemplateDir)) {
       throw new Error(`Template "${templateName}" not found in repository`);
     }
+    mkdirSync4(destDir, { recursive: true });
     if (category) {
-      const tmplJson = join8(extractedTemplateDir, "template.json");
-      if (existsSync8(tmplJson)) {
-        writeFileSync4(join8(destDir, "template.json"), readFileSync8(tmplJson));
-      }
-      const commonDir = join8(extractedTemplateDir, "COMMON");
-      if (existsSync8(commonDir)) {
-        const destCommon = join8(destDir, "COMMON");
-        mkdirSync4(destCommon, { recursive: true });
-        cpSync3(commonDir, destCommon, { recursive: true });
-      }
-      const catDir = join8(extractedTemplateDir, category);
-      if (existsSync8(catDir)) {
-        const destCat = join8(destDir, category);
-        mkdirSync4(destCat, { recursive: true });
-        cpSync3(catDir, destCat, { recursive: true });
-      } else {
+      const catDir = join10(extractedTemplateDir, category);
+      if (!existsSync9(catDir)) {
         throw new Error(`Category "${category}" not found in ${templateName}`);
       }
+      const tmplJson = join10(extractedTemplateDir, "template.json");
+      if (existsSync9(tmplJson)) {
+        writeFileSync5(join10(destDir, "template.json"), readFileSync9(tmplJson));
+      }
+      const commonDir = join10(extractedTemplateDir, "COMMON");
+      if (existsSync9(commonDir)) {
+        cpSync3(commonDir, join10(destDir, "COMMON"), { recursive: true });
+      }
+      cpSync3(catDir, join10(destDir, category), { recursive: true });
     } else {
       cpSync3(extractedTemplateDir, destDir, { recursive: true });
     }
-    rmSync2(tmpExtract, { recursive: true, force: true });
   } finally {
-    rmSync2(tmpFile, { force: true });
+    rmSync4(workDir, { recursive: true, force: true });
   }
 }
 var CACHE_TTL_MS;
 var init_github = __esm({
   "src/github.ts"() {
     "use strict";
+    init_templates();
     CACHE_TTL_MS = 60 * 60 * 1e3;
   }
 });
@@ -20843,8 +20835,8 @@ __export(init_exports, {
   runInit: () => runInit,
   runInitNonInteractive: () => runInitNonInteractive
 });
-import { mkdirSync as mkdirSync5, existsSync as existsSync10, readFileSync as readFileSync9, writeFileSync as writeFileSync5, readdirSync as readdirSync6 } from "node:fs";
-import { join as join10 } from "node:path";
+import { mkdirSync as mkdirSync5, existsSync as existsSync10, readFileSync as readFileSync11, writeFileSync as writeFileSync6, readdirSync as readdirSync4 } from "node:fs";
+import { join as join12 } from "node:path";
 import { createInterface } from "node:readline";
 import { homedir as homedir2 } from "node:os";
 function getTemplatesDir() {
@@ -20862,22 +20854,22 @@ function runInitNonInteractive(opts) {
   mkdirSync5(crmRoot, { recursive: true });
   installBundledTemplates(crmRoot, templates);
   if (customTemplatePath && existsSync10(customTemplatePath)) {
-    const entries = readdirSync6(customTemplatePath, { withFileTypes: true });
+    const entries = readdirSync4(customTemplatePath, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
-      const templateJsonPath = join10(customTemplatePath, entry.name, "template.json");
+      const templateJsonPath = join12(customTemplatePath, entry.name, "template.json");
       if (!existsSync10(templateJsonPath)) continue;
       installTemplate({
         crmRoot,
         templateName: entry.name,
-        sourceDir: join10(customTemplatePath, entry.name),
+        sourceDir: join12(customTemplatePath, entry.name),
         source: "bundled"
       });
     }
   }
   const firstTemplate = templates[0];
-  const sampleDir = join10(crmRoot, "Network", "DOE_Jane");
-  const templateSrcDir = join10(crmRoot, ".templates", firstTemplate);
+  const sampleDir = join12(crmRoot, "Network", "DOE_Jane");
+  const templateSrcDir = join12(crmRoot, ".templates", firstTemplate);
   mkdirSync5(sampleDir, { recursive: true });
   const today2 = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   const vars = {
@@ -20894,25 +20886,25 @@ function runInitNonInteractive(opts) {
     templates,
     defaultTemplate: firstTemplate
   };
-  writeFileSync5(configPath, JSON.stringify(config2, null, 2) + "\n");
+  writeFileSync6(configPath, JSON.stringify(config2, null, 2) + "\n");
 }
 function copyTemplateFilesWithSubstitution(srcDir, destDir, vars) {
-  const entries = readdirSync6(srcDir, { withFileTypes: true });
+  const entries = readdirSync4(srcDir, { withFileTypes: true });
   for (const entry of entries) {
-    const srcPath = join10(srcDir, entry.name);
-    const destPath = join10(destDir, entry.name);
+    const srcPath = join12(srcDir, entry.name);
+    const destPath = join12(destDir, entry.name);
     if (entry.isDirectory()) {
       mkdirSync5(destPath, { recursive: true });
       copyTemplateFilesWithSubstitution(srcPath, destPath, vars);
     } else {
-      const content = readFileSync9(srcPath, "utf-8");
-      writeFileSync5(destPath, substituteVariables(content, vars));
+      const content = readFileSync11(srcPath, "utf-8");
+      writeFileSync6(destPath, substituteVariables(content, vars));
     }
   }
 }
 function ask(rl, question) {
-  return new Promise((resolve3) => {
-    rl.question(question, (answer) => resolve3(answer.trim()));
+  return new Promise((resolve4) => {
+    rl.question(question, (answer) => resolve4(answer.trim()));
   });
 }
 async function runInit() {
@@ -20922,10 +20914,10 @@ async function runInit() {
     console.log("CRM MCP Server \u2014 Init Wizard");
     console.log("============================");
     console.log("");
-    const defaultRoot = join10(homedir2(), "contacts");
+    const defaultRoot = join12(homedir2(), "contacts");
     const rootAnswer = await ask(rl, `CRM root directory [${defaultRoot}]: `);
     const crmRoot = rootAnswer || defaultRoot;
-    const available = readdirSync6(getTemplatesDir(), { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name);
+    const available = readdirSync4(getTemplatesDir(), { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name);
     console.log("");
     console.log("Available templates:");
     available.forEach((t, i) => console.log(`  ${i + 1}. ${t}`));
@@ -20943,7 +20935,7 @@ async function runInit() {
     }
     const customAnswer = await ask(rl, "Custom templates directory (leave blank to skip): ");
     const customTemplatePath = customAnswer || void 0;
-    const defaultConfig = join10(homedir2(), ".crm-mcp.json");
+    const defaultConfig = join12(homedir2(), ".crm-mcp.json");
     const configPath = defaultConfig;
     console.log("");
     console.log("Configuration:");
@@ -20980,7 +20972,7 @@ var init_init = __esm({
 
 // src/cli.ts
 import { existsSync as existsSync11 } from "node:fs";
-import { join as join11 } from "node:path";
+import { join as join13 } from "node:path";
 
 // src/config.ts
 import { existsSync, readFileSync } from "node:fs";
@@ -21048,14 +21040,10 @@ function openDatabase(path) {
   raw.exec("PRAGMA journal_mode = WAL");
   return wrapDatabase(raw);
 }
-function loadSqliteVec(_db) {
-  return false;
-}
 
 // src/parser.ts
-var import_yaml = __toESM(require_dist(), 1);
-import { readFileSync as readFileSync2, statSync, existsSync as existsSync2, readdirSync } from "node:fs";
-import { join as join2, basename, dirname, relative } from "node:path";
+import { readFileSync as readFileSync3, statSync, existsSync as existsSync2 } from "node:fs";
+import { join as join3, basename as basename2, dirname as dirname2 } from "node:path";
 
 // src/types.ts
 var CATEGORY_CODES = {
@@ -21125,27 +21113,41 @@ var SECTION_FILES = {
   "medical-labs": "medical/medical-labs.md",
   "education": "education.md"
 };
-function resolveSectionFile(section) {
-  const withoutMd = section.replace(/\.md$/i, "");
-  const flatKey = withoutMd.replace(/^.*\//, "").toLowerCase();
-  if (flatKey in SECTION_FILES) return SECTION_FILES[flatKey];
-  return `${withoutMd}.md`;
+var FILE_TO_SECTION = Object.fromEntries(
+  Object.entries(SECTION_FILES).map(([key, file2]) => [file2, key])
+);
+function resolveSection(section) {
+  const normalized = section.trim().replace(/\\/g, "/").replace(/\.md$/i, "");
+  const segments = normalized.split("/");
+  if (normalized === "" || normalized.includes("\0") || normalized.startsWith("/") || /^[A-Za-z]:/.test(normalized) || segments.some((seg) => seg === "" || seg === "." || seg === "..")) {
+    throw new Error(`Invalid section: "${section}"`);
+  }
+  const flatKey = segments[segments.length - 1].toLowerCase();
+  if (flatKey in SECTION_FILES) {
+    const file2 = SECTION_FILES[flatKey];
+    const dir = segments.slice(0, -1).join("/").toLowerCase();
+    const canonicalDir = file2.includes("/") ? file2.slice(0, file2.lastIndexOf("/")).toLowerCase() : "";
+    if (dir === "" || dir === canonicalDir) return { key: flatKey, file: file2 };
+  }
+  return { key: normalized, file: `${normalized}.md` };
 }
 
-// src/parser.ts
-var DIR_TO_CATEGORY = Object.fromEntries(
-  Object.entries(CATEGORY_DIRS).map(([cat, dir]) => [dir, cat])
-);
+// src/frontmatter.ts
+var import_yaml = __toESM(require_dist(), 1);
+var FRONTMATTER_RE = /^---\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*(?:\r?\n|$)/;
+function splitFrontmatter(content) {
+  const match = content.match(FRONTMATTER_RE);
+  if (!match) return { yaml: null, body: content };
+  return { yaml: match[1] ?? "", body: content.slice(match[0].length) };
+}
 function parseFrontmatter(content) {
-  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-  if (!match) return null;
+  const { yaml } = splitFrontmatter(content);
+  if (yaml === null) return null;
   try {
-    return (0, import_yaml.parse)(match[1]);
+    const parsed = (0, import_yaml.parse)(yaml);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
   } catch {
-    const fixed = match[1].replace(
-      /^(\s*-\s*"[^"]*")\s*(\([^)]*\))/gm,
-      "$1 # $2"
-    );
+    const fixed = yaml.replace(/^(\s*-\s*"[^"]*")\s*(\([^)]*\))/gm, "$1 # $2");
     try {
       return (0, import_yaml.parse)(fixed);
     } catch {
@@ -21155,48 +21157,117 @@ function parseFrontmatter(content) {
         ["dossierCode", /^dossierCode:\s*"?([^"\n]+)"?/m],
         ["organization", /^organization:\s*"?([^"\n]+)"?/m],
         ["status", /^status:\s*(\S+)/m],
-        ["lastContactDate", /^lastContactDate:\s*(\S+)/m],
-        ["lastUpdated", /^lastUpdated:\s*(\S+)/m],
+        ["lastContactDate", /^lastContactDate:\s*"?([^"\s]+)"?/m],
+        ["lastUpdated", /^lastUpdated:\s*"?([^"\s]+)"?/m],
         ["profession", /^profession:\s*"?([^"\n]+)"?/m]
       ]) {
-        const m = match[1].match(pattern);
+        const m = yaml.match(pattern);
         if (m) result[key] = m[1].trim();
       }
       return Object.keys(result).length > 0 ? result : null;
     }
   }
 }
-function parseIndexYaml(dossierPath) {
-  const indexPath = join2(dossierPath, "INDEX.md");
-  const content = readFileSync2(indexPath, "utf-8");
-  const yaml = parseFrontmatter(content);
+function updateFrontmatter(content, fields) {
+  const { yaml, body } = splitFrontmatter(content);
+  const doc = (0, import_yaml.parseDocument)(yaml ?? "");
+  if (doc.errors.length > 0) {
+    throw new Error(`Cannot update malformed YAML frontmatter: ${doc.errors[0].message}`);
+  }
+  if (doc.contents === null) doc.contents = doc.createNode({});
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === void 0) doc.delete(key);
+    else doc.set(key, value instanceof Date ? value.toISOString().slice(0, 10) : value);
+  }
+  const yamlStr = doc.toString({ lineWidth: 0 }).trimEnd();
+  return `---
+${yamlStr}
+---
+${body}`;
+}
+
+// src/fsutil.ts
+import { readdirSync, renameSync, rmSync, writeFileSync, readFileSync as readFileSync2 } from "node:fs";
+import { join as join2, relative, resolve, sep, dirname, basename } from "node:path";
+import { randomBytes, createHash } from "node:crypto";
+function collectMdFiles(dir, root) {
+  const base = root ?? dir;
+  const results = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join2(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...collectMdFiles(full, base));
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      results.push(relative(base, full));
+    }
+  }
+  return results;
+}
+function atomicWriteFileSync(filePath, content) {
+  const tmp = join2(dirname(filePath), `.${basename(filePath)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  try {
+    writeFileSync(tmp, content, "utf-8");
+    renameSync(tmp, filePath);
+  } catch (err) {
+    rmSync(tmp, { force: true });
+    throw err;
+  }
+}
+function isWithin(parent, child) {
+  const p = resolve(parent);
+  const c = resolve(child);
+  return c === p || c.startsWith(p.endsWith(sep) ? p : p + sep);
+}
+function formatDate(val) {
+  if (val == null || val === "") return null;
+  if (val instanceof Date) return val.toISOString().slice(0, 10);
+  return String(val);
+}
+function today() {
+  return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+}
+function sha256(content) {
+  return createHash("sha256").update(content).digest("hex");
+}
+function hashMdTree(dir) {
+  const hash2 = createHash("sha256");
+  for (const rel of collectMdFiles(dir).sort()) {
+    hash2.update(rel);
+    hash2.update("\0");
+    hash2.update(readFileSync2(join2(dir, rel)));
+    hash2.update("\0");
+  }
+  return hash2.digest("hex");
+}
+
+// src/parser.ts
+var DIR_TO_CATEGORY = Object.fromEntries(
+  Object.entries(CATEGORY_DIRS).map(([cat, dir]) => [dir, cat])
+);
+function parseDossierIndex(dossierPath) {
+  const indexPath = join3(dossierPath, "INDEX.md");
+  const yaml = parseFrontmatter(readFileSync3(indexPath, "utf-8"));
   if (!yaml) {
     throw new Error(`No YAML frontmatter found in ${indexPath}`);
   }
-  const parentDir = basename(dirname(dossierPath));
+  const parentDir = basename2(dirname2(dossierPath));
   const category = DIR_TO_CATEGORY[parentDir] ?? "Network";
-  const lastContactRaw = yaml.lastContactDate;
-  const lastUpdatedRaw = yaml.lastUpdated;
-  const formatDate = (val) => {
-    if (val == null) return null;
-    if (val instanceof Date) return val.toISOString().slice(0, 10);
-    return String(val);
-  };
   const aliasesRaw = yaml.aliases;
   const aliases = Array.isArray(aliasesRaw) ? JSON.stringify(aliasesRaw.map(String)) : void 0;
-  return {
+  const contact = {
     id: String(yaml.dossierCode ?? ""),
     name: String(yaml.name ?? ""),
     category,
     organization: yaml.organization ? String(yaml.organization) : null,
     status: String(yaml.status ?? "Unknown"),
-    lastContact: formatDate(lastContactRaw),
-    lastUpdated: formatDate(lastUpdatedRaw) ?? "",
-    path: basename(dirname(dossierPath)) + "/" + basename(dossierPath),
+    lastContact: formatDate(yaml.lastContactDate),
+    lastUpdated: formatDate(yaml.lastUpdated) ?? "",
+    path: basename2(dirname2(dossierPath)) + "/" + basename2(dossierPath),
     metadataJson: JSON.stringify(yaml),
     profession: yaml.profession ? String(yaml.profession) : void 0,
     aliases
   };
+  return { contact, relationships: relationshipsFromYaml(yaml, contact.id) };
 }
 var PLACEHOLDER_RE = /\[TO BE (?:POPULATED|ADDED|ASSESSED|DOCUMENTED)\]/i;
 var NONE_DOCUMENTED_RE = /^\*(?:None documented|Not yet assessed|No \w+ (?:observed|identified))\*$/;
@@ -21240,8 +21311,8 @@ function stripBoilerplate(content) {
   if (currentSection) sections.push(currentSection);
   const linesToRemove = /* @__PURE__ */ new Set();
   for (const section of sections) {
-    const contentLines = section.bodyLines.filter((bl) => bl.line.trim() !== "");
-    const substantiveLines = contentLines.filter((bl) => !TABLE_SEPARATOR_RE.test(bl.line.trim()));
+    const contentLines2 = section.bodyLines.filter((bl) => bl.line.trim() !== "");
+    const substantiveLines = contentLines2.filter((bl) => !TABLE_SEPARATOR_RE.test(bl.line.trim()));
     if (substantiveLines.length === 0) {
       continue;
     }
@@ -21308,10 +21379,6 @@ function removeOrphanedTableParts(bodyLines, linesToRemove) {
       const nextNonBlank = bodyLines.slice(i + 1).find((b) => b.line.trim() !== "");
       if (nextNonBlank && TABLE_SEPARATOR_RE.test(nextNonBlank.line.trim())) {
         const sepIdx = bodyLines.indexOf(nextNonBlank);
-        const dataRows = bodyLines.slice(sepIdx + 1).filter((b) => {
-          const t = b.line.trim();
-          return TABLE_HEADER_RE.test(t) && !TABLE_SEPARATOR_RE.test(t);
-        });
         const tableDataRows = [];
         for (let j = sepIdx + 1; j < bodyLines.length; j++) {
           const t = bodyLines[j].line.trim();
@@ -21333,59 +21400,31 @@ function removeOrphanedTableParts(bodyLines, linesToRemove) {
 }
 function buildSectionMeta(fullPath, file2) {
   const stat = statSync(fullPath);
-  const content = readFileSync2(fullPath, "utf-8");
+  const content = readFileSync3(fullPath, "utf-8");
   const stripped = stripBoilerplate(content);
-  const yaml = parseFrontmatter(content);
-  let lastUpdated = null;
-  if (yaml?.lastUpdated) {
-    const val = yaml.lastUpdated;
-    if (val instanceof Date) {
-      lastUpdated = val.toISOString().slice(0, 10);
-    } else {
-      lastUpdated = String(val);
-    }
-  }
+  const lastUpdated = formatDate(parseFrontmatter(content)?.lastUpdated);
   const sizeBytes = stat.size;
   const filledBytes = Buffer.byteLength(stripped, "utf-8");
   const fillPercent = sizeBytes > 0 ? Math.round(filledBytes / sizeBytes * 100) : 0;
   return { file: file2, sizeBytes, filledBytes, fillPercent, lastUpdated };
 }
-function collectMdFiles(dir, root) {
-  const base = root ?? dir;
-  const results = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join2(dir, entry.name);
-    if (entry.isDirectory()) {
-      results.push(...collectMdFiles(full, base));
-    } else if (entry.name.endsWith(".md")) {
-      results.push(relative(base, full));
-    }
-  }
-  return results;
-}
 function scanDossierSections(dossierPath) {
   const results = [];
   const knownFiles = new Set(Object.values(SECTION_FILES));
   for (const [, file2] of Object.entries(SECTION_FILES)) {
-    const fullPath = join2(dossierPath, file2);
+    const fullPath = join3(dossierPath, file2);
     if (!existsSync2(fullPath)) continue;
     results.push(buildSectionMeta(fullPath, file2));
   }
   if (existsSync2(dossierPath)) {
     for (const relPath of collectMdFiles(dossierPath)) {
       if (knownFiles.has(relPath)) continue;
-      const fullPath = join2(dossierPath, relPath);
-      if (!statSync(fullPath).isFile()) continue;
-      results.push(buildSectionMeta(fullPath, relPath));
+      results.push(buildSectionMeta(join3(dossierPath, relPath), relPath));
     }
   }
   return results;
 }
-function extractRelationships(dossierPath, contactId) {
-  const indexPath = join2(dossierPath, "INDEX.md");
-  const content = readFileSync2(indexPath, "utf-8");
-  const yaml = parseFrontmatter(content);
-  if (!yaml) return [];
+function relationshipsFromYaml(yaml, contactId) {
   const linkedContacts = yaml.linkedContacts;
   if (!Array.isArray(linkedContacts)) return [];
   const rels = linkedContacts.map((entry) => {
@@ -21418,9 +21457,8 @@ function extractRelationships(dossierPath, contactId) {
 
 // src/store.ts
 var import_fast_glob = __toESM(require_out4(), 1);
-import { readFileSync as readFileSync3, existsSync as existsSync3, mkdirSync, statSync as statSync2 } from "node:fs";
-import { join as join3, dirname as dirname2 } from "node:path";
-import { createHash } from "node:crypto";
+import { readFileSync as readFileSync4, existsSync as existsSync3, mkdirSync } from "node:fs";
+import { join as join4, dirname as dirname3 } from "node:path";
 
 // src/orgTypes.ts
 var ORG_TYPES = {
@@ -21473,10 +21511,6 @@ function orgFolderName(orgType, name) {
 }
 
 // src/store.ts
-function fileHash(filePath) {
-  const content = readFileSync3(filePath, "utf-8");
-  return createHash("sha256").update(content).digest("hex");
-}
 function initSchema(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS contacts (
@@ -21522,14 +21556,33 @@ function initSchema(db) {
       audit_json TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS embeddings (
+      id INTEGER PRIMARY KEY,
+      contact_id TEXT,
+      section TEXT,
+      chunk_index INTEGER,
+      chunk_text TEXT,
+      embedding BLOB,
+      UNIQUE(contact_id, section, chunk_index)
+    );
+
+    CREATE TABLE IF NOT EXISTS meta (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
   `);
-  try {
-    db.exec("ALTER TABLE contacts ADD COLUMN profession TEXT");
-  } catch {
-  }
-  try {
-    db.exec("ALTER TABLE contacts ADD COLUMN aliases TEXT");
-  } catch {
+  for (const ddl of [
+    "ALTER TABLE contacts ADD COLUMN profession TEXT",
+    "ALTER TABLE contacts ADD COLUMN aliases TEXT",
+    "ALTER TABLE content_cache ADD COLUMN raw_bytes INTEGER",
+    "ALTER TABLE audit_cache ADD COLUMN dossier_hash TEXT",
+    "ALTER TABLE embeddings ADD COLUMN file_hash TEXT"
+  ]) {
+    try {
+      db.exec(ddl);
+    } catch {
+    }
   }
 }
 function sanitizeFtsQuery(query) {
@@ -21538,10 +21591,9 @@ function sanitizeFtsQuery(query) {
   return words.map((w) => `"${w.replace(/"/g, '""')}"`).join(" ");
 }
 function createStore(dbPath, crmRoot) {
-  mkdirSync(dirname2(dbPath), { recursive: true });
+  mkdirSync(dirname3(dbPath), { recursive: true });
   const db = openDatabase(dbPath);
   initSchema(db);
-  loadSqliteVec(db);
   const stmts = {
     insertContact: db.prepare(`
       INSERT OR REPLACE INTO contacts (id, name, category, organization, status, last_contact, last_updated, path, metadata_json, profession, aliases)
@@ -21556,27 +21608,37 @@ function createStore(dbPath, crmRoot) {
       VALUES (?, ?, ?, ?, ?, ?)
     `),
     insertContentCache: db.prepare(`
-      INSERT OR REPLACE INTO content_cache (contact_id, section, file_hash, cleaned_content, cleaned_at)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO content_cache (contact_id, section, file_hash, cleaned_content, cleaned_at, raw_bytes)
+      VALUES (?, ?, ?, ?, ?, ?)
     `),
     insertContentFts: db.prepare(
       "INSERT INTO content_fts (contact_id, section, content) VALUES (?, ?, ?)"
     ),
+    deleteSectionFts: db.prepare("DELETE FROM content_fts WHERE contact_id = ? AND section = ?"),
+    deleteSectionCache: db.prepare("DELETE FROM content_cache WHERE contact_id = ? AND section = ?"),
     getContact: db.prepare("SELECT * FROM contacts WHERE id = ?"),
     getContactPath: db.prepare("SELECT path FROM contacts WHERE id = ?"),
+    getContactName: db.prepare("SELECT name FROM contacts WHERE id = ?"),
     getContentCache: db.prepare(
       "SELECT * FROM content_cache WHERE contact_id = ? AND section = ?"
-    ),
-    getAllContentCache: db.prepare(
-      "SELECT * FROM content_cache WHERE contact_id = ?"
     ),
     getRelationships: db.prepare(
       "SELECT * FROM relationships WHERE source_id = ? OR target_id = ?"
     )
   };
-  function indexDossier(dossierRelPath) {
-    const dossierPath = join3(crmRoot, dossierRelPath);
-    const contact = parseIndexYaml(dossierPath);
+  function loadCache(contactId) {
+    const rows = contactId ? db.prepare("SELECT contact_id, section, file_hash, cleaned_content FROM content_cache WHERE contact_id = ?").all(contactId) : db.prepare("SELECT contact_id, section, file_hash, cleaned_content FROM content_cache").all();
+    return new Map(rows.map((r) => [`${r.contact_id}\0${r.section}`, { hash: r.file_hash, cleaned: r.cleaned_content }]));
+  }
+  function writeSectionRows(contactId, sectionKey, raw, prior) {
+    const hash2 = sha256(raw);
+    const cleaned = prior && prior.hash === hash2 ? prior.cleaned : stripBoilerplate(raw);
+    stmts.insertContentFts.run(contactId, sectionKey, cleaned);
+    stmts.insertContentCache.run(contactId, sectionKey, hash2, cleaned, (/* @__PURE__ */ new Date()).toISOString(), Buffer.byteLength(raw, "utf-8"));
+  }
+  function indexDossier(dossierRelPath, priorCache, parsed) {
+    const dossierPath = join4(crmRoot, dossierRelPath);
+    const { contact, relationships } = parsed ?? parseDossierIndex(dossierPath);
     if (!contact.id) return;
     stmts.insertContact.run(
       contact.id,
@@ -21591,8 +21653,7 @@ function createStore(dbPath, crmRoot) {
       contact.profession ?? null,
       contact.aliases ?? null
     );
-    const rels = extractRelationships(dossierPath, contact.id);
-    for (const rel of rels) {
+    for (const rel of relationships) {
       stmts.insertRelationship.run(
         rel.sourceId,
         rel.targetId,
@@ -21602,41 +21663,18 @@ function createStore(dbPath, crmRoot) {
         rel.bidirectional ? 1 : 0
       );
     }
-    for (const [sectionKey, sectionFile] of Object.entries(SECTION_FILES)) {
-      const filePath = join3(dossierPath, sectionFile);
-      if (!existsSync3(filePath)) continue;
-      const raw = readFileSync3(filePath, "utf-8");
-      const hash2 = createHash("sha256").update(raw).digest("hex");
-      const cleaned = stripBoilerplate(raw);
-      const now = (/* @__PURE__ */ new Date()).toISOString();
-      stmts.insertContentFts.run(contact.id, sectionKey, cleaned);
-      stmts.insertContentCache.run(
-        contact.id,
-        sectionKey,
-        hash2,
-        cleaned,
-        now
-      );
-    }
-    const knownFiles = new Set(Object.values(SECTION_FILES));
     for (const relPath of collectMdFiles(dossierPath)) {
-      if (knownFiles.has(relPath)) continue;
-      const filePath = join3(dossierPath, relPath);
-      if (!statSync2(filePath).isFile()) continue;
-      const sectionKey = relPath.replace(/\.md$/, "");
-      const raw = readFileSync3(filePath, "utf-8");
-      const hash2 = createHash("sha256").update(raw).digest("hex");
-      const cleaned = stripBoilerplate(raw);
-      const now = (/* @__PURE__ */ new Date()).toISOString();
-      stmts.insertContentFts.run(contact.id, sectionKey, cleaned);
-      stmts.insertContentCache.run(
-        contact.id,
-        sectionKey,
-        hash2,
-        cleaned,
-        now
-      );
+      const posix = relPath.split("\\").join("/");
+      const sectionKey = FILE_TO_SECTION[posix] ?? resolveSection(posix).key;
+      const raw = readFileSync4(join4(dossierPath, relPath), "utf-8");
+      writeSectionRows(contact.id, sectionKey, raw, priorCache.get(`${contact.id}\0${sectionKey}`));
     }
+  }
+  function deleteContactRows(contactId) {
+    db.prepare("DELETE FROM contacts WHERE id = ?").run(contactId);
+    db.prepare("DELETE FROM relationships WHERE source_id = ?").run(contactId);
+    db.prepare("DELETE FROM content_fts WHERE contact_id = ?").run(contactId);
+    db.prepare("DELETE FROM content_cache WHERE contact_id = ?").run(contactId);
   }
   function resolveRelationshipTargets() {
     db.prepare("DELETE FROM relationships WHERE context = ?").run(AUTO_WORKS_AT_CONTEXT);
@@ -21654,12 +21692,7 @@ function createStore(dbPath, crmRoot) {
       for (const c of rows) {
         if (includeIds) add(c.id, c.id);
         add(c.name, c.id);
-        if (c.aliases) {
-          try {
-            for (const a of JSON.parse(c.aliases)) add(a, c.id);
-          } catch {
-          }
-        }
+        for (const a of parseAliases(c.aliases)) add(a, c.id);
       }
       return map2;
     };
@@ -21707,11 +21740,35 @@ function createStore(dbPath, crmRoot) {
     }
     return result;
   }
+  function reindexPaths(dossierRelPaths) {
+    const parsedByPath = dossierRelPaths.map((relPath) => {
+      const dossierPath = join4(crmRoot, relPath);
+      return {
+        relPath,
+        parsed: existsSync3(join4(dossierPath, "INDEX.md")) ? parseDossierIndex(dossierPath) : null
+      };
+    });
+    const run = db.transaction(() => {
+      for (const { relPath, parsed } of parsedByPath) {
+        const prior = /* @__PURE__ */ new Map();
+        const oldIds = db.prepare("SELECT id FROM contacts WHERE path = ?").all(relPath).map((r) => r.id);
+        const newId = parsed?.contact.id ?? "";
+        for (const id of new Set([...oldIds, newId].filter(Boolean))) {
+          for (const [k, v] of loadCache(id)) prior.set(k, v);
+          deleteContactRows(id);
+        }
+        if (parsed && newId) indexDossier(relPath, prior, parsed);
+      }
+      resolveRelationshipTargets();
+    });
+    run();
+  }
   const store = {
     db,
     crmRoot,
     indexAll() {
       const indexFiles = import_fast_glob.default.sync("*/*/INDEX.md", { cwd: crmRoot });
+      const prior = loadCache();
       const runIndex = db.transaction(() => {
         db.exec("DELETE FROM contacts");
         db.exec("DELETE FROM relationships");
@@ -21719,7 +21776,7 @@ function createStore(dbPath, crmRoot) {
         db.exec("DELETE FROM content_cache");
         for (const relPath of indexFiles) {
           try {
-            indexDossier(dirname2(relPath));
+            indexDossier(dirname3(relPath), prior);
           } catch (err) {
             console.error(`Failed to index ${relPath}:`, err);
           }
@@ -21729,19 +21786,22 @@ function createStore(dbPath, crmRoot) {
       runIndex();
     },
     indexOne(dossierRelPath) {
-      const dossierPath = join3(crmRoot, dossierRelPath);
-      const contact = parseIndexYaml(dossierPath);
-      const runIndexOne = db.transaction(() => {
-        if (contact.id) {
-          db.prepare("DELETE FROM contacts WHERE id = ?").run(contact.id);
-          db.prepare("DELETE FROM relationships WHERE source_id = ?").run(contact.id);
-          db.prepare("DELETE FROM content_fts WHERE contact_id = ?").run(contact.id);
-          db.prepare("DELETE FROM content_cache WHERE contact_id = ?").run(contact.id);
-        }
-        indexDossier(dossierRelPath);
-        resolveRelationshipTargets();
+      reindexPaths([dossierRelPath]);
+    },
+    indexMany(dossierRelPaths) {
+      reindexPaths(dossierRelPaths);
+    },
+    reindexSection(contactId, section) {
+      const path = store.getContactPath(contactId);
+      if (!path) throw new Error(`Contact not found: ${contactId}`);
+      const { key, file: file2 } = resolveSection(section);
+      const filePath = join4(crmRoot, path, file2);
+      const run = db.transaction(() => {
+        stmts.deleteSectionFts.run(contactId, key);
+        stmts.deleteSectionCache.run(contactId, key);
+        if (existsSync3(filePath)) writeSectionRows(contactId, key, readFileSync4(filePath, "utf-8"));
       });
-      runIndexOne();
+      run();
     },
     searchContacts(filters) {
       const {
@@ -21821,6 +21881,12 @@ function createStore(dbPath, crmRoot) {
       }
       return results;
     },
+    findByExactName(input) {
+      const needle = input.trim().toLowerCase();
+      if (!needle) return [];
+      const rows = db.prepare("SELECT id, name, aliases FROM contacts").all();
+      return rows.filter((r) => String(r.name).trim().toLowerCase() === needle || parseAliases(r.aliases).some((a) => a.trim().toLowerCase() === needle)).map((r) => r.id);
+    },
     fullTextSearch(query, limit = 20) {
       const ftsQuery = sanitizeFtsQuery(query);
       const sql = `
@@ -21871,7 +21937,7 @@ function createStore(dbPath, crmRoot) {
         profession: row.profession ?? void 0,
         aliases: row.aliases ?? void 0
       };
-      const dossierPath = join3(crmRoot, contact.path);
+      const dossierPath = join4(crmRoot, contact.path);
       const sections = scanDossierSections(dossierPath);
       return { contact, sections };
     },
@@ -21880,30 +21946,30 @@ function createStore(dbPath, crmRoot) {
       if (!row) {
         throw new Error(`Contact not found: ${contactId}`);
       }
-      const sectionFile = resolveSectionFile(section);
-      const filePath = join3(crmRoot, row.path, sectionFile);
+      const { key, file: file2 } = resolveSection(section);
+      const dossierDir = join4(crmRoot, row.path);
+      const filePath = join4(dossierDir, file2);
+      if (!isWithin(dossierDir, filePath)) {
+        throw new Error(`Invalid section: "${section}"`);
+      }
       if (!existsSync3(filePath)) {
         return "";
       }
-      const cached2 = stmts.getContentCache.get(contactId, section);
-      const currentHash = fileHash(filePath);
-      if (cached2 && cached2.file_hash === currentHash) {
+      const raw = readFileSync4(filePath, "utf-8");
+      const cached2 = stmts.getContentCache.get(contactId, key);
+      if (cached2 && cached2.file_hash === sha256(raw)) {
         return cached2.cleaned_content;
       }
-      const raw = readFileSync3(filePath, "utf-8");
-      const cleaned = stripBoilerplate(raw);
-      const now = (/* @__PURE__ */ new Date()).toISOString();
-      stmts.insertContentCache.run(
-        contactId,
-        section,
-        currentHash,
-        cleaned,
-        now
-      );
-      return cleaned;
+      const run = db.transaction(() => {
+        stmts.deleteSectionFts.run(contactId, key);
+        writeSectionRows(contactId, key, raw);
+      });
+      run();
+      return stmts.getContentCache.get(contactId, key).cleaned_content;
     },
     getConnections(contactId, depth = 1) {
       const visited = /* @__PURE__ */ new Set();
+      const seenEdges = /* @__PURE__ */ new Set();
       const result = [];
       const queue = [
         { id: contactId, currentDepth: 0 }
@@ -21923,8 +21989,9 @@ function createStore(dbPath, crmRoot) {
             context: row.context,
             bidirectional: row.bidirectional === 1
           };
-          const key = `${rel.sourceId}-${rel.targetName}-${rel.type}`;
-          if (!result.some((r) => `${r.sourceId}-${r.targetName}-${r.type}` === key)) {
+          const key = `${rel.sourceId}\0${rel.targetName}\0${rel.type}`;
+          if (!seenEdges.has(key)) {
+            seenEdges.add(key);
             result.push(rel);
           }
           const otherId = rel.sourceId === id ? rel.targetId : rel.sourceId;
@@ -21934,6 +22001,14 @@ function createStore(dbPath, crmRoot) {
         }
       }
       return result;
+    },
+    getContactNames(ids) {
+      const names = /* @__PURE__ */ new Map();
+      for (const id of new Set(ids)) {
+        const row = stmts.getContactName.get(id);
+        if (row) names.set(id, row.name);
+      }
+      return names;
     },
     getRecent(limit = 10, category) {
       let sql = "SELECT id, name, category, organization, status, last_contact FROM contacts";
@@ -21955,47 +22030,29 @@ function createStore(dbPath, crmRoot) {
       }));
     },
     getStats() {
-      const totalRow = db.prepare("SELECT COUNT(*) as count FROM contacts").get();
-      const totalContacts = totalRow.count;
-      const categoryRows = db.prepare(
-        "SELECT category, COUNT(*) as count FROM contacts GROUP BY category"
-      ).all();
+      const totalContacts = db.prepare("SELECT COUNT(*) as count FROM contacts").get().count;
       const byCategory = {};
-      for (const row of categoryRows) {
+      for (const row of db.prepare("SELECT category, COUNT(*) as count FROM contacts GROUP BY category").all()) {
         byCategory[row.category] = row.count;
       }
       const thirtyDaysAgo = /* @__PURE__ */ new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const staleDate = thirtyDaysAgo.toISOString().slice(0, 10);
-      const staleRow = db.prepare(
-        "SELECT COUNT(*) as count FROM contacts WHERE last_contact IS NULL OR last_contact < ?"
-      ).get(staleDate);
-      const staleContacts = staleRow.count;
-      const cacheRows = db.prepare("SELECT contact_id, section, cleaned_content FROM content_cache").all();
+      const staleContacts = db.prepare("SELECT COUNT(*) as count FROM contacts WHERE last_contact IS NULL OR last_contact < ?").get(staleDate).count;
       let totalFill = 0;
       let fileCount = 0;
-      for (const row of cacheRows) {
-        const contact = stmts.getContactPath.get(row.contact_id);
-        if (!contact) continue;
-        const sectionFile = resolveSectionFile(row.section);
-        const filePath = join3(crmRoot, contact.path, sectionFile);
-        if (!existsSync3(filePath)) continue;
-        try {
-          const raw = readFileSync3(filePath, "utf-8");
-          const originalSize = Buffer.byteLength(raw, "utf-8");
-          const cleanedSize = Buffer.byteLength(
-            row.cleaned_content ?? "",
-            "utf-8"
-          );
-          if (originalSize > 0) {
-            totalFill += Math.round(cleanedSize / originalSize * 100);
-            fileCount++;
-          }
-        } catch {
-        }
+      for (const row of db.prepare("SELECT cleaned_content, raw_bytes FROM content_cache WHERE raw_bytes > 0").all()) {
+        const cleanedSize = Buffer.byteLength(row.cleaned_content ?? "", "utf-8");
+        totalFill += Math.round(cleanedSize / row.raw_bytes * 100);
+        fileCount++;
       }
       const avgFillPercent = fileCount > 0 ? Math.round(totalFill / fileCount) : 0;
       return { totalContacts, byCategory, staleContacts, avgFillPercent };
+    },
+    getProfessionCounts() {
+      return db.prepare(
+        "SELECT profession, COUNT(*) as count FROM contacts WHERE profession IS NOT NULL GROUP BY profession"
+      ).all();
     },
     getContactPath(contactId) {
       const row = stmts.getContactPath.get(contactId);
@@ -22010,11 +22067,65 @@ function createStore(dbPath, crmRoot) {
       );
       return hit ? hit.id : null;
     },
+    saveAudit(contactId, auditJson, dossierHash) {
+      db.prepare("INSERT OR REPLACE INTO audit_cache (contact_id, audit_json, created_at, dossier_hash) VALUES (?, ?, ?, ?)").run(contactId, auditJson, (/* @__PURE__ */ new Date()).toISOString(), dossierHash);
+    },
+    loadAudit(contactId) {
+      const row = db.prepare("SELECT audit_json, dossier_hash FROM audit_cache WHERE contact_id = ?").get(contactId);
+      return row ? { auditJson: row.audit_json, dossierHash: row.dossier_hash ?? null } : null;
+    },
+    clearAudit(contactId) {
+      db.prepare("DELETE FROM audit_cache WHERE contact_id = ?").run(contactId);
+    },
+    getSectionContents() {
+      return db.prepare("SELECT contact_id, section, cleaned_content, file_hash FROM content_cache").all().map((r) => ({ contactId: r.contact_id, section: r.section, content: r.cleaned_content ?? "", fileHash: r.file_hash }));
+    },
+    getEmbeddingModel() {
+      const row = db.prepare("SELECT value FROM meta WHERE key = 'embedding_model'").get();
+      return row ? row.value : null;
+    },
+    replaceEmbeddings(model, rows) {
+      const insert = db.prepare(`
+        INSERT OR REPLACE INTO embeddings (contact_id, section, chunk_index, chunk_text, embedding, file_hash)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      const run = db.transaction(() => {
+        db.exec("DELETE FROM embeddings");
+        for (const r of rows) insert.run(r.contactId, r.section, r.chunkIndex, r.chunkText, r.embedding, r.fileHash);
+        db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('embedding_model', ?)").run(model);
+      });
+      run();
+    },
+    getEmbeddings() {
+      return db.prepare(`
+        SELECT e.contact_id, e.section, e.chunk_text, e.embedding, e.file_hash, c.name AS contact_name,
+               cc.file_hash AS current_hash
+        FROM embeddings e
+        JOIN contacts c ON c.id = e.contact_id
+        LEFT JOIN content_cache cc ON cc.contact_id = e.contact_id AND cc.section = e.section
+      `).all().map((r) => ({
+        contactId: r.contact_id,
+        contactName: r.contact_name,
+        section: r.section,
+        chunkText: r.chunk_text,
+        embedding: Buffer.from(r.embedding),
+        stale: r.current_hash == null || r.file_hash !== r.current_hash
+      }));
+    },
     close() {
       db.close();
     }
   };
   return store;
+}
+function parseAliases(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
 }
 
 // node_modules/zod/v3/helpers/util.js
@@ -43192,7 +43303,7 @@ var Protocol = class {
           return;
         }
         const pollInterval = task2.pollInterval ?? this._options?.defaultTaskPollInterval ?? 1e3;
-        await new Promise((resolve3) => setTimeout(resolve3, pollInterval));
+        await new Promise((resolve4) => setTimeout(resolve4, pollInterval));
         options?.signal?.throwIfAborted();
       }
     } catch (error48) {
@@ -43209,7 +43320,7 @@ var Protocol = class {
    */
   request(request, resultSchema, options) {
     const { relatedRequestId, resumptionToken, onresumptiontoken, task, relatedTask } = options ?? {};
-    return new Promise((resolve3, reject) => {
+    return new Promise((resolve4, reject) => {
       const earlyReject = (error48) => {
         reject(error48);
       };
@@ -43287,7 +43398,7 @@ var Protocol = class {
           if (!parseResult.success) {
             reject(parseResult.error);
           } else {
-            resolve3(parseResult.data);
+            resolve4(parseResult.data);
           }
         } catch (error48) {
           reject(error48);
@@ -43548,12 +43659,12 @@ var Protocol = class {
       }
     } catch {
     }
-    return new Promise((resolve3, reject) => {
+    return new Promise((resolve4, reject) => {
       if (signal.aborted) {
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
         return;
       }
-      const timeoutId = setTimeout(resolve3, interval);
+      const timeoutId = setTimeout(resolve4, interval);
       signal.addEventListener("abort", () => {
         clearTimeout(timeoutId);
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
@@ -44653,7 +44764,7 @@ var McpServer = class {
     let task = createTaskResult.task;
     const pollInterval = task.pollInterval ?? 5e3;
     while (task.status !== "completed" && task.status !== "failed" && task.status !== "cancelled") {
-      await new Promise((resolve3) => setTimeout(resolve3, pollInterval));
+      await new Promise((resolve4) => setTimeout(resolve4, pollInterval));
       const updatedTask = await extra.taskStore.getTask(taskId);
       if (!updatedTask) {
         throw new McpError(ErrorCode.InternalError, `Task ${taskId} not found during polling`);
@@ -45296,21 +45407,24 @@ var StdioServerTransport = class {
     this.onclose?.();
   }
   send(message) {
-    return new Promise((resolve3) => {
+    return new Promise((resolve4) => {
       const json2 = serializeMessage(message);
       if (this._stdout.write(json2)) {
-        resolve3();
+        resolve4();
       } else {
-        this._stdout.once("drain", resolve3);
+        this._stdout.once("drain", resolve4);
       }
     });
   }
 };
 
+// src/server.ts
+import { readFileSync as readFileSync10 } from "node:fs";
+import { join as join11 } from "node:path";
+
 // src/writer.ts
-var import_yaml2 = __toESM(require_dist(), 1);
-import { readFileSync as readFileSync4, writeFileSync, mkdirSync as mkdirSync2, readdirSync as readdirSync2, cpSync, existsSync as existsSync4 } from "node:fs";
-import { join as join4 } from "node:path";
+import { readFileSync as readFileSync5, mkdirSync as mkdirSync2, readdirSync as readdirSync2, cpSync, existsSync as existsSync4, writeFileSync as writeFileSync2 } from "node:fs";
+import { join as join5 } from "node:path";
 
 // src/professions.ts
 var PROFESSIONS = {
@@ -45505,77 +45619,77 @@ function lookupProfession(code) {
 }
 
 // src/writer.ts
-import { createHash as createHash2 } from "node:crypto";
-function getContactPath(store, contactId) {
-  const row = store.db.prepare("SELECT path FROM contacts WHERE id = ?").get(contactId);
-  if (!row) {
+function requireContactPath(store, contactId) {
+  const path = store.getContactPath(contactId);
+  if (!path) {
     throw new Error(`Contact not found: ${contactId}`);
   }
-  return row.path;
+  return path;
 }
-function today() {
-  return (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
-}
-function parseFrontmatterAndBody(content) {
-  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
-  if (!match) {
-    return { yaml: {}, body: content };
+function sectionFilePath(store, contactPath, section) {
+  const { key, file: file2 } = resolveSection(section);
+  const dossierDir = join5(store.crmRoot, contactPath);
+  const filePath = join5(dossierDir, file2);
+  if (!isWithin(dossierDir, filePath)) {
+    throw new Error(`Invalid section: "${section}"`);
   }
-  const yaml = (0, import_yaml2.parse)(match[1]);
-  return { yaml, body: match[2] };
+  return { key, filePath };
 }
-function reconstructFile(yaml, body) {
-  const sanitized = { ...yaml };
-  for (const [key, value] of Object.entries(sanitized)) {
-    if (value instanceof Date) {
-      sanitized[key] = value.toISOString().split("T")[0];
-    }
+var TABLE_SEPARATOR_RE2 = /^\|[-|\s:]+\|$/;
+function tableCell(value) {
+  return (value ?? "").replace(/\r?\n/g, " ").replace(/\|/g, "\\|").trim();
+}
+function splitRow(line) {
+  return line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim().toLowerCase());
+}
+function findInteractionTable(lines) {
+  for (let i = 0; i < lines.length - 1; i++) {
+    const header = lines[i].trim();
+    if (!header.startsWith("|") || !TABLE_SEPARATOR_RE2.test(lines[i + 1].trim())) continue;
+    const columns = splitRow(header);
+    if (columns[0] !== "date" || !columns.includes("type") || !columns.includes("summary")) continue;
+    let last = i + 1;
+    while (last + 1 < lines.length && lines[last + 1].trim().startsWith("|")) last++;
+    return { columns, lastRowIndex: last };
   }
-  const yamlStr = (0, import_yaml2.stringify)(sanitized, { lineWidth: 0 }).trimEnd();
-  return `---
-${yamlStr}
----
-${body}`;
+  return null;
 }
-function invalidateAndReindex(store, contactId, section, filePath) {
-  store.db.prepare("DELETE FROM content_cache WHERE contact_id = ? AND section = ?").run(contactId, section);
-  store.db.prepare("DELETE FROM content_fts WHERE contact_id = ? AND section = ?").run(contactId, section);
-  const raw = readFileSync4(filePath, "utf-8");
-  const hash2 = createHash2("sha256").update(raw).digest("hex");
-  const cleaned = stripBoilerplate(raw);
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  store.db.prepare(
-    "INSERT INTO content_fts (contact_id, section, content) VALUES (?, ?, ?)"
-  ).run(contactId, section, cleaned);
-  store.db.prepare(
-    "INSERT OR REPLACE INTO content_cache (contact_id, section, file_hash, cleaned_content, cleaned_at) VALUES (?, ?, ?, ?, ?)"
-  ).run(contactId, section, hash2, cleaned, now);
+function buildLogRow(columns, entry) {
+  const hasOutcome = columns.includes("outcome");
+  const summary = !hasOutcome && entry.outcome ? `${entry.summary} \u2014 Outcome: ${entry.outcome}` : entry.summary;
+  const cells = columns.map((col) => {
+    if (col === "date") return tableCell(entry.date);
+    if (col === "type") return tableCell(entry.type);
+    if (col === "summary") return tableCell(summary);
+    if (col === "outcome") return tableCell(entry.outcome);
+    if (/^(next steps?|follow[- ]?ups?)$/.test(col)) return tableCell(entry.nextStep);
+    return "";
+  });
+  return `| ${cells.join(" | ")} |`;
 }
+var DEFAULT_LOG_COLUMNS = ["date", "type", "summary", "outcome", "next step"];
 function appendLog(store, contactId, entry) {
-  const contactPath = getContactPath(store, contactId);
-  const logFile = join4(store.crmRoot, contactPath, "log.md");
-  const content = readFileSync4(logFile, "utf-8");
-  const { yaml, body } = parseFrontmatterAndBody(content);
-  const outcome = entry.outcome ?? "";
-  const nextStep = entry.nextStep ?? "";
-  const newRow = `| ${entry.date} | ${entry.type} | ${entry.summary} | ${outcome} | ${nextStep} |`;
+  const contactPath = requireContactPath(store, contactId);
+  const logFile = join5(store.crmRoot, contactPath, "log.md");
+  const content = existsSync4(logFile) ? readFileSync5(logFile, "utf-8") : "";
+  const { body } = splitFrontmatter(content);
   const bodyLines = body.split("\n");
-  let lastTableRowIndex = -1;
-  for (let i = bodyLines.length - 1; i >= 0; i--) {
-    if (bodyLines[i].trimStart().startsWith("|")) {
-      lastTableRowIndex = i;
-      break;
-    }
-  }
-  if (lastTableRowIndex >= 0) {
-    bodyLines.splice(lastTableRowIndex + 1, 0, newRow);
+  const table = findInteractionTable(bodyLines);
+  if (table) {
+    bodyLines.splice(table.lastRowIndex + 1, 0, buildLogRow(table.columns, entry));
   } else {
-    bodyLines.push(newRow);
+    while (bodyLines.length > 0 && bodyLines[bodyLines.length - 1].trim() === "") bodyLines.pop();
+    bodyLines.push(
+      "",
+      "| Date | Type | Summary | Outcome | Next Step |",
+      "|------|------|---------|---------|-----------|",
+      buildLogRow(DEFAULT_LOG_COLUMNS, entry),
+      ""
+    );
   }
-  yaml.lastUpdated = today();
-  const updatedContent = reconstructFile(yaml, bodyLines.join("\n"));
-  writeFileSync(logFile, updatedContent, "utf-8");
-  invalidateAndReindex(store, contactId, "log", logFile);
+  const withBody = content.slice(0, content.length - body.length) + bodyLines.join("\n");
+  atomicWriteFileSync(logFile, updateFrontmatter(withBody, { lastUpdated: today() }));
+  store.reindexSection(contactId, "log");
 }
 var LIST_FIELDS = /* @__PURE__ */ new Set(["roles", "aliases", "assetClasses"]);
 function parseListValue(value) {
@@ -45591,14 +45705,12 @@ function parseListValue(value) {
   }
   return trimmed.split(",").map((v) => v.trim()).filter(Boolean);
 }
-function updateField(store, contactId, section, field, value) {
-  const contactPath = getContactPath(store, contactId);
-  const sectionFile = resolveSectionFile(section);
-  const filePath = join4(store.crmRoot, contactPath, sectionFile);
-  const content = readFileSync4(filePath, "utf-8");
-  const { yaml, body } = parseFrontmatterAndBody(content);
+function writeField(store, contactId, section, field, value) {
+  const contactPath = requireContactPath(store, contactId);
+  const { key, filePath } = sectionFilePath(store, contactPath, section);
+  const content = readFileSync5(filePath, "utf-8");
   let newValue = value;
-  if (section === "index" && LIST_FIELDS.has(field)) {
+  if (key === "index" && LIST_FIELDS.has(field)) {
     const list = parseListValue(value);
     if (field === "roles") {
       const badRoles = list.filter((r) => !ORG_ROLES.includes(r));
@@ -45608,24 +45720,43 @@ function updateField(store, contactId, section, field, value) {
     }
     newValue = list;
   }
-  yaml[field] = newValue;
-  yaml.lastUpdated = today();
-  const updatedContent = reconstructFile(yaml, body);
-  writeFileSync(filePath, updatedContent, "utf-8");
-  if (section === "index") {
+  atomicWriteFileSync(filePath, updateFrontmatter(content, { [field]: newValue, lastUpdated: today() }));
+  return { key, contactPath };
+}
+function updateField(store, contactId, section, field, value) {
+  const { key, contactPath } = writeField(store, contactId, section, field, value);
+  if (key === "index") {
     store.indexOne(contactPath);
   } else {
-    invalidateAndReindex(store, contactId, section, filePath);
+    store.reindexSection(contactId, key);
   }
+}
+function bulkUpdateField(store, filters, field, value) {
+  if (!filters.category && !filters.status) {
+    throw new Error("bulk update requires at least one filter (category or status)");
+  }
+  const contacts = store.searchContacts({ ...filters, limit: 1e5 });
+  const result = { updated: [], errors: [] };
+  const paths = [];
+  for (const c of contacts) {
+    try {
+      paths.push(writeField(store, c.id, "index", field, value).contactPath);
+      result.updated.push(c.id);
+    } catch (e) {
+      result.errors.push({ id: c.id, message: e.message });
+    }
+  }
+  if (paths.length > 0) store.indexMany(paths);
+  return result;
 }
 var CATEGORY_TO_CODE = Object.fromEntries(
   Object.entries(CATEGORY_CODES).map(([code, cat]) => [cat, code])
 );
 function getUserTemplatesDir(crmRoot) {
-  return join4(crmRoot, ".templates");
+  return join5(crmRoot, ".templates");
 }
 function generateF3L3(fullName) {
-  const normalized = fullName.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const normalized = fullName.normalize("NFD").replace(/[̀-ͯ]/g, "");
   const parts = normalized.trim().split(/\s+/);
   if (parts.length < 2) {
     throw new Error(`Name must have at least first and last parts: "${fullName}"`);
@@ -45642,18 +45773,20 @@ function templateTypeForCategory(category) {
   if (category === "Personal") return "PERSONAL";
   return "PROFESSIONAL";
 }
+function safeFolderPart(part) {
+  return part.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "").replace(/^\.+/, "").trim();
+}
 function nextSequence(catPath, prefix) {
   let nextSeq = 1;
   if (!existsSync4(catPath)) return nextSeq;
   for (const entry of readdirSync2(catPath, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
-    const indexPath = join4(catPath, entry.name, "INDEX.md");
+    const indexPath = join5(catPath, entry.name, "INDEX.md");
     if (!existsSync4(indexPath)) continue;
     try {
-      const content = readFileSync4(indexPath, "utf-8");
-      const match = content.match(/dossierCode:\s*"?([^"\n]+)"?/);
-      if (match && match[1].startsWith(prefix)) {
-        const seq = parseInt(match[1].substring(prefix.length), 10);
+      const code = String(parseFrontmatter(readFileSync5(indexPath, "utf-8"))?.dossierCode ?? "");
+      if (code.startsWith(prefix)) {
+        const seq = parseInt(code.substring(prefix.length), 10);
         if (!isNaN(seq) && seq >= nextSeq) nextSeq = seq + 1;
       }
     } catch {
@@ -45662,11 +45795,11 @@ function nextSequence(catPath, prefix) {
   return nextSeq;
 }
 function createDossier(store, crmRoot, input) {
-  const category = input.category;
-  const categoryDir = CATEGORY_DIRS[category];
-  if (!categoryDir) {
+  if (!Object.hasOwn(CATEGORY_DIRS, input.category)) {
     throw new Error(`Invalid category: "${input.category}". Valid: ${Object.keys(CATEGORY_DIRS).join(", ")}`);
   }
+  const category = input.category;
+  const categoryDir = CATEGORY_DIRS[category];
   if (category === "Organization") {
     return createOrgDossier(store, crmRoot, input);
   }
@@ -45689,25 +45822,28 @@ function createDossier(store, crmRoot, input) {
     codePrefix = catCode;
   }
   const f3l3 = generateF3L3(input.name);
-  const nextSeq = nextSequence(join4(crmRoot, categoryDir), `${codePrefix}-${f3l3}-`);
+  const nextSeq = nextSequence(join5(crmRoot, categoryDir), `${codePrefix}-${f3l3}-`);
   const dossierCode = `${codePrefix}-${f3l3}-${String(nextSeq).padStart(3, "0")}`;
   const nameParts = input.name.trim().split(/\s+/);
-  const lastName = nameParts[nameParts.length - 1];
-  const firstName = nameParts.slice(0, -1).join(" ");
+  const lastName = safeFolderPart(nameParts[nameParts.length - 1]);
+  const firstName = safeFolderPart(nameParts.slice(0, -1).join(" "));
+  if (!lastName || !firstName) {
+    throw new Error(`Name "${input.name}" does not produce a valid folder name`);
+  }
   const folderName = `${lastName.toUpperCase()}_${firstName}`;
   const userTemplates = getUserTemplatesDir(crmRoot);
   const templateName = input.template || templateTypeForCategory(input.category);
   let templatePath;
   if (professionEntry) {
-    const userProfTpl = join4(userTemplates, "REAL_ESTATE", professionEntry.templateDir);
+    const userProfTpl = join5(userTemplates, "REAL_ESTATE", professionEntry.templateDir);
     if (existsSync4(userProfTpl)) {
       templatePath = userProfTpl;
     }
   }
   if (!templatePath) {
-    const userTpl = join4(userTemplates, templateName);
-    const categoryTpl = join4(userTemplates, templateTypeForCategory(input.category));
-    if (existsSync4(userTpl)) {
+    const userTpl = join5(userTemplates, templateName);
+    const categoryTpl = join5(userTemplates, templateTypeForCategory(input.category));
+    if (isWithin(userTemplates, userTpl) && existsSync4(userTpl)) {
       templatePath = userTpl;
     } else if (existsSync4(categoryTpl)) {
       templatePath = categoryTpl;
@@ -45717,14 +45853,18 @@ function createDossier(store, crmRoot, input) {
       );
     }
   }
-  const destPath = join4(crmRoot, categoryDir, folderName);
+  const categoryPath = join5(crmRoot, categoryDir);
+  const destPath = join5(categoryPath, folderName);
+  if (!isWithin(categoryPath, destPath) || destPath === categoryPath) {
+    throw new Error(`Name "${input.name}" does not produce a valid folder name`);
+  }
   if (existsSync4(destPath)) {
     throw new Error(`Dossier folder already exists: ${destPath}`);
   }
-  mkdirSync2(join4(crmRoot, categoryDir), { recursive: true });
-  const needsCompose = templatePath && !existsSync4(join4(templatePath, "INDEX.md"));
+  mkdirSync2(categoryPath, { recursive: true });
+  const needsCompose = !existsSync4(join5(templatePath, "INDEX.md"));
   if (needsCompose && professionEntry) {
-    const commonDir = join4(userTemplates, "REAL_ESTATE", "COMMON");
+    const commonDir = join5(userTemplates, "REAL_ESTATE", "COMMON");
     if (existsSync4(commonDir)) {
       cpSync(commonDir, destPath, { recursive: true });
     }
@@ -45742,25 +45882,23 @@ function createDossier(store, crmRoot, input) {
     context: input.context ?? "",
     profession: input.profession ?? ""
   });
-  const indexPath = join4(destPath, "INDEX.md");
-  const indexContent = readFileSync4(indexPath, "utf-8");
-  const { yaml: indexYaml, body: indexBody } = parseFrontmatterAndBody(indexContent);
-  indexYaml.name = input.name;
-  indexYaml.dossierCode = dossierCode;
-  indexYaml.organization = input.organization ?? "";
-  indexYaml.status = "Active";
-  indexYaml.lastContactDate = todayStr;
-  indexYaml.lastUpdated = todayStr;
-  if (input.context) {
-    indexYaml.context = input.context;
-  }
-  if (input.profession) {
-    indexYaml.profession = input.profession;
-  }
-  delete indexYaml.tier;
-  const updatedBody = indexBody.replace(/DOSSIER_TEMPLATE_\w+/g, input.name).replace(/\[SUBJECT NAME\]/g, input.name).replace(/\[ORGANIZATION\]/g, input.organization ?? "").replace(/\[NAME\]/g, input.name);
-  const updatedIndex = reconstructFile(indexYaml, updatedBody);
-  writeFileSync(indexPath, updatedIndex, "utf-8");
+  const indexPath = join5(destPath, "INDEX.md");
+  const indexContent = readFileSync5(indexPath, "utf-8");
+  const { body: indexBody } = splitFrontmatter(indexContent);
+  const updatedBody = indexBody.replace(/DOSSIER_TEMPLATE_\w+/g, () => input.name).replace(/\[SUBJECT NAME\]/g, () => input.name).replace(/\[ORGANIZATION\]/g, () => input.organization ?? "").replace(/\[NAME\]/g, () => input.name);
+  const withBody = indexContent.slice(0, indexContent.length - indexBody.length) + updatedBody;
+  writeFileSync2(indexPath, updateFrontmatter(withBody, {
+    name: input.name,
+    dossierCode,
+    organization: input.organization ?? "",
+    status: "Active",
+    lastContactDate: todayStr,
+    lastUpdated: todayStr,
+    ...input.context ? { context: input.context } : {},
+    ...input.profession ? { profession: input.profession } : {},
+    tier: void 0
+    // template-only field
+  }), "utf-8");
   const relPath = `${categoryDir}/${folderName}`;
   store.indexOne(relPath);
   return { id: dossierCode, path: relPath };
@@ -45782,27 +45920,27 @@ function createOrgDossier(store, crmRoot, input) {
   if (!isValidCid(cid)) {
     throw new Error(`Invalid CID "${cid}": use 2-6 chars of A-Z, 0-9, "." (pass cid explicitly)`);
   }
-  const orgTpl = join4(getUserTemplatesDir(crmRoot), "REAL_ESTATE", "ORGANIZATION");
-  const commonDir = join4(orgTpl, "COMMON");
+  const orgTpl = join5(getUserTemplatesDir(crmRoot), "REAL_ESTATE", "ORGANIZATION");
+  const commonDir = join5(orgTpl, "COMMON");
   if (!existsSync4(commonDir)) {
     throw new Error("Organization template not installed locally. Run: crm-mcp templates pull REAL_ESTATE/ORGANIZATION");
   }
   const categoryDir = CATEGORY_DIRS.Organization;
   const prefix = `${orgType}-${cid}-`;
-  const dossierCode = `${prefix}${String(nextSequence(join4(crmRoot, categoryDir), prefix)).padStart(3, "0")}`;
+  const dossierCode = `${prefix}${String(nextSequence(join5(crmRoot, categoryDir), prefix)).padStart(3, "0")}`;
   let folderName = orgFolderName(orgType, input.name);
   if (folderName === `${orgType}_`) {
     folderName = `${orgType}_${cid}`;
   }
-  const destPath = join4(crmRoot, categoryDir, folderName);
+  const destPath = join5(crmRoot, categoryDir, folderName);
   if (existsSync4(destPath)) {
     throw new Error(`Dossier folder already exists: ${destPath}`);
   }
-  mkdirSync2(join4(crmRoot, categoryDir), { recursive: true });
+  mkdirSync2(join5(crmRoot, categoryDir), { recursive: true });
   cpSync(commonDir, destPath, { recursive: true });
   const overlays = new Set(roles.map((r) => ROLE_OVERLAYS[r]).filter((d) => !!d));
   for (const overlay of overlays) {
-    const src = join4(orgTpl, "ROLES", overlay);
+    const src = join5(orgTpl, "ROLES", overlay);
     if (existsSync4(src)) cpSync(src, destPath, { recursive: true });
   }
   const todayStr = today();
@@ -45816,50 +45954,57 @@ function createOrgDossier(store, crmRoot, input) {
     profession: "",
     orgType
   });
-  const indexPath = join4(destPath, "INDEX.md");
-  const { yaml: indexYaml, body: indexBody } = parseFrontmatterAndBody(readFileSync4(indexPath, "utf-8"));
-  indexYaml.name = input.name;
-  indexYaml.dossierCode = dossierCode;
-  indexYaml.category = "Organization";
-  indexYaml.orgType = orgType;
-  indexYaml.roles = roles;
-  indexYaml.status = "Active";
-  indexYaml.lastContactDate = todayStr;
-  indexYaml.lastUpdated = todayStr;
-  if (input.context) indexYaml.context = input.context;
-  delete indexYaml.tier;
-  writeFileSync(indexPath, reconstructFile(indexYaml, indexBody), "utf-8");
+  const indexPath = join5(destPath, "INDEX.md");
+  writeFileSync2(indexPath, updateFrontmatter(readFileSync5(indexPath, "utf-8"), {
+    name: input.name,
+    dossierCode,
+    category: "Organization",
+    orgType,
+    roles,
+    status: "Active",
+    lastContactDate: todayStr,
+    lastUpdated: todayStr,
+    ...input.context ? { context: input.context } : {},
+    tier: void 0
+    // template-only field
+  }), "utf-8");
   const relPath = `${categoryDir}/${folderName}`;
   store.indexOne(relPath);
   return { id: dossierCode, path: relPath };
 }
 function replacePlaceholdersRecursive(dirPath, replacements) {
-  const entries = readdirSync2(dirPath, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = join4(dirPath, entry.name);
+  const vars = {
+    name: replacements.name,
+    dossierCode: replacements.dossierCode,
+    organization: replacements.organization,
+    category: replacements.category ?? "",
+    context: replacements.context,
+    date: replacements.date,
+    profession: replacements.profession,
+    orgType: replacements.orgType ?? ""
+  };
+  for (const entry of readdirSync2(dirPath, { withFileTypes: true })) {
+    const fullPath = join5(dirPath, entry.name);
     if (entry.isDirectory()) {
       replacePlaceholdersRecursive(fullPath, replacements);
-    } else if (entry.name.endsWith(".md")) {
-      let content = readFileSync4(fullPath, "utf-8");
-      const vars = {
-        name: replacements.name,
-        dossierCode: replacements.dossierCode,
-        organization: replacements.organization,
-        category: replacements.category ?? "",
-        context: replacements.context,
-        date: replacements.date,
-        profession: replacements.profession,
-        orgType: replacements.orgType ?? ""
-      };
-      for (const [key, value] of Object.entries(vars)) {
-        content = content.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value);
-      }
-      content = content.replace(/contactName:\s*"[^"]*"/g, `contactName: "${replacements.name}"`);
-      content = content.replace(/dossierCode:\s*"[^"]*"/g, `dossierCode: "${replacements.dossierCode}"`);
-      content = content.replace(/lastUpdated:\s*\S+/g, `lastUpdated: ${replacements.date}`);
-      content = content.replace(/DOSSIER_TEMPLATE_\w+/g, replacements.name);
-      writeFileSync(fullPath, content, "utf-8");
+      continue;
     }
+    if (!entry.name.endsWith(".md")) continue;
+    const original = readFileSync5(fullPath, "utf-8");
+    const { yaml, body } = splitFrontmatter(original);
+    let head = original.slice(0, original.length - body.length);
+    let content = body;
+    if (yaml !== null) {
+      head = head.replace(/contactName:\s*"[^"]*"/g, () => `contactName: ${JSON.stringify(replacements.name)}`).replace(/dossierCode:\s*"[^"]*"/g, () => `dossierCode: ${JSON.stringify(replacements.dossierCode)}`).replace(/lastUpdated:\s*\S+/g, () => `lastUpdated: ${replacements.date}`);
+    }
+    for (const [key, value] of Object.entries(vars)) {
+      const re = new RegExp(`\\{\\{${key}\\}\\}`, "g");
+      head = head.replace(re, () => JSON.stringify(value).slice(1, -1));
+      content = content.replace(re, () => value);
+    }
+    content = head + content;
+    content = content.replace(/DOSSIER_TEMPLATE_\w+/g, () => replacements.name);
+    writeFileSync2(fullPath, content, "utf-8");
   }
 }
 
@@ -45880,36 +46025,27 @@ function formatExport(contacts, format) {
   }
   if (format === "markdown") {
     const header = "| ID | Name | Category | Organization | Status | Last Contact |";
-    const sep = "|-----|------|----------|-------------|--------|-------------|";
+    const sep2 = "|-----|------|----------|-------------|--------|-------------|";
     const rows = contacts.map(
       (c) => `| ${c.id} | ${c.name} | ${c.category} | ${c.organization || "-"} | ${c.status} | ${c.lastContact || "-"} |`
     );
-    return [header, sep, ...rows].join("\n");
+    return [header, sep2, ...rows].join("\n");
   }
   throw new Error(`Unknown format: ${format}`);
 }
 
+// src/maintenance.ts
+import { existsSync as existsSync7 } from "node:fs";
+import { join as join8 } from "node:path";
+
 // src/audit.ts
-import { readFileSync as readFileSync5, readdirSync as readdirSync3, existsSync as existsSync5 } from "node:fs";
-import { join as join5, relative as relative2, basename as basename3 } from "node:path";
+import { readFileSync as readFileSync6, existsSync as existsSync5 } from "node:fs";
+import { join as join6, basename as basename3 } from "node:path";
 var HEADING_RE = /^#{2,4}\s+.+/;
-function collectMdFiles2(dir, root) {
-  const base = root ?? dir;
-  const results = [];
-  for (const entry of readdirSync3(dir, { withFileTypes: true })) {
-    const full = join5(dir, entry.name);
-    if (entry.isDirectory()) {
-      results.push(...collectMdFiles2(full, base));
-    } else if (entry.name.endsWith(".md")) {
-      results.push(relative2(base, full));
-    }
-  }
-  return results;
-}
 function extractHeadings(filePath) {
   if (!existsSync5(filePath)) return [];
-  const content = readFileSync5(filePath, "utf-8");
-  return content.split("\n").map((line) => line.trimEnd()).filter((line) => HEADING_RE.test(line));
+  const { body } = splitFrontmatter(readFileSync6(filePath, "utf-8"));
+  return body.split("\n").map((line) => line.trimEnd()).filter((line) => HEADING_RE.test(line));
 }
 function missingPriority(heading) {
   if (/^## [IVXLCDM]+\.\s/.test(heading)) return "CRITICAL";
@@ -45918,18 +46054,13 @@ function missingPriority(heading) {
 }
 function extractSections(filePath) {
   if (!existsSync5(filePath)) return /* @__PURE__ */ new Map();
-  const content = readFileSync5(filePath, "utf-8");
-  const lines = content.split("\n");
+  const { body } = splitFrontmatter(readFileSync6(filePath, "utf-8"));
+  const lines = body.split("\n");
   const sections = /* @__PURE__ */ new Map();
   let currentHeading = null;
-  let inFrontmatter = false;
   for (const line of lines) {
     const trimmed = line.trimEnd();
-    if (trimmed === "---") {
-      inFrontmatter = !inFrontmatter;
-      continue;
-    }
-    if (inFrontmatter) continue;
+    if (trimmed === "---") continue;
     if (HEADING_RE.test(trimmed)) {
       currentHeading = trimmed;
       if (!sections.has(currentHeading)) {
@@ -45946,7 +46077,7 @@ function extractSections(filePath) {
 }
 function parseLatestLogDate(logPath) {
   if (!existsSync5(logPath)) return null;
-  const content = readFileSync5(logPath, "utf-8");
+  const content = readFileSync6(logPath, "utf-8");
   const lines = content.split("\n");
   const dateRe = /^\|\s*(\d{4}-\d{2}-\d{2})\s*\|/;
   let latest = null;
@@ -45963,27 +46094,22 @@ function parseLatestLogDate(logPath) {
   }
   return latest;
 }
-function parseFrontmatter2(filePath) {
+function readFrontmatter(filePath) {
   const result = /* @__PURE__ */ new Map();
   if (!existsSync5(filePath)) return result;
-  const content = readFileSync5(filePath, "utf-8");
-  const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!fmMatch) return result;
-  for (const line of fmMatch[1].split("\n")) {
-    const idx = line.indexOf(":");
-    if (idx > 0) {
-      const key = line.slice(0, idx).trim();
-      const val = line.slice(idx + 1).trim();
-      result.set(key, val);
-    }
+  const yaml = parseFrontmatter(readFileSync6(filePath, "utf-8"));
+  for (const [key, val] of Object.entries(yaml ?? {})) {
+    const str = formatDate(val);
+    if (str !== null && typeof val !== "object") result.set(key, str);
+    else if (val instanceof Date) result.set(key, str);
   }
   return result;
 }
 function buildRoutingTable(templateDir) {
   const table = /* @__PURE__ */ new Map();
-  const mdFiles = collectMdFiles2(templateDir);
+  const mdFiles = collectMdFiles(templateDir);
   for (const relPath of mdFiles) {
-    const headings = extractHeadings(join5(templateDir, relPath));
+    const headings = extractHeadings(join6(templateDir, relPath));
     for (const h of headings) {
       table.set(h, relPath);
     }
@@ -46002,9 +46128,9 @@ function runAudit(dossierDir, templateDir, passes) {
   };
   const routingTable = buildRoutingTable(templateDir);
   const dossierHeadings = /* @__PURE__ */ new Map();
-  const dossierMdFiles = collectMdFiles2(dossierDir);
+  const dossierMdFiles = collectMdFiles(dossierDir);
   for (const relPath of dossierMdFiles) {
-    const headings = extractHeadings(join5(dossierDir, relPath));
+    const headings = extractHeadings(join6(dossierDir, relPath));
     dossierHeadings.set(relPath, new Set(headings));
   }
   let compliance = 100;
@@ -46036,15 +46162,15 @@ function runAudit(dossierDir, templateDir, passes) {
         const canonicalFile = routingTable.get(heading);
         if (canonicalFile && canonicalFile !== relPath) {
           mpCount++;
-          const sections = extractSections(join5(dossierDir, relPath));
-          const contentLines = sections.get(heading) || [];
-          const preview = contentLines.slice(0, 2).join(" ").slice(0, 80) || heading;
+          const sections = extractSections(join6(dossierDir, relPath));
+          const contentLines2 = sections.get(heading) || [];
+          const preview = contentLines2.slice(0, 2).join(" ").slice(0, 80) || heading;
           findings.misplaced.push({
             code: `M${mpCount}`,
             section: heading,
             currentFile: relPath,
             correctFile: canonicalFile,
-            lines: contentLines.length,
+            lines: contentLines2.length,
             preview,
             priority: missingPriority(heading)
           });
@@ -46053,9 +46179,9 @@ function runAudit(dossierDir, templateDir, passes) {
     }
   }
   if (passes.includes("stale")) {
-    const indexPath = join5(dossierDir, "INDEX.md");
-    const logPath = join5(dossierDir, "log.md");
-    const fm = parseFrontmatter2(indexPath);
+    const indexPath = join6(dossierDir, "INDEX.md");
+    const logPath = join6(dossierDir, "log.md");
+    const fm = readFrontmatter(indexPath);
     const lastContact = fm.get("lastContactDate") || "";
     const latestLog = parseLatestLogDate(logPath);
     if (latestLog && lastContact && latestLog.date > lastContact) {
@@ -46074,7 +46200,7 @@ function runAudit(dossierDir, templateDir, passes) {
   if (passes.includes("duplicates")) {
     const allSections = [];
     for (const relPath of dossierMdFiles) {
-      const sections = extractSections(join5(dossierDir, relPath));
+      const sections = extractSections(join6(dossierDir, relPath));
       for (const [heading, lines] of sections) {
         if (lines.length > 0) {
           allSections.push({ heading, file: relPath, lines });
@@ -46100,6 +46226,7 @@ function runAudit(dossierDir, templateDir, passes) {
             code: `D${dupCount}`,
             section: sectionLabel,
             locations: [a.file, b.file],
+            headings: [a.heading, b.heading],
             priority: "MODERATE"
           });
         }
@@ -46120,7 +46247,7 @@ function runAudit(dossierDir, templateDir, passes) {
       if (!templateOrder) continue;
       const dossierList = [];
       const headingArr = Array.from(headings);
-      const docHeadings = extractHeadings(join5(dossierDir, relPath));
+      const docHeadings = extractHeadings(join6(dossierDir, relPath));
       for (const h of docHeadings) {
         if (templateOrder.includes(h)) {
           dossierList.push(h);
@@ -46154,29 +46281,65 @@ function runAudit(dossierDir, templateDir, passes) {
 }
 
 // src/repair.ts
-import { readFileSync as readFileSync6, writeFileSync as writeFileSync2, readdirSync as readdirSync4, existsSync as existsSync6 } from "node:fs";
-import { join as join6 } from "node:path";
+import { readFileSync as readFileSync7, writeFileSync as writeFileSync3, existsSync as existsSync6, rmSync as rmSync2 } from "node:fs";
+import { join as join7 } from "node:path";
 var HEADING_RE2 = /^#{2,4}\s+.+/;
 function headingLevel(line) {
   const match = line.match(/^(#{2,4})\s/);
   return match ? match[1].length : 0;
 }
-function countLines(dir) {
-  let total = 0;
-  if (!existsSync6(dir)) return 0;
-  for (const entry of readdirSync4(dir, { withFileTypes: true })) {
-    const full = join6(dir, entry.name);
-    if (entry.isDirectory()) {
-      total += countLines(full);
-    } else if (entry.name.endsWith(".md")) {
-      const content = readFileSync6(full, "utf-8");
-      total += content.split("\n").length;
-    }
+function snapshotDossier(dir) {
+  const snap = /* @__PURE__ */ new Map();
+  if (!existsSync6(dir)) return snap;
+  for (const rel of collectMdFiles(dir)) snap.set(rel, readFileSync7(join7(dir, rel), "utf-8"));
+  return snap;
+}
+function restoreSnapshot(dir, snap) {
+  for (const rel of collectMdFiles(dir)) {
+    if (!snap.has(rel)) rmSync2(join7(dir, rel), { force: true });
   }
+  for (const [rel, content] of snap) writeFileSync3(join7(dir, rel), content);
+}
+function countLines(snap) {
+  let total = 0;
+  for (const content of snap.values()) total += content.split("\n").length;
   return total;
 }
-function extractSectionBlock(lines, heading) {
-  const startIdx = lines.findIndex((l) => l.trimEnd() === heading);
+function distinctLines(snap) {
+  const set2 = /* @__PURE__ */ new Set();
+  for (const content of snap.values()) {
+    for (const line of content.split("\n")) {
+      const t = line.trim();
+      if (t) set2.add(t);
+    }
+  }
+  return set2;
+}
+function withIntegrityGuard(dossierDir, apply) {
+  const snapshot = snapshotDossier(dossierDir);
+  const before = distinctLines(snapshot);
+  apply();
+  const after = snapshotDossier(dossierDir);
+  const afterLines = distinctLines(after);
+  let lost = 0;
+  for (const line of before) if (!afterLines.has(line)) lost++;
+  const lossPercent = before.size > 0 ? lost / before.size * 100 : 0;
+  const contentIntegrity = lossPercent > 15 ? "FAIL" : lossPercent > 5 ? "WARNING" : "PASS";
+  const rolledBack = contentIntegrity === "FAIL";
+  if (rolledBack) restoreSnapshot(dossierDir, snapshot);
+  return { contentIntegrity, linesBefore: countLines(snapshot), linesAfter: countLines(rolledBack ? snapshot : after), rolledBack };
+}
+function selected(code, fixCodes) {
+  return fixCodes.includes(code) || fixCodes.includes("all");
+}
+function extractSectionBlock(lines, heading, occurrence = 0) {
+  let startIdx = -1;
+  for (let i = 0, seen = 0; i < lines.length; i++) {
+    if (lines[i].trimEnd() === heading && seen++ === occurrence) {
+      startIdx = i;
+      break;
+    }
+  }
   if (startIdx === -1) return null;
   const level = headingLevel(heading);
   let endIdx = startIdx + 1;
@@ -46193,28 +46356,41 @@ function extractSectionBlock(lines, heading) {
     block: lines.slice(startIdx, endIdx)
   };
 }
+function ownBody(lines, headingIdx) {
+  let end = headingIdx + 1;
+  while (end < lines.length && !HEADING_RE2.test(lines[end].trimEnd())) end++;
+  return { start: headingIdx + 1, end };
+}
+function contentLines(lines) {
+  return lines.map((l) => l.trim()).filter((t) => t.length > 0 && t !== "---" && !t.startsWith("|---") && !t.startsWith("| ---") && !t.startsWith("| Date"));
+}
+function findHeading(lines, heading, occurrence = 0) {
+  for (let i = 0, seen = 0; i < lines.length; i++) {
+    if (lines[i].trimEnd() === heading && seen++ === occurrence) return i;
+  }
+  return -1;
+}
 function applyMoves(dossierDir, audit, fixCodes, applied, failed) {
   for (const finding of audit.findings.misplaced) {
-    if (!fixCodes.includes(finding.code) && !fixCodes.includes("all")) continue;
+    if (!selected(finding.code, fixCodes)) continue;
     try {
-      const srcPath = join6(dossierDir, finding.currentFile);
-      const dstPath = join6(dossierDir, finding.correctFile);
-      const srcContent = readFileSync6(srcPath, "utf-8");
-      const srcLines = srcContent.split("\n");
+      const srcPath = join7(dossierDir, finding.currentFile);
+      const dstPath = join7(dossierDir, finding.correctFile);
+      const srcLines = readFileSync7(srcPath, "utf-8").split("\n");
       const block = extractSectionBlock(srcLines, finding.section);
       if (!block) {
         failed.push(finding.code);
         continue;
       }
-      srcLines.splice(block.start, block.end - block.start);
-      writeFileSync2(srcPath, srcLines.join("\n"));
       let dstContent = "";
       if (existsSync6(dstPath)) {
-        dstContent = readFileSync6(dstPath, "utf-8");
+        dstContent = readFileSync7(dstPath, "utf-8");
         if (!dstContent.endsWith("\n")) dstContent += "\n";
       }
       dstContent += block.block.join("\n") + "\n";
-      writeFileSync2(dstPath, dstContent);
+      writeFileSync3(dstPath, dstContent);
+      srcLines.splice(block.start, block.end - block.start);
+      writeFileSync3(srcPath, srcLines.join("\n"));
       applied.push(finding.code);
     } catch {
       failed.push(finding.code);
@@ -46223,118 +46399,102 @@ function applyMoves(dossierDir, audit, fixCodes, applied, failed) {
 }
 function applyDedup(dossierDir, audit, fixCodes, applied, failed) {
   for (const finding of audit.findings.duplicates) {
-    if (!fixCodes.includes(finding.code) && !fixCodes.includes("all")) continue;
+    if (!selected(finding.code, fixCodes)) continue;
     try {
-      const nonCanonicalFile = finding.locations[1];
-      const filePath = join6(dossierDir, nonCanonicalFile);
-      const content = readFileSync6(filePath, "utf-8");
-      const lines = content.split("\n");
-      const headingsToTry = finding.section.includes(" / ") ? finding.section.split(" / ") : [finding.section];
-      let replaced = false;
-      for (const heading of headingsToTry) {
-        const block = extractSectionBlock(lines, heading.trim());
-        if (block) {
-          const newBlock = [lines[block.start], `> See ${finding.locations[0]}`];
-          lines.splice(block.start, block.end - block.start, ...newBlock);
-          replaced = true;
-          break;
-        }
-      }
-      if (replaced) {
-        writeFileSync2(filePath, lines.join("\n"));
-        applied.push(finding.code);
-      } else {
+      const [canonicalFile, dupFile] = finding.locations;
+      const [canonicalHeading, dupHeading] = finding.headings ?? [finding.section, finding.section];
+      const canonicalLines = readFileSync7(join7(dossierDir, canonicalFile), "utf-8").split("\n");
+      const dupPath = join7(dossierDir, dupFile);
+      const dupLines = canonicalFile === dupFile ? canonicalLines : readFileSync7(dupPath, "utf-8").split("\n");
+      const canonicalIdx = findHeading(canonicalLines, canonicalHeading);
+      const dupOccurrence = canonicalFile === dupFile && canonicalHeading === dupHeading ? 1 : 0;
+      const dupIdx = findHeading(dupLines, dupHeading, dupOccurrence);
+      if (canonicalIdx === -1 || dupIdx === -1) {
         failed.push(finding.code);
+        continue;
       }
+      const canonicalBody = ownBody(canonicalLines, canonicalIdx);
+      const dupBody = ownBody(dupLines, dupIdx);
+      const a = contentLines(canonicalLines.slice(canonicalBody.start, canonicalBody.end));
+      const b = contentLines(dupLines.slice(dupBody.start, dupBody.end));
+      if (a.length === 0 || a.length !== b.length || a.some((line, i) => line !== b[i])) {
+        failed.push(finding.code);
+        continue;
+      }
+      dupLines.splice(dupBody.start, dupBody.end - dupBody.start, `> See ${canonicalFile}`, "");
+      writeFileSync3(dupPath, dupLines.join("\n"));
+      applied.push(finding.code);
     } catch {
       failed.push(finding.code);
     }
   }
 }
-function applyOrdering(dossierDir, audit, fixCodes, applied, failed) {
+function applyOrdering(dossierDir, templateDir, audit, fixCodes, applied, failed) {
   const byFile = /* @__PURE__ */ new Map();
   for (const finding of audit.findings.ordering) {
-    if (!fixCodes.includes(finding.code) && !fixCodes.includes("all")) continue;
+    if (!selected(finding.code, fixCodes)) continue;
     if (!byFile.has(finding.file)) byFile.set(finding.file, []);
     byFile.get(finding.file).push(finding);
   }
+  if (byFile.size === 0) return;
+  const templateOrder = /* @__PURE__ */ new Map();
+  for (const [heading, file2] of buildRoutingTable(templateDir)) {
+    if (!templateOrder.has(file2)) templateOrder.set(file2, []);
+    templateOrder.get(file2).push(heading);
+  }
   for (const [relPath, findings] of byFile) {
     try {
-      const filePath = join6(dossierDir, relPath);
-      const content = readFileSync6(filePath, "utf-8");
-      const lines = content.split("\n");
-      const sections = [];
-      let frontmatter = [];
-      let inFrontmatter = false;
-      let currentBlock = [];
-      let currentHeading = null;
-      let preHeadingLines = [];
-      for (const line of lines) {
-        const trimmed = line.trimEnd();
-        if (trimmed === "---" && sections.length === 0 && !currentHeading) {
-          inFrontmatter = !inFrontmatter;
-          frontmatter.push(line);
-          continue;
-        }
-        if (inFrontmatter) {
-          frontmatter.push(line);
-          continue;
-        }
+      const filePath = join7(dossierDir, relPath);
+      const lines = readFileSync7(filePath, "utf-8").split("\n");
+      const order = templateOrder.get(relPath) ?? [];
+      let firstBodyLine = 0;
+      if (lines[0]?.trimEnd() === "---") {
+        const close = lines.findIndex((l, i) => i > 0 && l.trimEnd() === "---");
+        firstBodyLine = close === -1 ? lines.length : close + 1;
+      }
+      let firstH2 = lines.findIndex((l, i) => i >= firstBodyLine && HEADING_RE2.test(l.trimEnd()) && headingLevel(l.trimEnd()) === 2);
+      if (firstH2 === -1) firstH2 = lines.length;
+      const preamble = lines.slice(0, firstH2);
+      const blocks = [];
+      for (let i = firstH2; i < lines.length; i++) {
+        const trimmed = lines[i].trimEnd();
         if (HEADING_RE2.test(trimmed) && headingLevel(trimmed) === 2) {
-          if (currentHeading) {
-            sections.push({ heading: currentHeading, block: currentBlock });
-          } else if (preHeadingLines.length > 0) {
-            frontmatter.push(...preHeadingLines);
-          }
-          currentHeading = trimmed;
-          currentBlock = [line];
-        } else if (currentHeading) {
-          currentBlock.push(line);
+          blocks.push({ heading: trimmed, lines: [lines[i]] });
         } else {
-          preHeadingLines.push(line);
+          blocks[blocks.length - 1].lines.push(lines[i]);
         }
       }
-      if (currentHeading) {
-        sections.push({ heading: currentHeading, block: currentBlock });
+      const groups = [];
+      for (const block of blocks) {
+        const idx = order.indexOf(block.heading);
+        if (idx === -1 && groups.length > 0) {
+          groups[groups.length - 1].lines.push(...block.lines);
+        } else {
+          groups.push({ key: idx, seq: groups.length, lines: [...block.lines] });
+        }
       }
-      const posMap = /* @__PURE__ */ new Map();
-      for (const f of findings) {
-        posMap.set(f.section, f.expectedPosition);
-      }
-      sections.sort((a, b) => {
-        const posA = posMap.get(a.heading) ?? sections.indexOf(a);
-        const posB = posMap.get(b.heading) ?? sections.indexOf(b);
-        return posA - posB;
-      });
-      const result = [...frontmatter];
-      for (const sec of sections) {
-        result.push(...sec.block);
-      }
-      writeFileSync2(filePath, result.join("\n"));
-      for (const f of findings) {
-        applied.push(f.code);
-      }
+      groups.sort((a, b) => a.key - b.key || a.seq - b.seq);
+      writeFileSync3(filePath, [...preamble, ...groups.flatMap((g) => g.lines)].join("\n"));
+      for (const f of findings) applied.push(f.code);
     } catch {
-      for (const f of findings) {
-        failed.push(f.code);
-      }
+      for (const f of findings) failed.push(f.code);
     }
   }
 }
-function applyMissing(dossierDir, templateDir, audit, fixCodes, applied, failed) {
+function applyMissing(dossierDir, audit, fixCodes, applied, failed) {
   for (const finding of audit.findings.missing) {
-    if (!fixCodes.includes(finding.code) && !fixCodes.includes("all")) continue;
+    if (!selected(finding.code, fixCodes)) continue;
     try {
-      const filePath = join6(dossierDir, finding.file);
+      const filePath = join7(dossierDir, finding.file);
       let content = "";
       if (existsSync6(filePath)) {
-        content = readFileSync6(filePath, "utf-8");
+        content = readFileSync7(filePath, "utf-8");
         if (!content.endsWith("\n")) content += "\n";
       }
       content += `${finding.section}
 
 `;
-      writeFileSync2(filePath, content);
+      writeFileSync3(filePath, content);
       applied.push(finding.code);
     } catch {
       failed.push(finding.code);
@@ -46343,75 +46503,124 @@ function applyMissing(dossierDir, templateDir, audit, fixCodes, applied, failed)
 }
 function applyStale(dossierDir, audit, fixCodes, applied, failed) {
   for (const finding of audit.findings.stale) {
-    if (!fixCodes.includes(finding.code) && !fixCodes.includes("all")) continue;
+    if (!selected(finding.code, fixCodes)) continue;
     try {
-      const filePath = join6(dossierDir, finding.file);
-      const content = readFileSync6(filePath, "utf-8");
-      const fieldRe = new RegExp(
-        `^(${finding.field}:\\s*)${escapeRegex2(finding.current)}\\s*$`,
-        "m"
-      );
-      const newContent = content.replace(fieldRe, `$1${finding.suggested}`);
+      const filePath = join7(dossierDir, finding.file);
+      const content = readFileSync7(filePath, "utf-8");
+      const newContent = updateFrontmatter(content, { [finding.field]: finding.suggested });
       if (newContent === content) {
         failed.push(finding.code);
         continue;
       }
-      writeFileSync2(filePath, newContent);
+      writeFileSync3(filePath, newContent);
       applied.push(finding.code);
     } catch {
       failed.push(finding.code);
     }
   }
 }
-function escapeRegex2(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 function runRepair(dossierDir, templateDir, audit, fixCodes) {
   const applied = [];
   const failed = [];
-  const linesBefore = countLines(dossierDir);
-  applyMoves(dossierDir, audit, fixCodes, applied, failed);
-  applyDedup(dossierDir, audit, fixCodes, applied, failed);
-  applyOrdering(dossierDir, audit, fixCodes, applied, failed);
-  applyMissing(dossierDir, templateDir, audit, fixCodes, applied, failed);
-  applyStale(dossierDir, audit, fixCodes, applied, failed);
-  const linesAfter = countLines(dossierDir);
-  const lineDelta = linesAfter - linesBefore;
-  const lossPercent = linesBefore > 0 ? (linesBefore - linesAfter) / linesBefore * 100 : 0;
-  let contentIntegrity;
-  if (lossPercent > 15) {
-    contentIntegrity = "FAIL";
-  } else if (lossPercent > 5) {
-    contentIntegrity = "WARNING";
-  } else {
-    contentIntegrity = "PASS";
-  }
+  const outcome = withIntegrityGuard(dossierDir, () => {
+    applyMoves(dossierDir, audit, fixCodes, applied, failed);
+    applyDedup(dossierDir, audit, fixCodes, applied, failed);
+    applyOrdering(dossierDir, templateDir, audit, fixCodes, applied, failed);
+    applyMissing(dossierDir, audit, fixCodes, applied, failed);
+    applyStale(dossierDir, audit, fixCodes, applied, failed);
+  });
+  if (outcome.rolledBack) failed.push(...applied.splice(0));
   const freshAudit = runAudit(dossierDir, templateDir, ["compliance"]);
-  const delta = lineDelta >= 0 ? `+${lineDelta}` : `${lineDelta}`;
+  const lineDelta = outcome.linesAfter - outcome.linesBefore;
   return {
     applied,
     failed,
+    rolledBack: outcome.rolledBack,
     validation: {
-      contentIntegrity,
-      linesBefore,
-      linesAfter,
-      delta,
+      contentIntegrity: outcome.contentIntegrity,
+      linesBefore: outcome.linesBefore,
+      linesAfter: outcome.linesAfter,
+      delta: lineDelta >= 0 ? `+${lineDelta}` : `${lineDelta}`,
       complianceAfter: freshAudit.compliance
     }
   };
 }
 
-// src/server.ts
-import { join as join9 } from "node:path";
-import { existsSync as existsSync9 } from "node:fs";
-init_templates();
-init_github();
-function requireConfigured(config2) {
-  if (!config2.crmRoot) {
-    return "CRM not initialized. Run 'npx crm-mcp init' to set up your contact directory.";
+// src/maintenance.ts
+var ALL_AUDIT_PASSES = ["misplaced", "stale", "duplicates", "ordering", "compliance"];
+function resolveTemplateDir(crmRoot, store, contactId) {
+  const outline = store.getOutline(contactId);
+  if (outline.contact.category === "Organization") {
+    const orgTpl = join8(crmRoot, ".templates", "REAL_ESTATE", "ORGANIZATION", "COMMON");
+    return existsSync7(orgTpl) ? orgTpl : null;
   }
+  const category = outline.contact.category.toLowerCase();
+  let templateType = "PROFESSIONAL";
+  if (category === "family") templateType = "FAMILY";
+  else if (category === "personal") templateType = "PERSONAL";
+  const userTpl = join8(crmRoot, ".templates", templateType);
+  if (existsSync7(userTpl)) return userTpl;
+  const userTplLower = join8(crmRoot, ".templates", templateType.toLowerCase());
+  if (existsSync7(userTplLower)) return userTplLower;
   return null;
 }
+function dossierAndTemplate(store, crmRoot, contactId) {
+  const contactPath = store.getContactPath(contactId);
+  if (!contactPath) throw new Error(`Contact path not found: ${contactId}`);
+  const templateDir = resolveTemplateDir(crmRoot, store, contactId);
+  if (!templateDir) throw new Error(`Template not found for ${contactId}`);
+  return { contactPath, dossierDir: join8(crmRoot, contactPath), templateDir };
+}
+function auditContact(store, crmRoot, contactId, passes = ALL_AUDIT_PASSES) {
+  const { dossierDir, templateDir } = dossierAndTemplate(store, crmRoot, contactId);
+  const result = runAudit(dossierDir, templateDir, passes);
+  store.saveAudit(contactId, JSON.stringify(result), hashMdTree(dossierDir));
+  return result;
+}
+function repairContact(store, crmRoot, contactId, fixes) {
+  const cached2 = store.loadAudit(contactId);
+  if (!cached2) throw new Error(`No audit cache found for ${contactId}. Run crm_audit first.`);
+  const { contactPath, dossierDir, templateDir } = dossierAndTemplate(store, crmRoot, contactId);
+  if (cached2.dossierHash !== hashMdTree(dossierDir)) {
+    store.clearAudit(contactId);
+    throw new Error(`Dossier ${contactId} changed since it was audited. Run crm_audit again before repairing.`);
+  }
+  const result = runRepair(dossierDir, templateDir, JSON.parse(cached2.auditJson), fixes);
+  store.clearAudit(contactId);
+  store.indexOne(contactPath);
+  return result;
+}
+
+// src/server.ts
+init_templates();
+init_github();
+function readVersion() {
+  try {
+    return JSON.parse(readFileSync10(new URL("../package.json", import.meta.url), "utf-8")).version ?? "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+var TOOL_SUMMARIES = {
+  crm_search: "find contacts by name, org, status, or keyword",
+  crm_outline: "dossier structural overview with fill percentages",
+  crm_read: "read specific section (boilerplate stripped)",
+  crm_connections: "relationship graph",
+  crm_recent: "recently contacted people",
+  crm_stats: "CRM-wide statistics",
+  crm_update: "update dossier field",
+  crm_log: "append interaction log entry",
+  crm_vector_search: "semantic search over dossier content (requires crm-mcp embed)",
+  crm_create: "create a person or organization dossier from template",
+  crm_bulk_update: "update an INDEX.md field across contacts matching a filter",
+  crm_export: "export contacts as JSON, CSV, or markdown",
+  crm_audit: "analyze dossier structural health",
+  crm_repair: "apply fixes from audit results",
+  crm_templates_list: "list installed and remote templates",
+  crm_templates_pull: "download a template from GitHub",
+  crm_reindex: "rebuild FTS index after out-of-band file edits"
+};
+var NOT_CONFIGURED = "CRM not initialized. Run 'npx crm-mcp init' to set up your contact directory.";
 function respond(text) {
   const chars = text.length;
   const tokens = Math.ceil(chars / 4);
@@ -46419,33 +46628,27 @@ function respond(text) {
 <!-- ${chars.toLocaleString()} chars | ~${tokens.toLocaleString()} tokens -->`;
   return { content: [{ type: "text", text: text + footer }] };
 }
-function resolveContact(store, contact) {
+function resolveContact(store, contact, opts = {}) {
   if (/^[A-Z]{2,4}-/.test(contact) && store.getContactPath(contact) != null) {
     return contact;
   }
   const byFolder = store.resolveByPath(contact);
   if (byFolder) return byFolder;
+  const exact = store.findByExactName(contact);
+  if (exact.length === 1) return exact[0];
+  if (exact.length > 1) {
+    if (opts.strict) {
+      throw new Error(`"${contact}" matches ${exact.length} contacts (${exact.join(", ")}). Use the dossier code.`);
+    }
+    return exact[0];
+  }
+  if (opts.strict) return null;
   const results = store.searchContacts({ query: contact, limit: 1 });
   return results.length > 0 ? results[0].id : null;
 }
-function resolveTemplateDir(crmRoot, store, contactId) {
-  const outline = store.getOutline(contactId);
-  if (outline.contact.category === "Organization") {
-    const orgTpl = join9(crmRoot, ".templates", "REAL_ESTATE", "ORGANIZATION", "COMMON");
-    return existsSync9(orgTpl) ? orgTpl : null;
-  }
-  const category = outline.contact.category.toLowerCase();
-  let templateType = "PROFESSIONAL";
-  if (category === "family") templateType = "FAMILY";
-  else if (category === "personal") templateType = "PERSONAL";
-  const userTpl = join9(crmRoot, ".templates", templateType);
-  if (existsSync9(userTpl)) return userTpl;
-  const userTplLower = join9(crmRoot, ".templates", templateType.toLowerCase());
-  if (existsSync9(userTplLower)) return userTplLower;
-  return null;
-}
 function formatConnections(store, connections) {
-  const nameOf = (id) => store.db.prepare("SELECT name FROM contacts WHERE id = ?").get(id)?.name ?? id;
+  const names = store.getContactNames(connections.flatMap((c) => [c.sourceId, c.targetId].filter(Boolean)));
+  const nameOf = (id) => names.get(id) ?? id;
   return connections.map((c) => {
     const target = c.targetId ? nameOf(c.targetId) : c.targetName;
     return `- ${nameOf(c.sourceId)} \u2192 ${target} (${c.type})${c.context ? ` \u2014 ${c.context}` : ""}`;
@@ -46464,15 +46667,13 @@ function buildInstructions(store, config2) {
   }
   const stats = store.getStats();
   const lines = [];
-  lines.push(`CRM Intelligence System with ${stats.totalContacts} contacts.`);
+  lines.push(`CRM Intelligence System with ${stats.totalContacts} contacts (as of last index).`);
   lines.push("");
   lines.push("Categories:");
   for (const [cat, count] of Object.entries(stats.byCategory)) {
     lines.push(`  - ${cat}: ${count}`);
   }
-  const profRows = store.db.prepare(
-    "SELECT profession, COUNT(*) as count FROM contacts WHERE profession IS NOT NULL GROUP BY profession"
-  ).all();
+  const profRows = store.getProfessionCounts();
   if (profRows.length > 0) {
     lines.push("");
     lines.push("Professions:");
@@ -46486,25 +46687,39 @@ function buildInstructions(store, config2) {
   lines.push("Workflow: crm_search \u2192 crm_outline \u2192 crm_read (progressive disclosure, 10x token savings)");
   lines.push("");
   lines.push("Tools:");
-  lines.push("  - crm_search \u2014 find contacts by name, org, status, or keyword");
-  lines.push("  - crm_outline \u2014 dossier structural overview with fill percentages");
-  lines.push("  - crm_read \u2014 read specific section (boilerplate stripped)");
-  lines.push("  - crm_connections \u2014 relationship graph");
-  lines.push("  - crm_recent \u2014 recently contacted people");
-  lines.push("  - crm_stats \u2014 CRM-wide statistics");
-  lines.push("  - crm_update \u2014 update dossier field");
-  lines.push("  - crm_log \u2014 append interaction log entry");
-  lines.push("  - crm_audit \u2014 analyze dossier structural health");
-  lines.push("  - crm_repair \u2014 apply fixes from audit results");
-  lines.push("  - crm_reindex \u2014 rebuild FTS index after out-of-band file edits");
+  for (const [name, summary] of Object.entries(TOOL_SUMMARIES)) {
+    lines.push(`  - ${name} \u2014 ${summary}`);
+  }
   return lines.join("\n");
 }
-function createMcpServer(store, config2) {
+var READ_ONLY = { readOnlyHint: true };
+var WRITE = { readOnlyHint: false, destructiveHint: false };
+var DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true };
+function createMcpServer(store, config2, opts = {}) {
+  const ready = opts.ready ?? Promise.resolve();
   const server = new McpServer(
-    { name: "crm", version: "0.3.0" },
+    { name: "crm", version: readVersion() },
     { instructions: buildInstructions(store, config2) }
   );
-  server.tool(
+  function tool(name, description, inputSchema, annotations, run) {
+    server.registerTool(name, { description, inputSchema, annotations }, (async (args) => {
+      if (!config2.crmRoot || !store) return respond(NOT_CONFIGURED);
+      try {
+        await ready;
+        return respond(await run(store, args));
+      } catch (e) {
+        return respond(`Error: ${e.message}`);
+      }
+    }));
+  }
+  function contactId(s, contact, strict) {
+    const id = resolveContact(s, contact, { strict });
+    if (!id) {
+      throw new Error(strict ? `Contact not found: ${contact} (writes need an exact dossier code, folder name, name or alias)` : `Contact not found: ${contact}`);
+    }
+    return id;
+  }
+  tool(
     "crm_search",
     "Search contacts and organizations by name, alias/nickname, organization, status, category, profession, org role, or org type. Returns compact results (~50-100 tokens each).",
     {
@@ -46517,203 +46732,163 @@ function createMcpServer(store, config2) {
       limit: external_exports3.number().optional().default(20).describe("Max results (default 20)"),
       paths: external_exports3.boolean().optional().default(false).describe("Include the absolute dossier folder path per result (off by default to keep results compact)")
     },
-    async ({ query, category, status, profession, roles, orgType, limit, paths }) => {
-      const err = requireConfigured(config2);
-      if (err) return respond(err);
-      let results;
-      try {
-        results = store.searchContacts({ query, category, status, profession, roles, orgType, limit });
-      } catch (e) {
-        return respond(`Error: ${e.message}`);
-      }
-      if (results.length === 0) return respond("No contacts found.");
+    READ_ONLY,
+    (s, { query, category, status, profession, roles, orgType, limit, paths }) => {
+      const results = s.searchContacts({ query, category, status, profession, roles, orgType, limit });
+      if (results.length === 0) return "No contacts found.";
       const header = `| ID | Name | Org | Category | Status | Last Contact |${paths ? " Path |" : ""}`;
-      const sep = `|-----|------|-----|----------|--------|-------------|${paths ? "------|" : ""}`;
+      const sep2 = `|-----|------|-----|----------|--------|-------------|${paths ? "------|" : ""}`;
       const rows = results.map((r) => {
         const org = r.orgType ? `${r.orgType}${r.roles?.length ? ` [${r.roles.join(", ")}]` : ""}` : r.organization || "-";
         const base = `| ${r.id} | ${r.name} | ${org} | ${r.category} | ${r.status} | ${r.lastContact || "-"} |`;
-        return paths ? `${base} ${r.path ? join9(config2.crmRoot, r.path) : "-"} |` : base;
+        return paths ? `${base} ${r.path ? join11(config2.crmRoot, r.path) : "-"} |` : base;
       });
-      return respond([header, sep, ...rows].join("\n"));
+      return [header, sep2, ...rows].join("\n");
     }
   );
-  server.tool(
+  tool(
     "crm_outline",
     "Get structural overview of a contact's dossier \u2014 shows which sections exist, their size, and fill percentage. Use before crm_read to decide which section to read.",
     {
       contact: external_exports3.string().describe("Contact name or dossier code (e.g., 'Ranjit' or 'CL-RANMUL-002')")
     },
-    async ({ contact }) => {
-      const err = requireConfigured(config2);
-      if (err) return respond(err);
-      const contactId = resolveContact(store, contact);
-      if (!contactId) return respond(`Contact not found: ${contact}`);
-      try {
-        const outline = store.getOutline(contactId);
-        const dossierDir = join9(config2.crmRoot, outline.contact.path);
-        const lines = [`# ${outline.contact.name} (${outline.contact.id})`, ""];
-        lines.push(`**Status:** ${outline.contact.status} | **Org:** ${outline.contact.organization || "-"} | **Last Contact:** ${outline.contact.lastContact || "-"}`);
-        lines.push(`**Path:** ${dossierDir}`);
-        lines.push("");
-        lines.push("| Section | Size | Filled | Last Updated |");
-        lines.push("|---------|------|--------|-------------|");
-        for (const s of outline.sections) {
-          const sizeKb = (s.sizeBytes / 1024).toFixed(1);
-          lines.push(`| ${s.file} | ${sizeKb}KB | ${s.fillPercent}% | ${s.lastUpdated || "-"} |`);
-        }
-        return respond(lines.join("\n"));
-      } catch (e) {
-        return respond(`Error: ${e.message}`);
+    READ_ONLY,
+    (s, { contact }) => {
+      const outline = s.getOutline(contactId(s, contact, false));
+      const dossierDir = join11(config2.crmRoot, outline.contact.path);
+      const lines = [`# ${outline.contact.name} (${outline.contact.id})`, ""];
+      lines.push(`**Status:** ${outline.contact.status} | **Org:** ${outline.contact.organization || "-"} | **Last Contact:** ${outline.contact.lastContact || "-"}`);
+      lines.push(`**Path:** ${dossierDir}`);
+      lines.push("");
+      lines.push("| Section | Size | Filled | Last Updated |");
+      lines.push("|---------|------|--------|-------------|");
+      for (const sec of outline.sections) {
+        const sizeKb = (sec.sizeBytes / 1024).toFixed(1);
+        lines.push(`| ${sec.file} | ${sizeKb}KB | ${sec.fillPercent}% | ${sec.lastUpdated || "-"} |`);
       }
+      return lines.join("\n");
     }
   );
-  server.tool(
+  tool(
     "crm_read",
     `Read a specific section of a contact's dossier. Returns cleaned content with boilerplate stripped. Standard sections: index, profile, log, intelligence-profile, intelligence-strategic, intelligence-risk, medical, medical-genetics, medical-pharmacogenomics, medical-labs, education. Profession-specific sections: deals, assignments, projects, portfolio, matters, assessments, jurisdictions, policies, campaigns, entities, holdings, programs, assets, services, engagements. Organization sections: index, profile, portfolio, intelligence, stakeholders, pipeline, log, competitive, partnership. Any custom file visible in crm_outline is also addressable by its relative path (e.g., "intelligence/intelligence-unsent").`,
     {
       contact: external_exports3.string().describe("Contact name or dossier code"),
       section: external_exports3.string().describe('Section name (e.g., "profile", "deals", "assignments")')
     },
-    async ({ contact, section }) => {
-      const err = requireConfigured(config2);
-      if (err) return respond(err);
-      const contactId = resolveContact(store, contact);
-      if (!contactId) return respond(`Contact not found: ${contact}`);
-      try {
-        const content = store.getSection(contactId, section);
-        return respond(content);
-      } catch (e) {
-        return respond(`Error: ${e.message}`);
-      }
-    }
+    READ_ONLY,
+    (s, { contact, section }) => s.getSection(contactId(s, contact, false), section)
   );
-  server.tool(
+  tool(
     "crm_connections",
     "Get relationship graph for a contact \u2014 shows who they're connected to and how.",
     {
       contact: external_exports3.string().describe("Contact name or dossier code"),
       depth: external_exports3.number().optional().default(1).describe("How many hops to traverse (default 1)")
     },
-    async ({ contact, depth }) => {
-      const err = requireConfigured(config2);
-      if (err) return respond(err);
-      const contactId = resolveContact(store, contact);
-      if (!contactId) return respond(`Contact not found: ${contact}`);
-      const connections = store.getConnections(contactId, depth);
-      if (connections.length === 0) return respond("No connections found.");
-      return respond(formatConnections(store, connections));
+    READ_ONLY,
+    (s, { contact, depth }) => {
+      const connections = s.getConnections(contactId(s, contact, false), depth);
+      if (connections.length === 0) return "No connections found.";
+      return formatConnections(s, connections);
     }
   );
-  server.tool(
+  tool(
     "crm_recent",
     "List most recently contacted people, sorted by last contact date.",
     {
       limit: external_exports3.number().optional().default(10).describe("Max results"),
       category: external_exports3.string().optional().describe("Filter by category")
     },
-    async ({ limit, category }) => {
-      const err = requireConfigured(config2);
-      if (err) return respond(err);
-      const results = store.getRecent(limit, category);
-      if (results.length === 0) return respond("No recent contacts.");
+    READ_ONLY,
+    (s, { limit, category }) => {
+      const results = s.getRecent(limit, category);
+      if (results.length === 0) return "No recent contacts.";
       const header = "| Name | Category | Status | Last Contact |";
-      const sep = "|------|----------|--------|-------------|";
+      const sep2 = "|------|----------|--------|-------------|";
       const rows = results.map((r) => `| ${r.name} | ${r.category} | ${r.status} | ${r.lastContact || "-"} |`);
-      return respond([header, sep, ...rows].join("\n"));
+      return [header, sep2, ...rows].join("\n");
     }
   );
-  server.tool(
+  server.registerTool(
     "crm_stats",
-    "Get CRM-wide statistics: total contacts, by category, stale contacts, average fill rate.",
-    {},
+    {
+      description: "Get CRM-wide statistics: total contacts, by category, stale contacts, average fill rate.",
+      annotations: READ_ONLY
+    },
     async () => {
       if (!config2.crmRoot || !store) {
-        const payload = JSON.stringify({ status: "unconfigured", message: "Run npx crm-mcp init" });
-        return respond(payload);
+        return respond(JSON.stringify({ status: "unconfigured", message: "Run npx crm-mcp init" }));
       }
+      await ready;
       const stats = store.getStats();
-      const lines = [
+      return respond([
         `**Total Contacts:** ${stats.totalContacts}`,
         `**Stale (>30 days):** ${stats.staleContacts}`,
         `**Avg Fill Rate:** ${stats.avgFillPercent}%`,
         "",
         "**By Category:**",
         ...Object.entries(stats.byCategory).map(([cat, count]) => `  - ${cat}: ${count}`)
-      ];
-      return respond(lines.join("\n"));
+      ].join("\n"));
     }
   );
-  server.tool(
+  tool(
     "crm_update",
-    "Update a specific field in a contact's dossier. Updates YAML frontmatter and invalidates cache.",
+    "Update a specific field in a contact's dossier. Updates YAML frontmatter and invalidates cache. The contact must be identified exactly (dossier code, folder name, or full name/alias).",
     {
-      contact: external_exports3.string().describe("Contact name or dossier code"),
+      contact: external_exports3.string().describe("Dossier code (preferred), folder name, or exact name/alias"),
       section: external_exports3.string().describe('Section name (e.g., "index", "profile", "deals")'),
       field: external_exports3.string().describe("YAML field name to update (e.g., 'status', 'lastContactDate')"),
       value: external_exports3.string().describe("New value for the field")
     },
-    async ({ contact, section, field, value }) => {
-      const err = requireConfigured(config2);
-      if (err) return respond(err);
-      const contactId = resolveContact(store, contact);
-      if (!contactId) return respond(`Contact not found: ${contact}`);
-      try {
-        updateField(store, contactId, section, field, value);
-        return respond(`Updated ${field} = "${value}" in ${section} for ${contactId}`);
-      } catch (e) {
-        return respond(`Error: ${e.message}`);
-      }
+    WRITE,
+    (s, { contact, section, field, value }) => {
+      const id = contactId(s, contact, true);
+      updateField(s, id, section, field, value);
+      return `Updated ${field} = "${value}" in ${section} for ${id}`;
     }
   );
-  server.tool(
+  tool(
     "crm_log",
-    "Append a new interaction to a contact's log. Adds a row to the interaction table in log.md.",
+    "Append a new interaction to a contact's log. Adds a row to the interaction table in log.md. The contact must be identified exactly (dossier code, folder name, or full name/alias).",
     {
-      contact: external_exports3.string().describe("Contact name or dossier code"),
+      contact: external_exports3.string().describe("Dossier code (preferred), folder name, or exact name/alias"),
       date: external_exports3.string().describe("Interaction date (YYYY-MM-DD)"),
       type: external_exports3.string().describe("Interaction type: Meeting, Email, Call, Video, Chat, etc."),
       summary: external_exports3.string().describe("Brief summary of the interaction"),
       outcome: external_exports3.string().optional().describe("What resulted from the interaction"),
       nextStep: external_exports3.string().optional().describe("What should happen next")
     },
-    async ({ contact, date: date5, type, summary, outcome, nextStep }) => {
-      const err = requireConfigured(config2);
-      if (err) return respond(err);
-      const contactId = resolveContact(store, contact);
-      if (!contactId) return respond(`Contact not found: ${contact}`);
-      try {
-        appendLog(store, contactId, { date: date5, type, summary, outcome, nextStep });
-        return respond(`Logged ${type} interaction with ${contactId} on ${date5}`);
-      } catch (e) {
-        return respond(`Error: ${e.message}`);
-      }
+    WRITE,
+    (s, { contact, date: date5, type, summary, outcome, nextStep }) => {
+      const id = contactId(s, contact, true);
+      appendLog(s, id, { date: date5, type, summary, outcome, nextStep });
+      return `Logged ${type} interaction with ${id} on ${date5}`;
     }
   );
-  server.tool(
+  tool(
     "crm_vector_search",
     "Semantic search across all dossier content. Finds contacts and sections matching a natural language query. Requires embeddings (run 'crm-mcp embed' first).",
     {
       query: external_exports3.string().describe("Natural language query"),
       limit: external_exports3.number().optional().default(5).describe("Max results")
     },
-    async ({ query, limit }) => {
-      const err = requireConfigured(config2);
-      if (err) return respond(err);
-      try {
-        const results = await vectorSearch(store, config2, query, limit);
-        if (results.length === 0) {
-          return respond("No results. Have you run 'crm-mcp embed' to generate embeddings?");
-        }
-        const lines = results.map(
-          (r) => `- **${r.contactName}** (${r.section}) [${(r.score * 100).toFixed(0)}%]: ${r.chunk.substring(0, 150)}...`
-        );
-        return respond(lines.join("\n"));
-      } catch (e) {
-        return respond(`Error: ${e.message}`);
+    READ_ONLY,
+    async (s, { query, limit }) => {
+      const { results, staleSections } = await vectorSearch(s, config2, query, limit);
+      if (results.length === 0) {
+        return "No results. Have you run 'crm-mcp embed' to generate embeddings?";
       }
+      const lines = results.map(
+        (r) => `- **${r.contactName}** (${r.section}) [${(r.score * 100).toFixed(0)}%]: ${r.chunk.substring(0, 150)}...`
+      );
+      if (staleSections > 0) {
+        lines.push("", `(${staleSections} section(s) changed since embeddings were generated \u2014 run 'crm-mcp embed' to refresh.)`);
+      }
+      return lines.join("\n");
     }
   );
-  server.tool(
+  tool(
     "crm_create",
     'Create a new contact or organization dossier from template. For companies use category "Organization" with orgType (and optional cid, roles).',
     {
@@ -46726,45 +46901,34 @@ function createMcpServer(store, config2) {
       cid: external_exports3.string().optional().describe('Organization only: company identifier, 2-6 chars (ticker if public, e.g. "PLD")'),
       roles: external_exports3.array(external_exports3.string()).optional().describe("Organization only: Client, Prospect, IntegrationPartner, ChannelPartner, Competitor, OperatingPartner, Investor, Lender, Employer, TalentTarget")
     },
-    async ({ name, category, organization, context, profession, orgType, cid, roles }) => {
-      const err = requireConfigured(config2);
-      if (err) return respond(err);
-      try {
-        const result = createDossier(store, config2.crmRoot, { name, category, organization, context, profession, orgType, cid, roles });
-        return respond(`Created dossier ${result.id} at ${result.path}`);
-      } catch (e) {
-        return respond(`Error: ${e.message}`);
-      }
+    WRITE,
+    (s, { name, category, organization, context, profession, orgType, cid, roles }) => {
+      const result = createDossier(s, config2.crmRoot, { name, category, organization, context, profession, orgType, cid, roles });
+      return `Created dossier ${result.id} at ${result.path}`;
     }
   );
-  server.tool(
+  tool(
     "crm_bulk_update",
-    "Update a field across multiple contacts matching a filter.",
+    "Update an INDEX.md field across all contacts matching a filter. At least one of category or status is required.",
     {
       category: external_exports3.string().optional().describe("Filter by category"),
       status: external_exports3.string().optional().describe("Filter by current status"),
       field: external_exports3.string().describe("YAML field to update (e.g., 'status')"),
       value: external_exports3.string().describe("New value")
     },
-    async ({ category, status, field, value }) => {
-      const err = requireConfigured(config2);
-      if (err) return respond(err);
-      const contacts = store.searchContacts({ category, status, limit: 1e3 });
-      if (contacts.length === 0) return respond("No contacts match filter.");
-      let updated = 0;
-      let errors = 0;
-      for (const c of contacts) {
-        try {
-          updateField(store, c.id, "index", field, value);
-          updated++;
-        } catch {
-          errors++;
-        }
+    DESTRUCTIVE,
+    (s, { category, status, field, value }) => {
+      const { updated, errors } = bulkUpdateField(s, { category, status }, field, value);
+      if (updated.length === 0 && errors.length === 0) return "No contacts match filter.";
+      const lines = [`Updated ${updated.length} contacts.`];
+      if (errors.length > 0) {
+        lines.push(`${errors.length} errors:`);
+        for (const e of errors) lines.push(`  - ${e.id}: ${e.message}`);
       }
-      return respond(`Updated ${updated} contacts.${errors > 0 ? ` ${errors} errors.` : ""}`);
+      return lines.join("\n");
     }
   );
-  server.tool(
+  tool(
     "crm_export",
     "Export contacts as JSON, CSV, or markdown table.",
     {
@@ -46772,72 +46936,47 @@ function createMcpServer(store, config2) {
       category: external_exports3.string().optional().describe("Filter by category"),
       status: external_exports3.string().optional().describe("Filter by status")
     },
-    async ({ format, category, status }) => {
-      const err = requireConfigured(config2);
-      if (err) return respond(err);
-      const contacts = store.searchContacts({ category, status, limit: 1e3 });
-      if (contacts.length === 0) return respond("No contacts match filter.");
-      const output = formatExport(contacts, format);
-      return respond(output);
+    READ_ONLY,
+    (s, { format, category, status }) => {
+      const contacts = s.searchContacts({ category, status, limit: 1e5 });
+      if (contacts.length === 0) return "No contacts match filter.";
+      return formatExport(contacts, format);
     }
   );
-  server.tool(
+  tool(
     "crm_audit",
     "Analyze a dossier's structural health against its template. Returns findings without making changes.",
     {
       contact: external_exports3.string().describe("Contact name or dossier code"),
       passes: external_exports3.array(external_exports3.enum(["misplaced", "stale", "duplicates", "ordering", "compliance"])).optional().describe("Which analysis passes to run (default: all)")
     },
-    async ({ contact, passes }) => {
-      const err = requireConfigured(config2);
-      if (err) return respond(err);
-      const contactId = resolveContact(store, contact);
-      if (!contactId) return respond(`Contact not found: ${contact}`);
-      const contactPath = store.getContactPath(contactId);
-      if (!contactPath) return respond(`Contact path not found: ${contactId}`);
-      const dossierDir = join9(config2.crmRoot, contactPath);
-      const templateDir = resolveTemplateDir(config2.crmRoot, store, contactId);
-      if (!templateDir) return respond(`Template not found for ${contactId}`);
-      const allPasses = passes || ["misplaced", "stale", "duplicates", "ordering", "compliance"];
-      const result = runAudit(dossierDir, templateDir, allPasses);
-      store.db.prepare("INSERT OR REPLACE INTO audit_cache (contact_id, audit_json, created_at) VALUES (?, ?, ?)").run(contactId, JSON.stringify(result), (/* @__PURE__ */ new Date()).toISOString());
-      return respond(JSON.stringify(result, null, 2));
+    READ_ONLY,
+    (s, { contact, passes }) => {
+      const result = auditContact(s, config2.crmRoot, contactId(s, contact, false), passes ?? ALL_AUDIT_PASSES);
+      return JSON.stringify(result, null, 2);
     }
   );
-  server.tool(
+  tool(
     "crm_repair",
-    "Apply specific fixes from a prior audit. Requires crm_audit to be run first.",
+    "Apply specific fixes from a prior audit. Requires crm_audit to be run first, and refuses if the dossier changed since. Rolls back all changes if the repair would lose more than 15% of lines. The contact must be identified exactly.",
     {
-      contact: external_exports3.string().describe("Contact name or dossier code"),
+      contact: external_exports3.string().describe("Dossier code (preferred), folder name, or exact name/alias"),
       fixes: external_exports3.array(external_exports3.string()).describe("Fix codes from audit (e.g., ['M1', 'S1']) or ['all']")
     },
-    async ({ contact, fixes }) => {
-      const err = requireConfigured(config2);
-      if (err) return respond(err);
-      const contactId = resolveContact(store, contact);
-      if (!contactId) return respond(`Contact not found: ${contact}`);
-      const cached2 = store.db.prepare("SELECT audit_json FROM audit_cache WHERE contact_id = ?").get(contactId);
-      if (!cached2) return respond(`No audit cache found for ${contactId}. Run crm_audit first.`);
-      const audit = JSON.parse(cached2.audit_json);
-      const contactPath = store.getContactPath(contactId);
-      if (!contactPath) return respond(`Contact path not found: ${contactId}`);
-      const dossierDir = join9(config2.crmRoot, contactPath);
-      const templateDir = resolveTemplateDir(config2.crmRoot, store, contactId);
-      if (!templateDir) return respond(`Template not found for ${contactId}`);
-      const result = runRepair(dossierDir, templateDir, audit, fixes);
-      store.db.prepare("DELETE FROM audit_cache WHERE contact_id = ?").run(contactId);
-      return respond(JSON.stringify(result, null, 2));
+    DESTRUCTIVE,
+    (s, { contact, fixes }) => {
+      const result = repairContact(s, config2.crmRoot, contactId(s, contact, true), fixes);
+      return JSON.stringify(result, null, 2);
     }
   );
-  server.tool(
+  tool(
     "crm_templates_list",
     "List installed and available CRM dossier templates. Shows version, customization status, and available remote templates.",
     {
       remote: external_exports3.boolean().optional().default(true).describe("Include available templates from GitHub (default: true)")
     },
-    async ({ remote }) => {
-      const err = requireConfigured(config2);
-      if (err) return respond(err);
+    { readOnlyHint: true, openWorldHint: true },
+    async (_s, { remote }) => {
       const lines = [];
       const local = listLocalTemplates(config2.crmRoot);
       if (local.length > 0) {
@@ -46871,87 +47010,62 @@ function createMcpServer(store, config2) {
           lines.push(`(Could not fetch remote templates: ${e.message})`);
         }
       }
-      return respond(lines.join("\n"));
+      return lines.join("\n");
     }
   );
-  server.tool(
+  tool(
     "crm_templates_pull",
     'Download a template from GitHub to local .templates/. Supports individual categories for composite templates (e.g., "REAL_ESTATE/A_BROKERAGE_SALES"). Will not overwrite customized templates \u2014 direct the user to CLI with --force for that.',
     {
       name: external_exports3.string().describe('Template name (e.g., "REAL_ESTATE" or "REAL_ESTATE/A_BROKERAGE_SALES")')
     },
-    async ({ name: nameArg }) => {
-      const err = requireConfigured(config2);
-      if (err) return respond(err);
-      const parts = nameArg.split("/");
-      const templateName = parts[0];
-      const category = parts[1] || void 0;
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    async (_s, { name: nameArg }) => {
+      const { templateName, category } = parseTemplateRef(nameArg);
       const manifest = ensureManifest(config2.crmRoot);
-      const existing = manifest.templates[templateName];
-      if (existing) {
-        const customized = isCustomized(config2.crmRoot, templateName, manifest);
-        if (customized) {
-          return {
-            content: [{
-              type: "text",
-              text: `Template "${templateName}" has local customizations. Use CLI to force update: crm-mcp templates pull ${nameArg} --force`
-            }]
-          };
-        }
+      if (manifest.templates[templateName] && isCustomized(config2.crmRoot, templateName, manifest)) {
+        return `Template "${templateName}" has local customizations. Use CLI to force update: crm-mcp templates pull ${nameArg} --force`;
       }
-      try {
-        const destDir = join9(config2.crmRoot, ".templates", templateName);
-        await downloadTemplate(config2.templateRepo, templateName, destDir, config2.githubToken, category);
-        const info = readTemplateInfo(destDir);
-        const contentHash = computeContentHash(destDir);
-        const now = (/* @__PURE__ */ new Date()).toISOString();
-        const existingEntry = manifest.templates[templateName];
-        const existingCategories = existingEntry?.categories || [];
-        manifest.templates[templateName] = {
-          version: info?.version || "0.0.0",
-          installedAt: existingEntry?.installedAt || now,
-          updatedAt: now,
-          source: "github",
-          contentHash,
-          ...category ? { categories: [.../* @__PURE__ */ new Set([...existingCategories, category])] } : {}
-        };
-        writeManifest(config2.crmRoot, manifest);
-        const files = countFiles(destDir);
-        return respond(`Installed ${templateName}${category ? "/" + category : ""}: ${files} files written to .templates/${templateName}/`);
-      } catch (e) {
-        return respond(`Error: ${e.message}`);
-      }
+      const destDir = join11(config2.crmRoot, ".templates", templateName);
+      await downloadTemplate(config2.templateRepo, templateName, destDir, config2.githubToken, category);
+      const info = readTemplateInfo(destDir);
+      const now = (/* @__PURE__ */ new Date()).toISOString();
+      const existingEntry = manifest.templates[templateName];
+      manifest.templates[templateName] = {
+        version: info?.version || "0.0.0",
+        installedAt: existingEntry?.installedAt || now,
+        updatedAt: now,
+        source: "github",
+        contentHash: computeContentHash(destDir),
+        ...category ? { categories: [.../* @__PURE__ */ new Set([...existingEntry?.categories || [], category])] } : {}
+      };
+      writeManifest(config2.crmRoot, manifest);
+      return `Installed ${templateName}${category ? "/" + category : ""}: ${countFiles(destDir)} files written to .templates/${templateName}/`;
     }
   );
-  server.tool(
+  tool(
     "crm_reindex",
     'Rebuild the full-text search index from disk. Use after editing a dossier file directly (out-of-band, e.g. via the Edit tool) so crm_search keyword results reflect the change without restarting the server. crm_read is always disk-fresh and does not need this. Omit "contact" to reindex the whole CRM.',
     {
       contact: external_exports3.string().optional().describe("Contact name or dossier code to reindex. Omit to reindex all contacts.")
     },
-    async ({ contact }) => {
-      const err = requireConfigured(config2);
-      if (err) return respond(err);
-      try {
-        if (contact) {
-          const contactId = resolveContact(store, contact);
-          if (!contactId) return respond(`Contact not found: ${contact}`);
-          const contactPath = store.getContactPath(contactId);
-          if (!contactPath) return respond(`Contact path not found: ${contactId}`);
-          store.indexOne(contactPath);
-          return respond(`Reindexed ${contactId} from disk.`);
-        }
-        store.indexAll();
-        return respond("Reindexed all contacts from disk.");
-      } catch (e) {
-        return respond(`Error: ${e.message}`);
+    WRITE,
+    (s, { contact }) => {
+      if (contact) {
+        const id = contactId(s, contact, false);
+        const contactPath = s.getContactPath(id);
+        if (!contactPath) throw new Error(`Contact path not found: ${id}`);
+        s.indexOne(contactPath);
+        return `Reindexed ${id} from disk.`;
       }
+      s.indexAll();
+      return "Reindexed all contacts from disk.";
     }
   );
   return server;
 }
-async function startMcpServer(store, config2) {
-  const server = createMcpServer(store, config2);
+async function startMcpServer(store, config2, opts = {}) {
+  const server = createMcpServer(store, config2, opts);
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
@@ -46960,18 +47074,32 @@ async function startMcpServerUnconfigured(config2) {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
+async function runMcpServer(config2) {
+  if (!config2.crmRoot) {
+    await startMcpServerUnconfigured(config2);
+    return;
+  }
+  const store = createStore(config2.dbPath, config2.crmRoot);
+  let markReady;
+  const ready = new Promise((r) => {
+    markReady = r;
+  });
+  await startMcpServer(store, config2, { ready });
+  setImmediate(() => {
+    try {
+      store.indexAll();
+    } catch (err) {
+      console.error("Initial index failed:", err);
+    } finally {
+      markReady();
+    }
+  });
+}
 
 // src/cli.ts
 var command = process.argv[2];
 if (command === "mcp") {
-  const config2 = loadConfig();
-  if (config2.crmRoot) {
-    const store = createStore(config2.dbPath, config2.crmRoot);
-    store.indexAll();
-    await startMcpServer(store, config2);
-  } else {
-    await startMcpServerUnconfigured(config2);
-  }
+  await runMcpServer(loadConfig());
 } else if (command === "reindex") {
   const config2 = loadConfig();
   const store = createStore(config2.dbPath, config2.crmRoot);
@@ -47009,12 +47137,12 @@ if (command === "mcp") {
   const pipe2 = await pipeline("feature-extraction", model, isGemma ? { dtype: "q8" } : {});
   const loadTime = (Date.now() - t0) / 1e3;
   console.log(`Model loaded in ${loadTime.toFixed(1)}s`);
-  const rows = store.db.prepare("SELECT contact_id, section, cleaned_content FROM content_cache").all();
+  const rows = store.getSectionContents();
   let totalChunks = 0;
   let skipped = 0;
   for (const row of rows) {
-    const content = row.cleaned_content?.trim();
-    if (!content || content.length === 0) {
+    const content = row.content.trim();
+    if (!content) {
       skipped++;
       continue;
     }
@@ -47024,7 +47152,7 @@ if (command === "mcp") {
   console.log(`Total chunks: ${totalChunks}`);
   const sampleChunks = [];
   for (const row of rows) {
-    const content = row.cleaned_content?.trim();
+    const content = row.content.trim();
     if (!content) continue;
     const chunks = chunkText2(content);
     for (const c of chunks) {
@@ -47082,7 +47210,8 @@ async function handleTemplatesCommand() {
     computeContentHash: computeContentHash2,
     countFiles: countFiles2,
     dirSize: dirSize2,
-    installTemplate: installTemplate2
+    parseTemplateRef: parseTemplateRef2,
+    assertSafeTemplateName: assertSafeTemplateName2
   } = await Promise.resolve().then(() => (init_templates(), templates_exports));
   const { listRemoteTemplates: listRemoteTemplates2, downloadTemplate: downloadTemplate2 } = await Promise.resolve().then(() => (init_github(), github_exports));
   if (subcommand === "list") {
@@ -47129,9 +47258,14 @@ async function handleTemplatesCommand() {
       console.error("  crm-mcp templates pull REAL_ESTATE/A_BROKERAGE_SALES");
       process.exit(1);
     }
-    const parts = nameArg.split("/");
-    const templateName = parts[0];
-    const category = parts[1] || void 0;
+    let templateName;
+    let category;
+    try {
+      ({ templateName, category } = parseTemplateRef2(nameArg));
+    } catch (e) {
+      console.error(e.message);
+      process.exit(1);
+    }
     const manifest = ensureManifest2(config2.crmRoot);
     const existing = manifest.templates[templateName];
     if (existing && !force) {
@@ -47143,7 +47277,7 @@ async function handleTemplatesCommand() {
       }
     }
     console.log(`Pulling ${nameArg} from GitHub (${config2.templateRepo})...`);
-    const destDir = join11(config2.crmRoot, ".templates", templateName);
+    const destDir = join13(config2.crmRoot, ".templates", templateName);
     try {
       await downloadTemplate2(config2.templateRepo, templateName, destDir, config2.githubToken, category);
       const info = readTemplateInfo2(destDir);
@@ -47189,6 +47323,13 @@ async function handleTemplatesCommand() {
     console.log("");
     for (const [name, entry] of Object.entries(manifest.templates)) {
       if (onlyTemplate && name !== onlyTemplate) continue;
+      try {
+        assertSafeTemplateName2(name);
+      } catch (e) {
+        console.log(`  ${e.message} \u2014 skipping`);
+        skipped++;
+        continue;
+      }
       const upstream = remoteMap.get(name);
       if (!upstream) {
         console.log(`  ${name.padEnd(20)} (not found upstream \u2014 skipping)`);
@@ -47212,7 +47353,7 @@ async function handleTemplatesCommand() {
       } else {
         console.log(`  ${name.padEnd(20)} v${entry.version} \u2192 v${upstream.version}  \u2192 updating`);
       }
-      const destDir = join11(config2.crmRoot, ".templates", name);
+      const destDir = join13(config2.crmRoot, ".templates", name);
       try {
         await downloadTemplate2(config2.templateRepo, name, destDir, config2.githubToken);
         const info = readTemplateInfo2(destDir);
@@ -47242,9 +47383,15 @@ async function handleTemplatesCommand() {
       console.error("Usage: crm-mcp templates info <name>");
       process.exit(1);
     }
+    try {
+      assertSafeTemplateName2(nameArg);
+    } catch (e) {
+      console.error(e.message);
+      process.exit(1);
+    }
     const manifest = ensureManifest2(config2.crmRoot);
     const entry = manifest.templates[nameArg];
-    const tmplDir = join11(config2.crmRoot, ".templates", nameArg);
+    const tmplDir = join13(config2.crmRoot, ".templates", nameArg);
     if (!entry || !existsSync11(tmplDir)) {
       try {
         const remote = await listRemoteTemplates2(config2.templateRepo, config2.crmRoot, config2.githubToken);

@@ -1,33 +1,58 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import type { ShapeOutput, ZodRawShapeCompat } from '@modelcontextprotocol/sdk/server/zod-compat.js';
+import type { ToolAnnotations } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import type { Store } from './store.js';
-import { appendLog, updateField, createDossier } from './writer.js';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { createStore, type Store } from './store.js';
+import { appendLog, updateField, createDossier, bulkUpdateField } from './writer.js';
 import { vectorSearch } from './embeddings.js';
 import { formatExport } from './export.js';
-import { runAudit, type AuditPass } from './audit.js';
-import { runRepair } from './repair.js';
-import { join } from 'node:path';
-import { existsSync } from 'node:fs';
+import { ALL_AUDIT_PASSES, auditContact, repairContact } from './maintenance.js';
 import type { Config, Relationship } from './types.js';
-import { lookupProfession, searchProfessions } from './professions.js';
+import { lookupProfession } from './professions.js';
 import {
   listLocalTemplates, ensureManifest, isCustomized, readTemplateInfo,
-  computeContentHash, writeManifest, countFiles,
+  computeContentHash, writeManifest, countFiles, parseTemplateRef,
 } from './templates.js';
 import { listRemoteTemplates, downloadTemplate } from './github.js';
 
-/**
- * Guard: returns an error message when crmRoot is empty (unconfigured),
- * null when properly configured.  Apply at the top of every tool handler
- * EXCEPT crm_stats.
- */
-function requireConfigured(config: Config): string | null {
-  if (!config.crmRoot) {
-    return 'CRM not initialized. Run \'npx crm-mcp init\' to set up your contact directory.';
+export { resolveTemplateDir } from './maintenance.js';
+
+/** Package version, read at runtime (dist/*.mjs and src/*.ts both sit one level below package.json). */
+function readVersion(): string {
+  try {
+    return JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).version ?? '0.0.0';
+  } catch {
+    return '0.0.0';
   }
-  return null;
 }
+
+/** One-line summaries for the server instructions — every registered tool must have one. */
+export const TOOL_SUMMARIES = {
+  crm_search: 'find contacts by name, org, status, or keyword',
+  crm_outline: 'dossier structural overview with fill percentages',
+  crm_read: 'read specific section (boilerplate stripped)',
+  crm_connections: 'relationship graph',
+  crm_recent: 'recently contacted people',
+  crm_stats: 'CRM-wide statistics',
+  crm_update: 'update dossier field',
+  crm_log: 'append interaction log entry',
+  crm_vector_search: 'semantic search over dossier content (requires crm-mcp embed)',
+  crm_create: 'create a person or organization dossier from template',
+  crm_bulk_update: 'update an INDEX.md field across contacts matching a filter',
+  crm_export: 'export contacts as JSON, CSV, or markdown',
+  crm_audit: 'analyze dossier structural health',
+  crm_repair: 'apply fixes from audit results',
+  crm_templates_list: 'list installed and remote templates',
+  crm_templates_pull: 'download a template from GitHub',
+  crm_reindex: 'rebuild FTS index after out-of-band file edits',
+} as const;
+
+type ToolName = keyof typeof TOOL_SUMMARIES;
+
+const NOT_CONFIGURED = 'CRM not initialized. Run \'npx crm-mcp init\' to set up your contact directory.';
 
 /** Wrap text into an MCP response, appending a token-estimate footer. */
 function respond(text: string) {
@@ -38,11 +63,16 @@ function respond(text: string) {
 }
 
 /**
- * Resolve a contact identifier — accepts either a dossier code (e.g. "CL-RANMUL-002")
- * or a name fragment, returning the canonical contact ID.
+ * Resolve a contact identifier — a dossier code (e.g. "CL-RANMUL-002"), a
+ * dossier folder name/path, or a name — to the canonical contact ID.
  * Returns null if not found.
+ *
+ * With `strict` (used by every tool that writes), only exact matches count:
+ * a known code, a folder name, or a name/alias that equals the input
+ * case-insensitively. An input matching several contacts throws, rather than
+ * picking one; the fuzzy substring/full-text fallback is never used.
  */
-export function resolveContact(store: Store, contact: string): string | null {
+export function resolveContact(store: Store, contact: string, opts: { strict?: boolean } = {}): string | null {
   // 1. Dossier code (e.g. "CL-RANMUL-002", "SAAS-CHER-001") — use it directly,
   //    but only when it actually resolves to a known contact. A folder name
   //    like "CHAN-LEE_Amy" also matches this shape (a 2-4 letter prefix
@@ -55,40 +85,24 @@ export function resolveContact(store: Store, contact: string): string | null {
   //    resolve EXACTLY by path basename. This must come before the name search:
   //    a folder name is not a substring of the stored display name, so the name
   //    search would fall through to the fail-open FTS fallback and silently
-  //    return the wrong contact. A typed display name has no matching folder
-  //    basename, so it harmlessly falls through to the name search below.
+  //    return the wrong contact.
   const byFolder = store.resolveByPath(contact);
   if (byFolder) return byFolder;
-  // 3. Otherwise search by name/alias.
+
+  // 3. Exact name / alias.
+  const exact = store.findByExactName(contact);
+  if (exact.length === 1) return exact[0];
+  if (exact.length > 1) {
+    if (opts.strict) {
+      throw new Error(`"${contact}" matches ${exact.length} contacts (${exact.join(', ')}). Use the dossier code.`);
+    }
+    return exact[0];
+  }
+  if (opts.strict) return null;
+
+  // 4. Reads only: substring name/alias search with full-text fallback.
   const results = store.searchContacts({ query: contact, limit: 1 });
   return results.length > 0 ? results[0].id : null;
-}
-
-/**
- * Resolve the template directory for a contact based on their category.
- * Uses .templates/ as the single source of truth.
- */
-export function resolveTemplateDir(crmRoot: string, store: Store, contactId: string): string | null {
-  const outline = store.getOutline(contactId);
-  if (outline.contact.category === 'Organization') {
-    const orgTpl = join(crmRoot, '.templates', 'REAL_ESTATE', 'ORGANIZATION', 'COMMON');
-    return existsSync(orgTpl) ? orgTpl : null;
-  }
-  const category = outline.contact.category.toLowerCase();
-
-  // Map category to template type
-  let templateType = 'PROFESSIONAL';
-  if (category === 'family') templateType = 'FAMILY';
-  else if (category === 'personal') templateType = 'PERSONAL';
-
-  const userTpl = join(crmRoot, '.templates', templateType);
-  if (existsSync(userTpl)) return userTpl;
-
-  // Also check lowercase (legacy)
-  const userTplLower = join(crmRoot, '.templates', templateType.toLowerCase());
-  if (existsSync(userTplLower)) return userTplLower;
-
-  return null;
 }
 
 /**
@@ -97,8 +111,8 @@ export function resolveTemplateDir(crmRoot: string, store: Store, contactId: str
  * resolved targets show their display name instead of the raw linkedContacts text.
  */
 export function formatConnections(store: Store, connections: Relationship[]): string {
-  const nameOf = (id: string): string =>
-    (store.db.prepare('SELECT name FROM contacts WHERE id = ?').get(id) as any)?.name ?? id;
+  const names = store.getContactNames(connections.flatMap(c => [c.sourceId, c.targetId].filter(Boolean)));
+  const nameOf = (id: string): string => names.get(id) ?? id;
   return connections
     .map(c => {
       const target = c.targetId ? nameOf(c.targetId) : c.targetName;
@@ -110,6 +124,8 @@ export function formatConnections(store: Store, connections: Relationship[]): st
 /**
  * Build dynamic instructions string from CRM state for the MCP server.
  * When store is null (unconfigured), returns setup instructions instead.
+ * Uses only indexed data (no filesystem reads) so it never delays the
+ * handshake; counts reflect the most recent index.
  */
 function buildInstructions(store: Store | null, config: Config): string {
   if (!config.crmRoot || !store) {
@@ -125,16 +141,13 @@ function buildInstructions(store: Store | null, config: Config): string {
 
   const stats = store.getStats();
   const lines: string[] = [];
-  lines.push(`CRM Intelligence System with ${stats.totalContacts} contacts.`);
+  lines.push(`CRM Intelligence System with ${stats.totalContacts} contacts (as of last index).`);
   lines.push('');
   lines.push('Categories:');
   for (const [cat, count] of Object.entries(stats.byCategory)) {
     lines.push(`  - ${cat}: ${count}`);
   }
-  // Profession stats (if any contacts have professions)
-  const profRows = store.db.prepare(
-    'SELECT profession, COUNT(*) as count FROM contacts WHERE profession IS NOT NULL GROUP BY profession',
-  ).all() as any[];
+  const profRows = store.getProfessionCounts();
   if (profRows.length > 0) {
     lines.push('');
     lines.push('Professions:');
@@ -149,28 +162,63 @@ function buildInstructions(store: Store | null, config: Config): string {
   lines.push('Workflow: crm_search → crm_outline → crm_read (progressive disclosure, 10x token savings)');
   lines.push('');
   lines.push('Tools:');
-  lines.push('  - crm_search — find contacts by name, org, status, or keyword');
-  lines.push('  - crm_outline — dossier structural overview with fill percentages');
-  lines.push('  - crm_read — read specific section (boilerplate stripped)');
-  lines.push('  - crm_connections — relationship graph');
-  lines.push('  - crm_recent — recently contacted people');
-  lines.push('  - crm_stats — CRM-wide statistics');
-  lines.push('  - crm_update — update dossier field');
-  lines.push('  - crm_log — append interaction log entry');
-  lines.push('  - crm_audit — analyze dossier structural health');
-  lines.push('  - crm_repair — apply fixes from audit results');
-  lines.push('  - crm_reindex — rebuild FTS index after out-of-band file edits');
+  for (const [name, summary] of Object.entries(TOOL_SUMMARIES)) {
+    lines.push(`  - ${name} — ${summary}`);
+  }
   return lines.join('\n');
 }
 
-export function createMcpServer(store: Store | null, config: Config): McpServer {
+const READ_ONLY: ToolAnnotations = { readOnlyHint: true };
+const WRITE: ToolAnnotations = { readOnlyHint: false, destructiveHint: false };
+const DESTRUCTIVE: ToolAnnotations = { readOnlyHint: false, destructiveHint: true };
+
+export interface ServerOptions {
+  /** Resolves when the initial index is built; tool calls wait for it. */
+  ready?: Promise<void>;
+}
+
+export function createMcpServer(store: Store | null, config: Config, opts: ServerOptions = {}): McpServer {
+  const ready = opts.ready ?? Promise.resolve();
   const server = new McpServer(
-    { name: 'crm', version: '0.3.0' },
+    { name: 'crm', version: readVersion() },
     { instructions: buildInstructions(store, config) },
   );
 
-  // ── 1. crm_search ────────────────────────────────────────────────────
-  server.tool(
+  /**
+   * Register a tool whose handler returns text. Handles the unconfigured
+   * guard and turns thrown errors into "Error: …" responses.
+   */
+  function tool<S extends ZodRawShapeCompat>(
+    name: ToolName,
+    description: string,
+    inputSchema: S,
+    annotations: ToolAnnotations,
+    run: (store: Store, args: ShapeOutput<S>) => string | Promise<string>,
+  ): void {
+    server.registerTool(name, { description, inputSchema, annotations }, (async (args: ShapeOutput<S>) => {
+      if (!config.crmRoot || !store) return respond(NOT_CONFIGURED);
+      try {
+        await ready;
+        return respond(await run(store, args));
+      } catch (e: any) {
+        return respond(`Error: ${e.message}`);
+      }
+    }) as any);
+  }
+
+  /** Resolve `args.contact` (strictly for writes) or throw "Contact not found". */
+  function contactId(s: Store, contact: string, strict: boolean): string {
+    const id = resolveContact(s, contact, { strict });
+    if (!id) {
+      throw new Error(strict
+        ? `Contact not found: ${contact} (writes need an exact dossier code, folder name, name or alias)`
+        : `Contact not found: ${contact}`);
+    }
+    return id;
+  }
+
+  // ── crm_search ───────────────────────────────────────────────────────
+  tool(
     'crm_search',
     'Search contacts and organizations by name, alias/nickname, organization, status, category, profession, org role, or org type. Returns compact results (~50-100 tokens each).',
     {
@@ -183,16 +231,10 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
       limit: z.number().optional().default(20).describe('Max results (default 20)'),
       paths: z.boolean().optional().default(false).describe('Include the absolute dossier folder path per result (off by default to keep results compact)'),
     },
-    async ({ query, category, status, profession, roles, orgType, limit, paths }) => {
-      const err = requireConfigured(config);
-      if (err) return respond(err);
-      let results;
-      try {
-        results = store!.searchContacts({ query, category, status, profession, roles, orgType, limit });
-      } catch (e: any) {
-        return respond(`Error: ${e.message}`);
-      }
-      if (results.length === 0) return respond('No contacts found.');
+    READ_ONLY,
+    (s, { query, category, status, profession, roles, orgType, limit, paths }) => {
+      const results = s.searchContacts({ query, category, status, profession, roles, orgType, limit });
+      if (results.length === 0) return 'No contacts found.';
       const header = `| ID | Name | Org | Category | Status | Last Contact |${paths ? ' Path |' : ''}`;
       const sep = `|-----|------|-----|----------|--------|-------------|${paths ? '------|' : ''}`;
       const rows = results.map(r => {
@@ -200,206 +242,173 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
         const base = `| ${r.id} | ${r.name} | ${org} | ${r.category} | ${r.status} | ${r.lastContact || '-'} |`;
         return paths ? `${base} ${r.path ? join(config.crmRoot, r.path) : '-'} |` : base;
       });
-      return respond([header, sep, ...rows].join('\n'));
+      return [header, sep, ...rows].join('\n');
     },
   );
 
-  // ── 2. crm_outline ───────────────────────────────────────────────────
-  server.tool(
+  // ── crm_outline ──────────────────────────────────────────────────────
+  tool(
     'crm_outline',
     'Get structural overview of a contact\'s dossier — shows which sections exist, their size, and fill percentage. Use before crm_read to decide which section to read.',
     {
       contact: z.string().describe('Contact name or dossier code (e.g., \'Ranjit\' or \'CL-RANMUL-002\')'),
     },
-    async ({ contact }) => {
-      const err = requireConfigured(config);
-      if (err) return respond(err);
-      const contactId = resolveContact(store!, contact);
-      if (!contactId) return respond(`Contact not found: ${contact}`);
-      try {
-        const outline = store!.getOutline(contactId);
-        const dossierDir = join(config.crmRoot, outline.contact.path);
-        const lines = [`# ${outline.contact.name} (${outline.contact.id})`, ''];
-        lines.push(`**Status:** ${outline.contact.status} | **Org:** ${outline.contact.organization || '-'} | **Last Contact:** ${outline.contact.lastContact || '-'}`);
-        // Folder path once; per-section absolute paths are just this + the
-        // Section column, so we don't repeat the long prefix on every row.
-        lines.push(`**Path:** ${dossierDir}`);
-        lines.push('');
-        lines.push('| Section | Size | Filled | Last Updated |');
-        lines.push('|---------|------|--------|-------------|');
-        for (const s of outline.sections) {
-          const sizeKb = (s.sizeBytes / 1024).toFixed(1);
-          lines.push(`| ${s.file} | ${sizeKb}KB | ${s.fillPercent}% | ${s.lastUpdated || '-'} |`);
-        }
-        return respond(lines.join('\n'));
-      } catch (e: any) {
-        return respond(`Error: ${e.message}`);
+    READ_ONLY,
+    (s, { contact }) => {
+      const outline = s.getOutline(contactId(s, contact, false));
+      const dossierDir = join(config.crmRoot, outline.contact.path);
+      const lines = [`# ${outline.contact.name} (${outline.contact.id})`, ''];
+      lines.push(`**Status:** ${outline.contact.status} | **Org:** ${outline.contact.organization || '-'} | **Last Contact:** ${outline.contact.lastContact || '-'}`);
+      // Folder path once; per-section absolute paths are just this + the
+      // Section column, so we don't repeat the long prefix on every row.
+      lines.push(`**Path:** ${dossierDir}`);
+      lines.push('');
+      lines.push('| Section | Size | Filled | Last Updated |');
+      lines.push('|---------|------|--------|-------------|');
+      for (const sec of outline.sections) {
+        const sizeKb = (sec.sizeBytes / 1024).toFixed(1);
+        lines.push(`| ${sec.file} | ${sizeKb}KB | ${sec.fillPercent}% | ${sec.lastUpdated || '-'} |`);
       }
+      return lines.join('\n');
     },
   );
 
-  // ── 3. crm_read ──────────────────────────────────────────────────────
-  server.tool(
+  // ── crm_read ─────────────────────────────────────────────────────────
+  tool(
     'crm_read',
     'Read a specific section of a contact\'s dossier. Returns cleaned content with boilerplate stripped. Standard sections: index, profile, log, intelligence-profile, intelligence-strategic, intelligence-risk, medical, medical-genetics, medical-pharmacogenomics, medical-labs, education. Profession-specific sections: deals, assignments, projects, portfolio, matters, assessments, jurisdictions, policies, campaigns, entities, holdings, programs, assets, services, engagements. Organization sections: index, profile, portfolio, intelligence, stakeholders, pipeline, log, competitive, partnership. Any custom file visible in crm_outline is also addressable by its relative path (e.g., "intelligence/intelligence-unsent").',
     {
       contact: z.string().describe('Contact name or dossier code'),
       section: z.string().describe('Section name (e.g., "profile", "deals", "assignments")'),
     },
-    async ({ contact, section }) => {
-      const err = requireConfigured(config);
-      if (err) return respond(err);
-      const contactId = resolveContact(store!, contact);
-      if (!contactId) return respond(`Contact not found: ${contact}`);
-      try {
-        const content = store!.getSection(contactId, section);
-        return respond(content);
-      } catch (e: any) {
-        return respond(`Error: ${e.message}`);
-      }
-    },
+    READ_ONLY,
+    (s, { contact, section }) => s.getSection(contactId(s, contact, false), section),
   );
 
-  // ── 4. crm_connections ────────────────────────────────────────────────
-  server.tool(
+  // ── crm_connections ──────────────────────────────────────────────────
+  tool(
     'crm_connections',
     'Get relationship graph for a contact — shows who they\'re connected to and how.',
     {
       contact: z.string().describe('Contact name or dossier code'),
       depth: z.number().optional().default(1).describe('How many hops to traverse (default 1)'),
     },
-    async ({ contact, depth }) => {
-      const err = requireConfigured(config);
-      if (err) return respond(err);
-      const contactId = resolveContact(store!, contact);
-      if (!contactId) return respond(`Contact not found: ${contact}`);
-      const connections = store!.getConnections(contactId, depth);
-      if (connections.length === 0) return respond('No connections found.');
-      return respond(formatConnections(store!, connections));
+    READ_ONLY,
+    (s, { contact, depth }) => {
+      const connections = s.getConnections(contactId(s, contact, false), depth);
+      if (connections.length === 0) return 'No connections found.';
+      return formatConnections(s, connections);
     },
   );
 
-  // ── 5. crm_recent ────────────────────────────────────────────────────
-  server.tool(
+  // ── crm_recent ───────────────────────────────────────────────────────
+  tool(
     'crm_recent',
     'List most recently contacted people, sorted by last contact date.',
     {
       limit: z.number().optional().default(10).describe('Max results'),
       category: z.string().optional().describe('Filter by category'),
     },
-    async ({ limit, category }) => {
-      const err = requireConfigured(config);
-      if (err) return respond(err);
-      const results = store!.getRecent(limit, category);
-      if (results.length === 0) return respond('No recent contacts.');
+    READ_ONLY,
+    (s, { limit, category }) => {
+      const results = s.getRecent(limit, category);
+      if (results.length === 0) return 'No recent contacts.';
       const header = '| Name | Category | Status | Last Contact |';
       const sep = '|------|----------|--------|-------------|';
       const rows = results.map(r => `| ${r.name} | ${r.category} | ${r.status} | ${r.lastContact || '-'} |`);
-      return respond([header, sep, ...rows].join('\n'));
+      return [header, sep, ...rows].join('\n');
     },
   );
 
-  // ── 6. crm_stats ─────────────────────────────────────────────────────
-  server.tool(
+  // ── crm_stats ────────────────────────────────────────────────────────
+  // Registered directly: unlike every other tool it answers when unconfigured.
+  server.registerTool(
     'crm_stats',
-    'Get CRM-wide statistics: total contacts, by category, stale contacts, average fill rate.',
-    {},
+    {
+      description: 'Get CRM-wide statistics: total contacts, by category, stale contacts, average fill rate.',
+      annotations: READ_ONLY,
+    },
     async () => {
       if (!config.crmRoot || !store) {
-        const payload = JSON.stringify({ status: 'unconfigured', message: 'Run npx crm-mcp init' });
-        return respond(payload);
+        return respond(JSON.stringify({ status: 'unconfigured', message: 'Run npx crm-mcp init' }));
       }
+      await ready;
       const stats = store.getStats();
-      const lines = [
+      return respond([
         `**Total Contacts:** ${stats.totalContacts}`,
         `**Stale (>30 days):** ${stats.staleContacts}`,
         `**Avg Fill Rate:** ${stats.avgFillPercent}%`,
         '',
         '**By Category:**',
         ...Object.entries(stats.byCategory).map(([cat, count]) => `  - ${cat}: ${count}`),
-      ];
-      return respond(lines.join('\n'));
+      ].join('\n'));
     },
   );
 
-  // ── 7. crm_update ────────────────────────────────────────────────────
-  server.tool(
+  // ── crm_update ───────────────────────────────────────────────────────
+  tool(
     'crm_update',
-    'Update a specific field in a contact\'s dossier. Updates YAML frontmatter and invalidates cache.',
+    'Update a specific field in a contact\'s dossier. Updates YAML frontmatter and invalidates cache. The contact must be identified exactly (dossier code, folder name, or full name/alias).',
     {
-      contact: z.string().describe('Contact name or dossier code'),
+      contact: z.string().describe('Dossier code (preferred), folder name, or exact name/alias'),
       section: z.string().describe('Section name (e.g., "index", "profile", "deals")'),
       field: z.string().describe("YAML field name to update (e.g., 'status', 'lastContactDate')"),
       value: z.string().describe('New value for the field'),
     },
-    async ({ contact, section, field, value }) => {
-      const err = requireConfigured(config);
-      if (err) return respond(err);
-      const contactId = resolveContact(store!, contact);
-      if (!contactId) return respond(`Contact not found: ${contact}`);
-      try {
-        updateField(store!, contactId, section, field, value);
-        return respond(`Updated ${field} = "${value}" in ${section} for ${contactId}`);
-      } catch (e: any) {
-        return respond(`Error: ${e.message}`);
-      }
+    WRITE,
+    (s, { contact, section, field, value }) => {
+      const id = contactId(s, contact, true);
+      updateField(s, id, section, field, value);
+      return `Updated ${field} = "${value}" in ${section} for ${id}`;
     },
   );
 
-  // ── 8. crm_log ───────────────────────────────────────────────────────
-  server.tool(
+  // ── crm_log ──────────────────────────────────────────────────────────
+  tool(
     'crm_log',
-    'Append a new interaction to a contact\'s log. Adds a row to the interaction table in log.md.',
+    'Append a new interaction to a contact\'s log. Adds a row to the interaction table in log.md. The contact must be identified exactly (dossier code, folder name, or full name/alias).',
     {
-      contact: z.string().describe('Contact name or dossier code'),
+      contact: z.string().describe('Dossier code (preferred), folder name, or exact name/alias'),
       date: z.string().describe('Interaction date (YYYY-MM-DD)'),
       type: z.string().describe('Interaction type: Meeting, Email, Call, Video, Chat, etc.'),
       summary: z.string().describe('Brief summary of the interaction'),
       outcome: z.string().optional().describe('What resulted from the interaction'),
       nextStep: z.string().optional().describe('What should happen next'),
     },
-    async ({ contact, date, type, summary, outcome, nextStep }) => {
-      const err = requireConfigured(config);
-      if (err) return respond(err);
-      const contactId = resolveContact(store!, contact);
-      if (!contactId) return respond(`Contact not found: ${contact}`);
-      try {
-        appendLog(store!, contactId, { date, type, summary, outcome, nextStep });
-        return respond(`Logged ${type} interaction with ${contactId} on ${date}`);
-      } catch (e: any) {
-        return respond(`Error: ${e.message}`);
-      }
+    WRITE,
+    (s, { contact, date, type, summary, outcome, nextStep }) => {
+      const id = contactId(s, contact, true);
+      appendLog(s, id, { date, type, summary, outcome, nextStep });
+      return `Logged ${type} interaction with ${id} on ${date}`;
     },
   );
 
-  // ── 9. crm_vector_search ────────────────────────────────────────────
-  server.tool(
+  // ── crm_vector_search ────────────────────────────────────────────────
+  tool(
     'crm_vector_search',
     "Semantic search across all dossier content. Finds contacts and sections matching a natural language query. Requires embeddings (run 'crm-mcp embed' first).",
     {
       query: z.string().describe('Natural language query'),
       limit: z.number().optional().default(5).describe('Max results'),
     },
-    async ({ query, limit }) => {
-      const err = requireConfigured(config);
-      if (err) return respond(err);
-      try {
-        const results = await vectorSearch(store!, config, query, limit);
-        if (results.length === 0) {
-          return respond("No results. Have you run 'crm-mcp embed' to generate embeddings?");
-        }
-        const lines = results.map(r =>
-          `- **${r.contactName}** (${r.section}) [${(r.score * 100).toFixed(0)}%]: ${r.chunk.substring(0, 150)}...`
-        );
-        return respond(lines.join('\n'));
-      } catch (e: any) {
-        return respond(`Error: ${e.message}`);
+    READ_ONLY,
+    async (s, { query, limit }) => {
+      const { results, staleSections } = await vectorSearch(s, config, query, limit);
+      if (results.length === 0) {
+        return "No results. Have you run 'crm-mcp embed' to generate embeddings?";
       }
+      const lines = results.map(r =>
+        `- **${r.contactName}** (${r.section}) [${(r.score * 100).toFixed(0)}%]: ${r.chunk.substring(0, 150)}...`
+      );
+      if (staleSections > 0) {
+        lines.push('', `(${staleSections} section(s) changed since embeddings were generated — run 'crm-mcp embed' to refresh.)`);
+      }
+      return lines.join('\n');
     },
   );
 
-  // ── 10. crm_create ─────────────────────────────────────────────────
-  server.tool(
+  // ── crm_create ───────────────────────────────────────────────────────
+  tool(
     'crm_create',
     'Create a new contact or organization dossier from template. For companies use category "Organization" with orgType (and optional cid, roles).',
     {
@@ -412,50 +421,38 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
       cid: z.string().optional().describe('Organization only: company identifier, 2-6 chars (ticker if public, e.g. "PLD")'),
       roles: z.array(z.string()).optional().describe('Organization only: Client, Prospect, IntegrationPartner, ChannelPartner, Competitor, OperatingPartner, Investor, Lender, Employer, TalentTarget'),
     },
-    async ({ name, category, organization, context, profession, orgType, cid, roles }) => {
-      const err = requireConfigured(config);
-      if (err) return respond(err);
-      try {
-        const result = createDossier(store!, config.crmRoot, { name, category, organization, context, profession, orgType, cid, roles });
-        return respond(`Created dossier ${result.id} at ${result.path}`);
-      } catch (e: any) {
-        return respond(`Error: ${e.message}`);
-      }
+    WRITE,
+    (s, { name, category, organization, context, profession, orgType, cid, roles }) => {
+      const result = createDossier(s, config.crmRoot, { name, category, organization, context, profession, orgType, cid, roles });
+      return `Created dossier ${result.id} at ${result.path}`;
     },
   );
 
-  // ── 11. crm_bulk_update ─────────────────────────────────────────────
-  server.tool(
+  // ── crm_bulk_update ──────────────────────────────────────────────────
+  tool(
     'crm_bulk_update',
-    'Update a field across multiple contacts matching a filter.',
+    'Update an INDEX.md field across all contacts matching a filter. At least one of category or status is required.',
     {
       category: z.string().optional().describe('Filter by category'),
       status: z.string().optional().describe('Filter by current status'),
       field: z.string().describe("YAML field to update (e.g., 'status')"),
       value: z.string().describe('New value'),
     },
-    async ({ category, status, field, value }) => {
-      const err = requireConfigured(config);
-      if (err) return respond(err);
-      const contacts = store!.searchContacts({ category, status, limit: 1000 });
-      if (contacts.length === 0) return respond('No contacts match filter.');
-
-      let updated = 0;
-      let errors = 0;
-      for (const c of contacts) {
-        try {
-          updateField(store!, c.id, 'index', field, value);
-          updated++;
-        } catch {
-          errors++;
-        }
+    DESTRUCTIVE,
+    (s, { category, status, field, value }) => {
+      const { updated, errors } = bulkUpdateField(s, { category, status }, field, value);
+      if (updated.length === 0 && errors.length === 0) return 'No contacts match filter.';
+      const lines = [`Updated ${updated.length} contacts.`];
+      if (errors.length > 0) {
+        lines.push(`${errors.length} errors:`);
+        for (const e of errors) lines.push(`  - ${e.id}: ${e.message}`);
       }
-      return respond(`Updated ${updated} contacts.${errors > 0 ? ` ${errors} errors.` : ''}`);
+      return lines.join('\n');
     },
   );
 
-  // ── 12. crm_export ──────────────────────────────────────────────────
-  server.tool(
+  // ── crm_export ───────────────────────────────────────────────────────
+  tool(
     'crm_export',
     'Export contacts as JSON, CSV, or markdown table.',
     {
@@ -463,18 +460,16 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
       category: z.string().optional().describe('Filter by category'),
       status: z.string().optional().describe('Filter by status'),
     },
-    async ({ format, category, status }) => {
-      const err = requireConfigured(config);
-      if (err) return respond(err);
-      const contacts = store!.searchContacts({ category, status, limit: 1000 });
-      if (contacts.length === 0) return respond('No contacts match filter.');
-      const output = formatExport(contacts, format);
-      return respond(output);
+    READ_ONLY,
+    (s, { format, category, status }) => {
+      const contacts = s.searchContacts({ category, status, limit: 100_000 });
+      if (contacts.length === 0) return 'No contacts match filter.';
+      return formatExport(contacts, format);
     },
   );
 
-  // ── 13. crm_audit ─────────────────────────────────────────────────
-  server.tool(
+  // ── crm_audit ────────────────────────────────────────────────────────
+  tool(
     'crm_audit',
     "Analyze a dossier's structural health against its template. Returns findings without making changes.",
     {
@@ -483,76 +478,37 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
         .optional()
         .describe('Which analysis passes to run (default: all)'),
     },
-    async ({ contact, passes }) => {
-      const err = requireConfigured(config);
-      if (err) return respond(err);
-      const contactId = resolveContact(store!, contact);
-      if (!contactId) return respond(`Contact not found: ${contact}`);
-
-      const contactPath = store!.getContactPath(contactId);
-      if (!contactPath) return respond(`Contact path not found: ${contactId}`);
-
-      const dossierDir = join(config.crmRoot, contactPath);
-      const templateDir = resolveTemplateDir(config.crmRoot, store!, contactId);
-      if (!templateDir) return respond(`Template not found for ${contactId}`);
-
-      const allPasses: AuditPass[] = passes || ['misplaced', 'stale', 'duplicates', 'ordering', 'compliance'];
-      const result = runAudit(dossierDir, templateDir, allPasses);
-
-      // Cache for crm_repair
-      store!.db.prepare('INSERT OR REPLACE INTO audit_cache (contact_id, audit_json, created_at) VALUES (?, ?, ?)')
-        .run(contactId, JSON.stringify(result), new Date().toISOString());
-
-      return respond(JSON.stringify(result, null, 2));
+    READ_ONLY,
+    (s, { contact, passes }) => {
+      const result = auditContact(s, config.crmRoot, contactId(s, contact, false), passes ?? ALL_AUDIT_PASSES);
+      return JSON.stringify(result, null, 2);
     },
   );
 
-  // ── 14. crm_repair ────────────────────────────────────────────────
-  server.tool(
+  // ── crm_repair ───────────────────────────────────────────────────────
+  tool(
     'crm_repair',
-    'Apply specific fixes from a prior audit. Requires crm_audit to be run first.',
+    'Apply specific fixes from a prior audit. Requires crm_audit to be run first, and refuses if the dossier changed since. Rolls back all changes if the repair would lose more than 15% of lines. The contact must be identified exactly.',
     {
-      contact: z.string().describe('Contact name or dossier code'),
+      contact: z.string().describe('Dossier code (preferred), folder name, or exact name/alias'),
       fixes: z.array(z.string()).describe("Fix codes from audit (e.g., ['M1', 'S1']) or ['all']"),
     },
-    async ({ contact, fixes }) => {
-      const err = requireConfigured(config);
-      if (err) return respond(err);
-      const contactId = resolveContact(store!, contact);
-      if (!contactId) return respond(`Contact not found: ${contact}`);
-
-      // Load cached audit
-      const cached = store!.db.prepare('SELECT audit_json FROM audit_cache WHERE contact_id = ?').get(contactId) as any;
-      if (!cached) return respond(`No audit cache found for ${contactId}. Run crm_audit first.`);
-
-      const audit = JSON.parse(cached.audit_json);
-      const contactPath = store!.getContactPath(contactId);
-      if (!contactPath) return respond(`Contact path not found: ${contactId}`);
-
-      const dossierDir = join(config.crmRoot, contactPath);
-      const templateDir = resolveTemplateDir(config.crmRoot, store!, contactId);
-      if (!templateDir) return respond(`Template not found for ${contactId}`);
-
-      const result = runRepair(dossierDir, templateDir, audit, fixes);
-
-      // Clear audit cache after repair (stale)
-      store!.db.prepare('DELETE FROM audit_cache WHERE contact_id = ?').run(contactId);
-
-      return respond(JSON.stringify(result, null, 2));
+    DESTRUCTIVE,
+    (s, { contact, fixes }) => {
+      const result = repairContact(s, config.crmRoot, contactId(s, contact, true), fixes);
+      return JSON.stringify(result, null, 2);
     },
   );
 
-  // ── 15. crm_templates_list ──────────────────────────────────────────
-  server.tool(
+  // ── crm_templates_list ───────────────────────────────────────────────
+  tool(
     'crm_templates_list',
     'List installed and available CRM dossier templates. Shows version, customization status, and available remote templates.',
     {
       remote: z.boolean().optional().default(true).describe('Include available templates from GitHub (default: true)'),
     },
-    async ({ remote }) => {
-      const err = requireConfigured(config);
-      if (err) return respond(err);
-
+    { readOnlyHint: true, openWorldHint: true },
+    async (_s, { remote }) => {
       const lines: string[] = [];
       const local = listLocalTemplates(config.crmRoot);
 
@@ -589,103 +545,73 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
         }
       }
 
-      return respond(lines.join('\n'));
+      return lines.join('\n');
     },
   );
 
-  // ── 16. crm_templates_pull ─────────────────────────────────────────
-  server.tool(
+  // ── crm_templates_pull ───────────────────────────────────────────────
+  tool(
     'crm_templates_pull',
     'Download a template from GitHub to local .templates/. Supports individual categories for composite templates (e.g., "REAL_ESTATE/A_BROKERAGE_SALES"). Will not overwrite customized templates — direct the user to CLI with --force for that.',
     {
       name: z.string().describe('Template name (e.g., "REAL_ESTATE" or "REAL_ESTATE/A_BROKERAGE_SALES")'),
     },
-    async ({ name: nameArg }) => {
-      const err = requireConfigured(config);
-      if (err) return respond(err);
+    { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    async (_s, { name: nameArg }) => {
+      const { templateName, category } = parseTemplateRef(nameArg);
 
-      const parts = nameArg.split('/');
-      const templateName = parts[0];
-      const category = parts[1] || undefined;
-
-      // Check if already installed and customized
       const manifest = ensureManifest(config.crmRoot);
-      const existing = manifest.templates[templateName];
-      if (existing) {
-        const customized = isCustomized(config.crmRoot, templateName, manifest);
-        if (customized) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: `Template "${templateName}" has local customizations. ` +
-                `Use CLI to force update: crm-mcp templates pull ${nameArg} --force`,
-            }],
-          };
-        }
+      if (manifest.templates[templateName] && isCustomized(config.crmRoot, templateName, manifest)) {
+        return `Template "${templateName}" has local customizations. ` +
+          `Use CLI to force update: crm-mcp templates pull ${nameArg} --force`;
       }
 
-      try {
-        const destDir = join(config.crmRoot, '.templates', templateName);
-        await downloadTemplate(config.templateRepo, templateName, destDir, config.githubToken, category);
+      const destDir = join(config.crmRoot, '.templates', templateName);
+      await downloadTemplate(config.templateRepo, templateName, destDir, config.githubToken, category);
 
-        // Update manifest
-        const info = readTemplateInfo(destDir);
-        const contentHash = computeContentHash(destDir);
-        const now = new Date().toISOString();
-        const existingEntry = manifest.templates[templateName];
-        const existingCategories = existingEntry?.categories || [];
+      const info = readTemplateInfo(destDir);
+      const now = new Date().toISOString();
+      const existingEntry = manifest.templates[templateName];
+      manifest.templates[templateName] = {
+        version: info?.version || '0.0.0',
+        installedAt: existingEntry?.installedAt || now,
+        updatedAt: now,
+        source: 'github',
+        contentHash: computeContentHash(destDir),
+        ...(category ? { categories: [...new Set([...(existingEntry?.categories || []), category])] } : {}),
+      };
+      writeManifest(config.crmRoot, manifest);
 
-        manifest.templates[templateName] = {
-          version: info?.version || '0.0.0',
-          installedAt: existingEntry?.installedAt || now,
-          updatedAt: now,
-          source: 'github',
-          contentHash,
-          ...(category ? { categories: [...new Set([...existingCategories, category])] } : {}),
-        };
-
-        writeManifest(config.crmRoot, manifest);
-
-        const files = countFiles(destDir);
-        return respond(`Installed ${templateName}${category ? '/' + category : ''}: ${files} files written to .templates/${templateName}/`);
-      } catch (e: any) {
-        return respond(`Error: ${e.message}`);
-      }
+      return `Installed ${templateName}${category ? '/' + category : ''}: ${countFiles(destDir)} files written to .templates/${templateName}/`;
     },
   );
 
-  // ── 17. crm_reindex ─────────────────────────────────────────────────
-  server.tool(
+  // ── crm_reindex ──────────────────────────────────────────────────────
+  tool(
     'crm_reindex',
     'Rebuild the full-text search index from disk. Use after editing a dossier file directly (out-of-band, e.g. via the Edit tool) so crm_search keyword results reflect the change without restarting the server. crm_read is always disk-fresh and does not need this. Omit "contact" to reindex the whole CRM.',
     {
       contact: z.string().optional().describe('Contact name or dossier code to reindex. Omit to reindex all contacts.'),
     },
-    async ({ contact }) => {
-      const err = requireConfigured(config);
-      if (err) return respond(err);
-      try {
-        if (contact) {
-          const contactId = resolveContact(store!, contact);
-          if (!contactId) return respond(`Contact not found: ${contact}`);
-          const contactPath = store!.getContactPath(contactId);
-          if (!contactPath) return respond(`Contact path not found: ${contactId}`);
-          store!.indexOne(contactPath);
-          return respond(`Reindexed ${contactId} from disk.`);
-        }
-        store!.indexAll();
-        return respond('Reindexed all contacts from disk.');
-      } catch (e: any) {
-        return respond(`Error: ${e.message}`);
+    WRITE,
+    (s, { contact }) => {
+      if (contact) {
+        const id = contactId(s, contact, false);
+        const contactPath = s.getContactPath(id);
+        if (!contactPath) throw new Error(`Contact path not found: ${id}`);
+        s.indexOne(contactPath);
+        return `Reindexed ${id} from disk.`;
       }
+      s.indexAll();
+      return 'Reindexed all contacts from disk.';
     },
   );
 
   return server;
 }
 
-export async function startMcpServer(store: Store, config: Config): Promise<void> {
-  const server = createMcpServer(store, config);
+export async function startMcpServer(store: Store, config: Config, opts: ServerOptions = {}): Promise<void> {
+  const server = createMcpServer(store, config, opts);
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
@@ -694,4 +620,35 @@ export async function startMcpServerUnconfigured(config: Config): Promise<void> 
   const server = createMcpServer(null, config);
   const transport = new StdioServerTransport();
   await server.connect(transport);
+}
+
+/**
+ * Start the stdio MCP server for a loaded config — the single entry used by
+ * both the plugin binary and `crm-mcp mcp`.
+ *
+ * The transport connects first so the handshake completes immediately;
+ * indexAll() is synchronous and can block the event loop for seconds, so it
+ * is deferred to the next tick. Tool calls wait on `ready` so none can run
+ * against the pre-index database, even if sent in the same burst as the
+ * handshake.
+ */
+export async function runMcpServer(config: Config): Promise<void> {
+  if (!config.crmRoot) {
+    await startMcpServerUnconfigured(config);
+    return;
+  }
+  const store = createStore(config.dbPath, config.crmRoot);
+  let markReady!: () => void;
+  const ready = new Promise<void>((r) => { markReady = r; });
+  await startMcpServer(store, config, { ready });
+  setImmediate(() => {
+    try {
+      store.indexAll();
+    } catch (err) {
+      // Serve whatever the last successful index left in the database
+      console.error('Initial index failed:', err);
+    } finally {
+      markReady();
+    }
+  });
 }

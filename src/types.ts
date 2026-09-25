@@ -106,21 +106,54 @@ export const SECTION_FILES: Record<DossierSection, string> = {
   'education': 'education.md',
 };
 
+/** Reverse map: canonical file path → section key. */
+export const FILE_TO_SECTION: Record<string, DossierSection> = Object.fromEntries(
+  Object.entries(SECTION_FILES).map(([key, file]) => [file, key as DossierSection]),
+) as Record<string, DossierSection>;
+
+export interface ResolvedSection {
+  /** Canonical key used for cache and FTS rows (e.g. "profile", "deals", "intelligence/intelligence-unsent"). */
+  key: string;
+  /** Path of the section file relative to the dossier folder. */
+  file: string;
+}
+
 /**
- * Resolve a section name to its file path.
- * Accepts any format: "index", "INDEX.md", "intelligence-profile", "intelligence/intelligence-profile.md"
- * Known sections use the SECTION_FILES map; unknown sections (e.g. profession-specific
- * tracking files like "deals", "assignments", or custom files like "intelligence/intelligence-unsent")
- * preserve their full relative path with .md extension.
+ * Resolve any accepted spelling of a section to its canonical key and file.
+ * Accepts "index", "INDEX.md", "Profile", "intelligence-profile",
+ * "intelligence/intelligence-profile.md", and custom files by relative path
+ * ("deals", "intelligence/intelligence-unsent").
+ *
+ * Known sections map case-insensitively when given bare or under their
+ * canonical directory; anything else keeps its relative path. Throws on
+ * absolute paths and on "." / ".." segments so a section can never address a
+ * file outside its dossier folder.
  */
+export function resolveSection(section: string): ResolvedSection {
+  const normalized = section.trim().replace(/\\/g, '/').replace(/\.md$/i, '');
+  const segments = normalized.split('/');
+  if (
+    normalized === '' ||
+    normalized.includes('\0') ||
+    normalized.startsWith('/') ||
+    /^[A-Za-z]:/.test(normalized) ||
+    segments.some((seg) => seg === '' || seg === '.' || seg === '..')
+  ) {
+    throw new Error(`Invalid section: "${section}"`);
+  }
+
+  const flatKey = segments[segments.length - 1].toLowerCase();
+  if (flatKey in SECTION_FILES) {
+    const file = SECTION_FILES[flatKey as DossierSection];
+    const dir = segments.slice(0, -1).join('/').toLowerCase();
+    const canonicalDir = file.includes('/') ? file.slice(0, file.lastIndexOf('/')).toLowerCase() : '';
+    if (dir === '' || dir === canonicalDir) return { key: flatKey, file };
+  }
+
+  return { key: normalized, file: `${normalized}.md` };
+}
+
+/** Back-compat wrapper: the section's file path relative to the dossier folder. */
 export function resolveSectionFile(section: string): string {
-  // Strip .md suffix for lookup
-  const withoutMd = section.replace(/\.md$/i, '');
-
-  // Try flat key (strip directory prefix) against known sections
-  const flatKey = withoutMd.replace(/^.*\//, '').toLowerCase();
-  if (flatKey in SECTION_FILES) return SECTION_FILES[flatKey as DossierSection];
-
-  // Unknown section — preserve the full relative path with .md
-  return `${withoutMd}.md`;
+  return resolveSection(section).file;
 }

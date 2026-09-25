@@ -1,16 +1,18 @@
-import { type Store } from './store.js';
+import { type Store, type NewEmbedding } from './store.js';
 import { type Config } from './types.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let embedder: any = null;
+let embedderModel: string | null = null;
 
 async function getEmbedder(model: string): Promise<any> {
-  if (!embedder) {
+  if (!embedder || embedderModel !== model) {
     // Dynamic import to avoid loading transformers.js until needed
     const { pipeline } = await import('@huggingface/transformers');
     // Use q8 quantization for EmbeddingGemma (fp16 not supported by this model)
     const isGemma = model.toLowerCase().includes('gemma');
     embedder = await pipeline('feature-extraction', model, isGemma ? { dtype: 'q8' } : {});
+    embedderModel = model;
   }
   return embedder;
 }
@@ -145,131 +147,93 @@ export function cosineSimilarity(a: Float32Array, b: Float32Array): number {
 }
 
 /**
- * Ensure the embeddings table exists in the database.
- */
-function ensureEmbeddingsTable(store: Store): void {
-  store.db.exec(`
-    CREATE TABLE IF NOT EXISTS embeddings (
-      id INTEGER PRIMARY KEY,
-      contact_id TEXT,
-      section TEXT,
-      chunk_index INTEGER,
-      chunk_text TEXT,
-      embedding BLOB,
-      UNIQUE(contact_id, section, chunk_index)
-    );
-  `);
-}
-
-/**
  * Generate embeddings for all indexed content.
- * Reads from content_cache, chunks text, embeds each chunk,
- * and stores results in the embeddings table.
+ * Reads cleaned section content from the store, chunks it, embeds each chunk,
+ * and replaces the stored embeddings (tagged with the model and each
+ * section's content hash) in a single transaction.
  */
 export async function generateEmbeddings(
   store: Store,
   config: Config,
 ): Promise<{ indexed: number; skipped: number }> {
-  const model = config.embeddingModel || 'Xenova/all-MiniLM-L6-v2';
+  const model = config.embeddingModel;
   const pipe = await getEmbedder(model);
 
-  ensureEmbeddingsTable(store);
-
-  // Clear existing embeddings
-  store.db.exec('DELETE FROM embeddings');
-
-  const insertStmt = store.db.prepare(`
-    INSERT OR REPLACE INTO embeddings (contact_id, section, chunk_index, chunk_text, embedding)
-    VALUES (?, ?, ?, ?, ?)
-  `);
-
-  // Get all content from cache
-  const rows = store.db
-    .prepare('SELECT contact_id, section, cleaned_content FROM content_cache')
-    .all() as Array<{ contact_id: string; section: string; cleaned_content: string }>;
-
-  let indexed = 0;
+  const rows: NewEmbedding[] = [];
   let skipped = 0;
 
-  for (const row of rows) {
-    const content = row.cleaned_content?.trim();
-    if (!content || content.length === 0) {
-      skipped++;
-      continue;
-    }
-
-    const chunks = chunkText(content);
+  for (const section of store.getSectionContents()) {
+    const chunks = chunkText(section.content.trim());
     if (chunks.length === 0) {
       skipped++;
       continue;
     }
-
     for (let i = 0; i < chunks.length; i++) {
       const output = await pipe(chunks[i], { pooling: 'mean', normalize: true });
-      // output.data is a Float32Array (or similar typed array)
-      const embedding = new Float32Array(output.data);
-      const buffer = Buffer.from(embedding.buffer);
-
-      insertStmt.run(row.contact_id, row.section, i, chunks[i], buffer);
-      indexed++;
+      rows.push({
+        contactId: section.contactId,
+        section: section.section,
+        chunkIndex: i,
+        chunkText: chunks[i],
+        embedding: Buffer.from(new Float32Array(output.data).buffer),
+        fileHash: section.fileHash,
+      });
     }
   }
 
-  return { indexed, skipped };
+  store.replaceEmbeddings(model, rows);
+  return { indexed: rows.length, skipped };
+}
+
+export interface VectorSearchResult {
+  results: Array<{ contactId: string; contactName: string; section: string; chunk: string; score: number }>;
+  /** Number of embedded sections whose content changed since `crm-mcp embed` ran. */
+  staleSections: number;
 }
 
 /**
  * Semantic vector search across all embedded dossier content.
+ * Throws when the stored embeddings came from a different model than the
+ * one configured — vectors from two models are not comparable.
  */
 export async function vectorSearch(
   store: Store,
   config: Config,
   query: string,
   limit = 5,
-): Promise<Array<{ contactId: string; contactName: string; section: string; chunk: string; score: number }>> {
-  const model = config.embeddingModel || 'Xenova/all-MiniLM-L6-v2';
+): Promise<VectorSearchResult> {
+  const stored = store.getEmbeddings();
+  if (stored.length === 0) return { results: [], staleSections: 0 };
+
+  const model = config.embeddingModel;
+  const storedModel = store.getEmbeddingModel();
+  if (storedModel && storedModel !== model) {
+    throw new Error(
+      `Embeddings were generated with "${storedModel}" but the configured model is "${model}". Re-run 'crm-mcp embed'.`,
+    );
+  }
+
   const pipe = await getEmbedder(model);
-
-  ensureEmbeddingsTable(store);
-
-  // Embed the query
   const queryOutput = await pipe(query, { pooling: 'mean', normalize: true });
   const queryEmbedding = new Float32Array(queryOutput.data);
 
-  // Load all embeddings
-  const rows = store.db
-    .prepare(`
-      SELECT e.contact_id, e.section, e.chunk_text, e.embedding, c.name as contact_name
-      FROM embeddings e
-      JOIN contacts c ON c.id = e.contact_id
-    `)
-    .all() as Array<{
-      contact_id: string;
-      section: string;
-      chunk_text: string;
-      embedding: Buffer;
-      contact_name: string;
-    }>;
+  const staleSections = new Set(stored.filter(r => r.stale).map(r => `${r.contactId}\0${r.section}`)).size;
 
-  if (rows.length === 0) return [];
-
-  // Compute cosine similarity for each
-  const scored = rows.map((row) => {
+  const scored = stored.map((row) => {
     const embedding = new Float32Array(
       row.embedding.buffer,
       row.embedding.byteOffset,
       row.embedding.byteLength / 4,
     );
     return {
-      contactId: row.contact_id,
-      contactName: row.contact_name,
+      contactId: row.contactId,
+      contactName: row.contactName,
       section: row.section,
-      chunk: row.chunk_text,
+      chunk: row.chunkText,
       score: cosineSimilarity(queryEmbedding, embedding),
     };
   });
 
-  // Sort by score descending and return top N
   scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, limit);
+  return { results: scored.slice(0, limit), staleSections };
 }

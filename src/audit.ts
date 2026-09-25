@@ -6,8 +6,10 @@
  * Tasks 8/9 will add misplaced, stale, duplicates, and ordering passes.
  */
 
-import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
-import { join, relative, basename } from 'node:path';
+import { readFileSync, existsSync } from 'node:fs';
+import { join, basename } from 'node:path';
+import { collectMdFiles, formatDate } from './fsutil.js';
+import { parseFrontmatter, splitFrontmatter } from './frontmatter.js';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -45,6 +47,8 @@ export interface DuplicateFinding {
   code: string;
   section: string;
   locations: string[];
+  /** Heading at each location (same order as `locations`). */
+  headings: string[];
   priority: 'CRITICAL' | 'MODERATE' | 'MINOR';
 }
 
@@ -80,32 +84,13 @@ const HEADING_RE = /^#{2,4}\s+.+/;
 // ── Helpers ──────────────────────────────────────────────────────────
 
 /**
- * Recursively collect all .md files under a directory,
- * returning paths relative to the root.
- */
-function collectMdFiles(dir: string, root?: string): string[] {
-  const base = root ?? dir;
-  const results: string[] = [];
-
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      results.push(...collectMdFiles(full, base));
-    } else if (entry.name.endsWith('.md')) {
-      results.push(relative(base, full));
-    }
-  }
-  return results;
-}
-
-/**
  * Extract headings (## through ####) from a markdown file.
  * Skips h1 headings — those are document titles, not routable sections.
  */
 function extractHeadings(filePath: string): string[] {
   if (!existsSync(filePath)) return [];
-  const content = readFileSync(filePath, 'utf-8');
-  return content
+  const { body } = splitFrontmatter(readFileSync(filePath, 'utf-8'));
+  return body
     .split('\n')
     .map(line => line.trimEnd())
     .filter(line => HEADING_RE.test(line));
@@ -128,19 +113,16 @@ function missingPriority(heading: string): 'CRITICAL' | 'MODERATE' | 'MINOR' {
  */
 function extractSections(filePath: string): Map<string, string[]> {
   if (!existsSync(filePath)) return new Map();
-  const content = readFileSync(filePath, 'utf-8');
-  const lines = content.split('\n');
+  // Only a leading `---` block is frontmatter; later `---` lines are
+  // horizontal rules and must not hide the content that follows them.
+  const { body } = splitFrontmatter(readFileSync(filePath, 'utf-8'));
+  const lines = body.split('\n');
   const sections = new Map<string, string[]>();
   let currentHeading: string | null = null;
-  let inFrontmatter = false;
 
   for (const line of lines) {
     const trimmed = line.trimEnd();
-    if (trimmed === '---') {
-      inFrontmatter = !inFrontmatter;
-      continue;
-    }
-    if (inFrontmatter) continue;
+    if (trimmed === '---') continue;
 
     if (HEADING_RE.test(trimmed)) {
       currentHeading = trimmed;
@@ -183,21 +165,16 @@ function parseLatestLogDate(logPath: string): { date: string; summary: string } 
 }
 
 /**
- * Parse YAML frontmatter and return a key-value map.
+ * Parse YAML frontmatter and return a key-value map of scalar values.
  */
-function parseFrontmatter(filePath: string): Map<string, string> {
+function readFrontmatter(filePath: string): Map<string, string> {
   const result = new Map<string, string>();
   if (!existsSync(filePath)) return result;
-  const content = readFileSync(filePath, 'utf-8');
-  const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!fmMatch) return result;
-  for (const line of fmMatch[1].split('\n')) {
-    const idx = line.indexOf(':');
-    if (idx > 0) {
-      const key = line.slice(0, idx).trim();
-      const val = line.slice(idx + 1).trim();
-      result.set(key, val);
-    }
+  const yaml = parseFrontmatter(readFileSync(filePath, 'utf-8'));
+  for (const [key, val] of Object.entries(yaml ?? {})) {
+    const str = formatDate(val);
+    if (str !== null && typeof val !== 'object') result.set(key, str);
+    else if (val instanceof Date) result.set(key, str!);
   }
   return result;
 }
@@ -316,7 +293,7 @@ export function runAudit(
   if (passes.includes('stale')) {
     const indexPath = join(dossierDir, 'INDEX.md');
     const logPath = join(dossierDir, 'log.md');
-    const fm = parseFrontmatter(indexPath);
+    const fm = readFrontmatter(indexPath);
     const lastContact = fm.get('lastContactDate') || '';
     const latestLog = parseLatestLogDate(logPath);
 
@@ -369,6 +346,7 @@ export function runAudit(
             code: `D${dupCount}`,
             section: sectionLabel,
             locations: [a.file, b.file],
+            headings: [a.heading, b.heading],
             priority: 'MODERATE',
           });
         }

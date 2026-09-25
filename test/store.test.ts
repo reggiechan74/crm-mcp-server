@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { makeTempDir } from './helpers/tmp.js';
 import { join } from 'node:path';
 import { readFileSync, writeFileSync, mkdtempSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -14,7 +15,7 @@ function writeDossier(root: string, rel: string, yaml: string): void {
 
 /** Oxford (OPR; Client+OperatingPartner) → operating_partner_of → XYZ (INV; Client); Jane works at "oxford". */
 function graphRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'crm-graph-'));
+  const root = makeTempDir('crm-graph-');
   writeDossier(root, 'Organizations/OPR_Oxford', [
     'name: "Oxford Properties"', 'dossierCode: "OPR-OXF-001"', 'orgType: OPR', 'aliases:', '  - "Oxford"',
     'roles:', '  - Client', '  - OperatingPartner',
@@ -324,7 +325,7 @@ describe('relationship resolution', () => {
   });
 
   it('never clobbers a hand-authored works_at edge with the auto-derived one', () => {
-    const root = mkdtempSync(join(tmpdir(), 'crm-manual-works-at-'));
+    const root = makeTempDir('crm-manual-works-at-');
     writeDossier(root, 'Organizations/OPR_Oxford', [
       'name: "Oxford Properties"', 'dossierCode: "OPR-OXF-001"', 'orgType: OPR', 'roles:', '  - Client',
     ].join('\n'));
@@ -346,7 +347,7 @@ describe('relationship resolution', () => {
   });
 
   it('does not duplicate a hand-authored works_at edge that names the org by dossier code (F4)', () => {
-    const root = mkdtempSync(join(tmpdir(), 'crm-manual-works-at-code-'));
+    const root = makeTempDir('crm-manual-works-at-code-');
     writeDossier(root, 'Organizations/OPR_Oxford', [
       'name: "Oxford Properties"', 'dossierCode: "OPR-OXF-001"', 'orgType: OPR', 'roles:', '  - Client',
     ].join('\n'));
