@@ -20362,7 +20362,8 @@ var CATEGORY_CODES = {
   ME: "Mentor",
   NE: "Network",
   PE: "Personal",
-  PR: "Prospect"
+  PR: "Prospect",
+  OR: "Organization"
 };
 var CATEGORY_DIRS = {
   Adversary: "Adversaries",
@@ -20373,8 +20374,39 @@ var CATEGORY_DIRS = {
   Mentor: "Mentors",
   Network: "Network",
   Personal: "Personal",
-  Prospect: "Prospects"
+  Prospect: "Prospects",
+  Organization: "Organizations"
 };
+var RELATION_TYPES = [
+  "reports_to",
+  "manages",
+  "colleague",
+  "spouse",
+  "parent",
+  "child",
+  "sibling",
+  "in_law",
+  "friend",
+  "mentor",
+  "mentee",
+  "introduced_by",
+  "client_of",
+  "advisor_to",
+  "adversary_of",
+  "partner",
+  "associated",
+  // Organization links
+  "operating_partner_of",
+  "lp_in",
+  "gp_of",
+  "parent_of",
+  "subsidiary_of",
+  "integrates_with",
+  "competes_with",
+  "acquired_by",
+  "employs",
+  "works_at"
+];
 var SECTION_FILES = {
   "index": "INDEX.md",
   "profile": "profile.md",
@@ -20651,20 +20683,32 @@ function extractRelationships(dossierPath, contactId) {
   if (!yaml) return [];
   const linkedContacts = yaml.linkedContacts;
   if (!Array.isArray(linkedContacts)) return [];
-  return linkedContacts.map((entry) => {
+  const rels = linkedContacts.map((entry) => {
+    if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+      const obj = entry;
+      const rawType = String(obj.type ?? "");
+      const type = RELATION_TYPES.includes(rawType) ? rawType : "associated";
+      return {
+        sourceId: contactId,
+        targetId: "",
+        targetName: String(obj.name ?? "").trim(),
+        type,
+        context: obj.context != null ? String(obj.context) : "",
+        bidirectional: false
+      };
+    }
     const str = String(entry);
     const match = str.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
-    const targetName = match ? match[1].trim() : str.trim();
-    const context = match ? match[2].trim() : "";
     return {
       sourceId: contactId,
       targetId: "",
-      targetName,
+      targetName: match ? match[1].trim() : str.trim(),
       type: "associated",
-      context,
+      context: match ? match[2].trim() : "",
       bidirectional: false
     };
   });
+  return rels.filter((r) => r.targetName !== "");
 }
 
 // src/store.ts
@@ -20672,6 +20716,58 @@ var import_fast_glob = __toESM(require_out4(), 1);
 import { readFileSync as readFileSync3, existsSync as existsSync3, mkdirSync, statSync as statSync2 } from "node:fs";
 import { join as join3, dirname as dirname2 } from "node:path";
 import { createHash } from "node:crypto";
+
+// src/orgTypes.ts
+var ORG_TYPES = {
+  REIT: "Public REIT",
+  INV: "Private equity RE fund / GP / investment manager",
+  LP: "Allocator (pension, sovereign, endowment, insurer, family office)",
+  OPR: "Operating partner / third-party property manager",
+  DEV: "Developer",
+  LND: "Lender / debt fund / servicer",
+  BRK: "Brokerage",
+  SAAS: "Proptech software vendor",
+  DATA: "RE data provider",
+  SVC: "Fund admin / accounting / consulting services"
+};
+var ORG_ROLES = [
+  "Client",
+  "Prospect",
+  "IntegrationPartner",
+  "ChannelPartner",
+  "Competitor",
+  "OperatingPartner",
+  "Investor",
+  "Lender",
+  "Employer",
+  "TalentTarget"
+];
+var ROLE_OVERLAYS = {
+  Competitor: "COMPETITOR",
+  IntegrationPartner: "PARTNER",
+  ChannelPartner: "PARTNER"
+};
+var AUTO_WORKS_AT_CONTEXT = "auto: organization field";
+function normalizeOrgType(input) {
+  const upper = input.trim().toUpperCase();
+  return upper in ORG_TYPES ? upper : null;
+}
+function asciiWords(name) {
+  return name.normalize("NFD").replace(/[̀-ͯ]/g, "").split(/[^A-Za-z0-9]+/).filter(Boolean);
+}
+function generateCid(name) {
+  const words = asciiWords(name);
+  if (words.length >= 2) return words.map((w) => w[0]).join("").toUpperCase().slice(0, 6);
+  return (words[0] ?? "").slice(0, 4).toUpperCase();
+}
+function isValidCid(cid) {
+  return /^[A-Z0-9.]{2,6}$/.test(cid);
+}
+function orgFolderName(orgType, name) {
+  return `${orgType}_${asciiWords(name).join("_")}`;
+}
+
+// src/store.ts
 function fileHash(filePath) {
   const content = readFileSync3(filePath, "utf-8");
   return createHash("sha256").update(content).digest("hex");
@@ -20748,6 +20844,10 @@ function createStore(dbPath, crmRoot) {
     `),
     insertRelationship: db.prepare(`
       INSERT OR REPLACE INTO relationships (source_id, target_id, target_name, type, context, bidirectional)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `),
+    insertRelationshipIfAbsent: db.prepare(`
+      INSERT OR IGNORE INTO relationships (source_id, target_id, target_name, type, context, bidirectional)
       VALUES (?, ?, ?, ?, ?, ?)
     `),
     insertContentCache: db.prepare(`
@@ -20833,6 +20933,70 @@ function createStore(dbPath, crmRoot) {
       );
     }
   }
+  function resolveRelationshipTargets() {
+    db.prepare("DELETE FROM relationships WHERE context = ?").run(AUTO_WORKS_AT_CONTEXT);
+    const contacts = db.prepare(
+      "SELECT id, name, aliases, category, organization FROM contacts"
+    ).all();
+    const buildIndex = (rows, includeIds) => {
+      const map2 = /* @__PURE__ */ new Map();
+      const add = (key, id) => {
+        const k = key.trim().toLowerCase();
+        if (!k) return;
+        if (!map2.has(k)) map2.set(k, /* @__PURE__ */ new Set());
+        map2.get(k).add(id);
+      };
+      for (const c of rows) {
+        if (includeIds) add(c.id, c.id);
+        add(c.name, c.id);
+        if (c.aliases) {
+          try {
+            for (const a of JSON.parse(c.aliases)) add(a, c.id);
+          } catch {
+          }
+        }
+      }
+      return map2;
+    };
+    const unique = (map2, key) => {
+      const ids = map2.get(key.trim().toLowerCase());
+      return ids && ids.size === 1 ? [...ids][0] : "";
+    };
+    const all = buildIndex(contacts, true);
+    const update = db.prepare("UPDATE relationships SET target_id = ? WHERE rowid = ?");
+    for (const row of db.prepare("SELECT rowid, target_name FROM relationships").all()) {
+      update.run(unique(all, row.target_name), row.rowid);
+    }
+    const orgs = contacts.filter((c) => c.category === "Organization");
+    const orgIndex = buildIndex(orgs, false);
+    const orgName = new Map(orgs.map((o) => [o.id, o.name]));
+    for (const c of contacts) {
+      if (c.category === "Organization" || !c.organization) continue;
+      const orgId = unique(orgIndex, c.organization);
+      if (!orgId) continue;
+      stmts.insertRelationshipIfAbsent.run(c.id, orgId, orgName.get(orgId), "works_at", AUTO_WORKS_AT_CONTEXT, 0);
+    }
+  }
+  function toSearchResult(row) {
+    const result = {
+      id: row.id,
+      name: row.name,
+      category: row.category,
+      organization: row.organization,
+      status: row.status,
+      lastContact: row.last_contact,
+      path: row.path
+    };
+    if (row.category === "Organization" && row.metadata_json) {
+      try {
+        const meta3 = JSON.parse(row.metadata_json);
+        if (meta3.orgType) result.orgType = String(meta3.orgType);
+        if (Array.isArray(meta3.roles)) result.roles = meta3.roles.map(String);
+      } catch {
+      }
+    }
+    return result;
+  }
   const store = {
     db,
     crmRoot,
@@ -20850,6 +21014,7 @@ function createStore(dbPath, crmRoot) {
             console.error(`Failed to index ${relPath}:`, err);
           }
         }
+        resolveRelationshipTargets();
       });
       runIndex();
     },
@@ -20863,6 +21028,7 @@ function createStore(dbPath, crmRoot) {
         db.prepare("DELETE FROM content_cache WHERE contact_id = ?").run(contact.id);
       }
       indexDossier(dossierRelPath);
+      resolveRelationshipTargets();
     },
     searchContacts(filters) {
       const {
@@ -20870,6 +21036,8 @@ function createStore(dbPath, crmRoot) {
         category,
         status,
         profession,
+        roles,
+        orgType,
         limit = 20
       } = filters;
       const conditions = [];
@@ -20891,29 +21059,31 @@ function createStore(dbPath, crmRoot) {
         conditions.push("profession = ?");
         params.push(profession);
       }
+      if (orgType) {
+        conditions.push("json_extract(metadata_json, '$.orgType') = ?");
+        params.push(orgType.toUpperCase());
+      }
+      for (const role of roles ?? []) {
+        conditions.push("EXISTS (SELECT 1 FROM json_each(contacts.metadata_json, '$.roles') WHERE value = ?)");
+        params.push(role);
+      }
       const where = conditions.length > 0 ? "WHERE " + conditions.join(" AND ") : "";
-      const sql = `SELECT id, name, category, organization, status, last_contact, path FROM contacts ${where} ORDER BY name LIMIT ?`;
+      const sql = `SELECT id, name, category, organization, status, last_contact, path, metadata_json FROM contacts ${where} ORDER BY name LIMIT ?`;
       params.push(limit);
       const rows = db.prepare(sql).all(...params);
-      let results = rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        category: row.category,
-        organization: row.organization,
-        status: row.status,
-        lastContact: row.last_contact,
-        path: row.path
-      }));
+      let results = rows.map(toSearchResult);
       if (query && results.length === 0) {
         const ftsQuery = sanitizeFtsQuery(query);
         const ftsSql = `
-          SELECT DISTINCT c.id, c.name, c.category, c.organization, c.status, c.last_contact, c.path
+          SELECT DISTINCT c.id, c.name, c.category, c.organization, c.status, c.last_contact, c.path, c.metadata_json
           FROM content_fts f
           JOIN contacts c ON c.id = f.contact_id
           WHERE content_fts MATCH ?
           ${category ? "AND c.category = ?" : ""}
           ${status ? "AND c.status = ?" : ""}
           ${profession ? "AND c.profession = ?" : ""}
+          ${orgType ? "AND json_extract(c.metadata_json, '$.orgType') = ?" : ""}
+          ${(roles ?? []).map(() => "AND EXISTS (SELECT 1 FROM json_each(c.metadata_json, '$.roles') WHERE value = ?)").join("\n")}
           ORDER BY rank
           LIMIT ?
         `;
@@ -20921,17 +21091,11 @@ function createStore(dbPath, crmRoot) {
         if (category) ftsParams.push(category);
         if (status) ftsParams.push(status);
         if (profession) ftsParams.push(profession);
+        if (orgType) ftsParams.push(orgType.toUpperCase());
+        for (const role of roles ?? []) ftsParams.push(role);
         ftsParams.push(limit);
         const ftsRows = db.prepare(ftsSql).all(...ftsParams);
-        results = ftsRows.map((row) => ({
-          id: row.id,
-          name: row.name,
-          category: row.category,
-          organization: row.organization,
-          status: row.status,
-          lastContact: row.last_contact,
-          path: row.path
-        }));
+        results = ftsRows.map(toSearchResult);
       }
       return results;
     },
@@ -44740,11 +44904,33 @@ function templateTypeForCategory(category) {
   if (category === "Personal") return "PERSONAL";
   return "PROFESSIONAL";
 }
+function nextSequence(catPath, prefix) {
+  let nextSeq = 1;
+  if (!existsSync4(catPath)) return nextSeq;
+  for (const entry of readdirSync2(catPath, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const indexPath = join4(catPath, entry.name, "INDEX.md");
+    if (!existsSync4(indexPath)) continue;
+    try {
+      const content = readFileSync4(indexPath, "utf-8");
+      const match = content.match(/dossierCode:\s*"?([^"\n]+)"?/);
+      if (match && match[1].startsWith(prefix)) {
+        const seq = parseInt(match[1].substring(prefix.length), 10);
+        if (!isNaN(seq) && seq >= nextSeq) nextSeq = seq + 1;
+      }
+    } catch {
+    }
+  }
+  return nextSeq;
+}
 function createDossier(store, crmRoot, input) {
   const category = input.category;
   const categoryDir = CATEGORY_DIRS[category];
   if (!categoryDir) {
     throw new Error(`Invalid category: "${input.category}". Valid: ${Object.keys(CATEGORY_DIRS).join(", ")}`);
+  }
+  if (category === "Organization") {
+    return createOrgDossier(store, crmRoot, input);
   }
   let codePrefix;
   let professionEntry;
@@ -44762,29 +44948,7 @@ function createDossier(store, crmRoot, input) {
     codePrefix = catCode;
   }
   const f3l3 = generateF3L3(input.name);
-  const catPath = join4(crmRoot, categoryDir);
-  let nextSeq = 1;
-  if (existsSync4(catPath)) {
-    const prefix = `${codePrefix}-${f3l3}-`;
-    const entries = readdirSync2(catPath, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const indexPath2 = join4(catPath, entry.name, "INDEX.md");
-      if (!existsSync4(indexPath2)) continue;
-      try {
-        const content = readFileSync4(indexPath2, "utf-8");
-        const match = content.match(/dossierCode:\s*"?([^"\n]+)"?/);
-        if (match && match[1].startsWith(prefix)) {
-          const seqStr = match[1].substring(prefix.length);
-          const seq = parseInt(seqStr, 10);
-          if (!isNaN(seq) && seq >= nextSeq) {
-            nextSeq = seq + 1;
-          }
-        }
-      } catch {
-      }
-    }
-  }
+  const nextSeq = nextSequence(join4(crmRoot, categoryDir), `${codePrefix}-${f3l3}-`);
   const dossierCode = `${codePrefix}-${f3l3}-${String(nextSeq).padStart(3, "0")}`;
   const nameParts = input.name.trim().split(/\s+/);
   const lastName = nameParts[nameParts.length - 1];
@@ -44860,6 +45024,71 @@ function createDossier(store, crmRoot, input) {
   store.indexOne(relPath);
   return { id: dossierCode, path: relPath };
 }
+function createOrgDossier(store, crmRoot, input) {
+  if (input.profession) {
+    throw new Error("profession applies to person dossiers only; use orgType for organizations");
+  }
+  const orgType = input.orgType ? normalizeOrgType(input.orgType) : null;
+  if (!orgType) {
+    throw new Error(`Organization requires a valid orgType. Valid: ${Object.keys(ORG_TYPES).join(", ")}`);
+  }
+  const roles = input.roles ?? [];
+  const badRoles = roles.filter((r) => !ORG_ROLES.includes(r));
+  if (badRoles.length > 0) {
+    throw new Error(`Invalid role(s): ${badRoles.join(", ")}. Valid: ${ORG_ROLES.join(", ")}`);
+  }
+  const cid = (input.cid ?? generateCid(input.name)).toUpperCase();
+  if (!isValidCid(cid)) {
+    throw new Error(`Invalid CID "${cid}": use 2-6 chars of A-Z, 0-9, "." (pass cid explicitly)`);
+  }
+  const orgTpl = join4(getUserTemplatesDir(crmRoot), "REAL_ESTATE", "ORGANIZATION");
+  const commonDir = join4(orgTpl, "COMMON");
+  if (!existsSync4(commonDir)) {
+    throw new Error("Organization template not installed locally. Run: crm-mcp templates pull REAL_ESTATE/ORGANIZATION");
+  }
+  const categoryDir = CATEGORY_DIRS.Organization;
+  const folderName = orgFolderName(orgType, input.name);
+  const destPath = join4(crmRoot, categoryDir, folderName);
+  if (existsSync4(destPath)) {
+    throw new Error(`Dossier folder already exists: ${destPath}`);
+  }
+  const prefix = `${orgType}-${cid}-`;
+  const dossierCode = `${prefix}${String(nextSequence(join4(crmRoot, categoryDir), prefix)).padStart(3, "0")}`;
+  mkdirSync2(join4(crmRoot, categoryDir), { recursive: true });
+  cpSync(commonDir, destPath, { recursive: true });
+  const overlays = new Set(roles.map((r) => ROLE_OVERLAYS[r]).filter((d) => !!d));
+  for (const overlay of overlays) {
+    const src = join4(orgTpl, "ROLES", overlay);
+    if (existsSync4(src)) cpSync(src, destPath, { recursive: true });
+  }
+  const todayStr = today();
+  replacePlaceholdersRecursive(destPath, {
+    name: input.name,
+    dossierCode,
+    organization: "",
+    category: "Organization",
+    date: todayStr,
+    context: input.context ?? "",
+    profession: "",
+    orgType
+  });
+  const indexPath = join4(destPath, "INDEX.md");
+  const { yaml: indexYaml, body: indexBody } = parseFrontmatterAndBody(readFileSync4(indexPath, "utf-8"));
+  indexYaml.name = input.name;
+  indexYaml.dossierCode = dossierCode;
+  indexYaml.category = "Organization";
+  indexYaml.orgType = orgType;
+  indexYaml.roles = roles;
+  indexYaml.status = "Active";
+  indexYaml.lastContactDate = todayStr;
+  indexYaml.lastUpdated = todayStr;
+  if (input.context) indexYaml.context = input.context;
+  delete indexYaml.tier;
+  writeFileSync(indexPath, reconstructFile(indexYaml, indexBody), "utf-8");
+  const relPath = `${categoryDir}/${folderName}`;
+  store.indexOne(relPath);
+  return { id: dossierCode, path: relPath };
+}
 function replacePlaceholdersRecursive(dirPath, replacements) {
   const entries = readdirSync2(dirPath, { withFileTypes: true });
   for (const entry of entries) {
@@ -44875,7 +45104,8 @@ function replacePlaceholdersRecursive(dirPath, replacements) {
         category: replacements.category ?? "",
         context: replacements.context,
         date: replacements.date,
-        profession: replacements.profession
+        profession: replacements.profession,
+        orgType: replacements.orgType ?? ""
       };
       for (const [key, value] of Object.entries(vars)) {
         content = content.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value);
@@ -45770,7 +46000,7 @@ function respond(text) {
   return { content: [{ type: "text", text: text + footer }] };
 }
 function resolveContact(store, contact) {
-  if (/^[A-Z]{2,3}-/.test(contact)) {
+  if (/^[A-Z]{2,4}-/.test(contact)) {
     return contact;
   }
   const byFolder = store.resolveByPath(contact);
@@ -45780,6 +46010,10 @@ function resolveContact(store, contact) {
 }
 function resolveTemplateDir(crmRoot, store, contactId) {
   const outline = store.getOutline(contactId);
+  if (outline.contact.category === "Organization") {
+    const orgTpl = join9(crmRoot, ".templates", "REAL_ESTATE", "ORGANIZATION", "COMMON");
+    return existsSync9(orgTpl) ? orgTpl : null;
+  }
   const category = outline.contact.category.toLowerCase();
   let templateType = "PROFESSIONAL";
   if (category === "family") templateType = "FAMILY";
@@ -45789,6 +46023,13 @@ function resolveTemplateDir(crmRoot, store, contactId) {
   const userTplLower = join9(crmRoot, ".templates", templateType.toLowerCase());
   if (existsSync9(userTplLower)) return userTplLower;
   return null;
+}
+function formatConnections(store, connections) {
+  const nameOf = (id) => store.db.prepare("SELECT name FROM contacts WHERE id = ?").get(id)?.name ?? id;
+  return connections.map((c) => {
+    const target = c.targetId ? nameOf(c.targetId) : c.targetName;
+    return `- ${nameOf(c.sourceId)} \u2192 ${target} (${c.type})${c.context ? ` \u2014 ${c.context}` : ""}`;
+  }).join("\n");
 }
 function buildInstructions(store, config3) {
   if (!config3.crmRoot || !store) {
@@ -45845,24 +46086,27 @@ function createMcpServer(store, config3) {
   );
   server.tool(
     "crm_search",
-    "Search contacts by name, alias/nickname, organization, status, category, or keyword. Returns compact results (~50-100 tokens each).",
+    "Search contacts and organizations by name, alias/nickname, organization, status, category, profession, org role, or org type. Returns compact results (~50-100 tokens each).",
     {
       query: external_exports3.string().optional().describe("Name, org, or keyword to search for"),
       category: external_exports3.string().optional().describe("Filter by category: Client, Network, Family, etc."),
       status: external_exports3.string().optional().describe("Filter by status: ACTIVE, DORMANT, etc."),
       profession: external_exports3.string().optional().describe("Filter by 3-letter profession code (e.g., BSB for Sales Broker)"),
+      roles: external_exports3.array(external_exports3.string()).optional().describe('Organization roles that must ALL be present (e.g., ["Client","OperatingPartner"])'),
+      orgType: external_exports3.string().optional().describe("Organization type code: REIT, INV, LP, OPR, DEV, LND, BRK, SAAS, DATA, SVC"),
       limit: external_exports3.number().optional().default(20).describe("Max results (default 20)"),
       paths: external_exports3.boolean().optional().default(false).describe("Include the absolute dossier folder path per result (off by default to keep results compact)")
     },
-    async ({ query, category, status, profession, limit, paths }) => {
+    async ({ query, category, status, profession, roles, orgType, limit, paths }) => {
       const err = requireConfigured(config3);
       if (err) return respond(err);
-      const results = store.searchContacts({ query, category, status, profession, limit });
+      const results = store.searchContacts({ query, category, status, profession, roles, orgType, limit });
       if (results.length === 0) return respond("No contacts found.");
       const header = `| ID | Name | Org | Category | Status | Last Contact |${paths ? " Path |" : ""}`;
       const sep = `|-----|------|-----|----------|--------|-------------|${paths ? "------|" : ""}`;
       const rows = results.map((r) => {
-        const base = `| ${r.id} | ${r.name} | ${r.organization || "-"} | ${r.category} | ${r.status} | ${r.lastContact || "-"} |`;
+        const org = r.orgType ? `${r.orgType}${r.roles?.length ? ` [${r.roles.join(", ")}]` : ""}` : r.organization || "-";
+        const base = `| ${r.id} | ${r.name} | ${org} | ${r.category} | ${r.status} | ${r.lastContact || "-"} |`;
         return paths ? `${base} ${r.path ? join9(config3.crmRoot, r.path) : "-"} |` : base;
       });
       return respond([header, sep, ...rows].join("\n"));
@@ -45900,7 +46144,7 @@ function createMcpServer(store, config3) {
   );
   server.tool(
     "crm_read",
-    `Read a specific section of a contact's dossier. Returns cleaned content with boilerplate stripped. Standard sections: index, profile, log, intelligence-profile, intelligence-strategic, intelligence-risk, medical, medical-genetics, medical-pharmacogenomics, medical-labs, education. Profession-specific sections: deals, assignments, projects, portfolio, matters, assessments, jurisdictions, policies, campaigns, entities, holdings, programs, assets, services, engagements. Any custom file visible in crm_outline is also addressable by its relative path (e.g., "intelligence/intelligence-unsent").`,
+    `Read a specific section of a contact's dossier. Returns cleaned content with boilerplate stripped. Standard sections: index, profile, log, intelligence-profile, intelligence-strategic, intelligence-risk, medical, medical-genetics, medical-pharmacogenomics, medical-labs, education. Profession-specific sections: deals, assignments, projects, portfolio, matters, assessments, jurisdictions, policies, campaigns, entities, holdings, programs, assets, services, engagements. Organization sections: index, profile, portfolio, intelligence, stakeholders, pipeline, log, competitive, partnership. Any custom file visible in crm_outline is also addressable by its relative path (e.g., "intelligence/intelligence-unsent").`,
     {
       contact: external_exports3.string().describe("Contact name or dossier code"),
       section: external_exports3.string().describe('Section name (e.g., "profile", "deals", "assignments")')
@@ -45932,8 +46176,7 @@ function createMcpServer(store, config3) {
       if (!contactId) return respond(`Contact not found: ${contact}`);
       const connections = store.getConnections(contactId, depth);
       if (connections.length === 0) return respond("No connections found.");
-      const lines = connections.map((c) => `- ${c.targetName} (${c.type}) \u2014 ${c.context}`);
-      return respond(lines.join("\n"));
+      return respond(formatConnections(store, connections));
     }
   );
   server.tool(
@@ -46047,19 +46290,22 @@ function createMcpServer(store, config3) {
   );
   server.tool(
     "crm_create",
-    "Create a new contact dossier from template.",
+    'Create a new contact or organization dossier from template. For companies use category "Organization" with orgType (and optional cid, roles).',
     {
       name: external_exports3.string().describe("Full name (e.g., 'Jane Smith')"),
-      category: external_exports3.string().describe("Category: Client, Network, Family, Personal, Prospect, etc."),
+      category: external_exports3.string().describe("Category: Client, Network, Family, Personal, Prospect, Organization, etc."),
       organization: external_exports3.string().optional().describe("Organization name"),
       context: external_exports3.string().optional().describe("How you met or relationship context"),
-      profession: external_exports3.string().optional().describe("3-letter profession code (e.g., BSB for Sales Broker). Generates profession-based dossier code.")
+      profession: external_exports3.string().optional().describe("3-letter profession code (e.g., BSB for Sales Broker). Generates profession-based dossier code."),
+      orgType: external_exports3.string().optional().describe("Organization only: REIT, INV, LP, OPR, DEV, LND, BRK, SAAS, DATA, SVC"),
+      cid: external_exports3.string().optional().describe('Organization only: company identifier, 2-6 chars (ticker if public, e.g. "PLD")'),
+      roles: external_exports3.array(external_exports3.string()).optional().describe("Organization only: Client, Prospect, IntegrationPartner, ChannelPartner, Competitor, OperatingPartner, Investor, Lender, Employer, TalentTarget")
     },
-    async ({ name, category, organization, context, profession }) => {
+    async ({ name, category, organization, context, profession, orgType, cid, roles }) => {
       const err = requireConfigured(config3);
       if (err) return respond(err);
       try {
-        const result = createDossier(store, config3.crmRoot, { name, category, organization, context, profession });
+        const result = createDossier(store, config3.crmRoot, { name, category, organization, context, profession, orgType, cid, roles });
         return respond(`Created dossier ${result.id} at ${result.path}`);
       } catch (e) {
         return respond(`Error: ${e.message}`);

@@ -5,7 +5,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.5-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP Tools](https://img.shields.io/badge/MCP_Tools-17-8B5CF6)](https://modelcontextprotocol.io/)
-[![Tests](https://img.shields.io/badge/Tests-161-2EA043)](test/)
+[![Tests](https://img.shields.io/badge/Tests-212-2EA043)](test/)
 [![Skills](https://img.shields.io/badge/Skills-23-E879F9)](skills/)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-F97316?logo=anthropic&logoColor=white)](https://claude.ai/code)
 
@@ -179,7 +179,7 @@ The server exposes 17 MCP tools:
 
 | Tool | Purpose | Tokens |
 |------|---------|--------|
-| `crm_search` | Find contacts by name, org, status, category, profession | ~50-100 per result |
+| `crm_search` | Find contacts and organizations by name, org, status, category, profession, org role, org type | ~50-100 per result |
 | `crm_outline` | Structural overview — sections, sizes, fill % | ~200-400 |
 | `crm_read` | Read a specific section with boilerplate stripped | Varies (footer shows estimate) |
 
@@ -187,7 +187,7 @@ The server exposes 17 MCP tools:
 
 | Tool | Purpose |
 |------|---------|
-| `crm_create` | Create a new dossier from template (supports optional `profession` code) |
+| `crm_create` | Create a new dossier from template (optional `profession` code; for companies, `category: "Organization"` with `orgType`, `cid`, `roles`) |
 | `crm_update` | Update a YAML field in a dossier |
 | `crm_log` | Append an interaction to the contact's log |
 | `crm_bulk_update` | Update a field across multiple contacts |
@@ -198,7 +198,7 @@ The server exposes 17 MCP tools:
 
 | Tool | Purpose |
 |------|---------|
-| `crm_connections` | Relationship graph — who they know and how |
+| `crm_connections` | Relationship graph — people and organizations, typed links (e.g. `operating_partner_of`, `works_at`), multi-hop |
 | `crm_recent` | Most recently contacted people |
 | `crm_stats` | CRM-wide statistics |
 | `crm_vector_search` | Semantic search across all dossier content |
@@ -420,6 +420,27 @@ crm_create({ name: "Ross Bratt", category: "Network", profession: "BSB" })
 npx tsx scripts/generate-real-estate-templates.ts --force
 ```
 
+### Organization dossiers
+
+Track a company as its own dossier, with multiple roles and typed links to other companies:
+
+```
+crm_create({ name: "Oxford Properties", category: "Organization", orgType: "OPR", cid: "OXF",
+             roles: ["Client", "OperatingPartner"] })
+# → OPR-OXF-001 at Organizations/OPR_Oxford_Properties
+```
+
+Link companies in `INDEX.md`:
+
+```yaml
+linkedContacts:
+  - { name: "INV-XYZ-001", type: operating_partner_of, context: "Runs TX MF portfolio" }
+```
+
+People whose `organization` matches a company's name or alias are linked automatically (`works_at`).
+Org types: REIT, INV, LP, OPR, DEV, LND, BRK, SAAS, DATA, SVC. Pull the templates with
+`crm-mcp templates pull REAL_ESTATE/ORGANIZATION`.
+
 ## Configuration
 
 Config is read from (in priority order):
@@ -482,7 +503,7 @@ The repair engine applies fixes in dependency order: moves → dedup → orderin
 - **SQLite** via Node's built-in `node:sqlite` (FTS5 for search, content cache) — no native addon, so the bundle is self-contained
 - **MCP SDK** (@modelcontextprotocol/sdk)
 - **Transformers.js** v3 + **EmbeddingGemma 300M** (q8) for local 768-dim vector embeddings
-- **Vitest** for testing (161 tests)
+- **Vitest** for testing (212 tests)
 
 ## Development
 

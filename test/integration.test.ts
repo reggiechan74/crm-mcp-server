@@ -340,3 +340,40 @@ describe('plugin integration', () => {
     expect(server).toBeDefined();
   });
 });
+
+describe('Oxford scenario: org as client and operating partner of another client', () => {
+  it('links person → Oxford → client and filters by combined roles', () => {
+    const root = mkdtempSync(join(tmpdir(), 'crm-oxford-'));
+    mkdirSync(join(root, '.templates'), { recursive: true });
+    cpSync(join(import.meta.dirname, '..', 'templates', 'REAL_ESTATE'),
+      join(root, '.templates', 'REAL_ESTATE'), { recursive: true });
+    cpSync(join(import.meta.dirname, '..', 'templates', 'PROFESSIONAL'),
+      join(root, '.templates', 'PROFESSIONAL'), { recursive: true });
+    const store = createStore(':memory:', root);
+    store.indexAll();
+
+    const client = createDossier(store, root, {
+      name: 'XYZ Capital', category: 'Organization', orgType: 'INV', cid: 'XYZ', roles: ['Client'],
+    });
+    const oxford = createDossier(store, root, {
+      name: 'Oxford Properties', category: 'Organization', orgType: 'OPR', cid: 'OXF',
+      roles: ['Client', 'OperatingPartner'],
+    });
+    const idx = join(root, oxford.path, 'INDEX.md');
+    writeFileSync(idx, readFileSync(idx, 'utf-8').replace('linkedContacts: []',
+      `linkedContacts:\n  - { name: "${client.id}", type: operating_partner_of, context: "Runs TX MF" }`));
+    store.indexOne(oxford.path);
+
+    const person = createDossier(store, root, {
+      name: 'Jane Doe', category: 'Client', organization: 'Oxford Properties', profession: 'MAM',
+    });
+
+    const graph = store.getConnections(person.id, 2);
+    expect(graph.some(r => r.type === 'works_at' && r.targetId === oxford.id)).toBe(true);
+    expect(graph.some(r => r.type === 'operating_partner_of' && r.targetId === client.id)).toBe(true);
+
+    expect(store.searchContacts({ roles: ['Client', 'OperatingPartner'] }).map(r => r.id)).toEqual([oxford.id]);
+    expect(store.searchContacts({ roles: ['Client'] }).map(r => r.id).sort()).toEqual([oxford.id, client.id].sort());
+    store.close();
+  });
+});
