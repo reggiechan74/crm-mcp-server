@@ -1,23 +1,32 @@
 export type Category =
   | 'Adversary' | 'Advisor' | 'Client' | 'Colleague'
-  | 'Family' | 'Mentor' | 'Network' | 'Personal' | 'Prospect';
+  | 'Family' | 'Mentor' | 'Network' | 'Personal' | 'Prospect'
+  | 'Organization';
 
 export const CATEGORY_CODES: Record<string, Category> = {
   AV: 'Adversary', AD: 'Advisor', CL: 'Client', CO: 'Colleague',
   FA: 'Family', ME: 'Mentor', NE: 'Network', PE: 'Personal', PR: 'Prospect',
+  OR: 'Organization',
 };
 
 export const CATEGORY_DIRS: Record<Category, string> = {
   Adversary: 'Adversaries', Advisor: 'Advisors', Client: 'Clients',
   Colleague: 'Colleagues', Family: 'Family', Mentor: 'Mentors',
   Network: 'Network', Personal: 'Personal', Prospect: 'Prospects',
+  Organization: 'Organizations',
 };
 
-export type RelationType =
-  | 'reports_to' | 'manages' | 'colleague' | 'spouse' | 'parent'
-  | 'child' | 'sibling' | 'in_law' | 'friend' | 'mentor' | 'mentee'
-  | 'introduced_by' | 'client_of' | 'advisor_to' | 'adversary_of'
-  | 'partner' | 'associated';
+export const RELATION_TYPES = [
+  'reports_to', 'manages', 'colleague', 'spouse', 'parent',
+  'child', 'sibling', 'in_law', 'friend', 'mentor', 'mentee',
+  'introduced_by', 'client_of', 'advisor_to', 'adversary_of',
+  'partner', 'associated',
+  // Organization links
+  'operating_partner_of', 'lp_in', 'gp_of', 'parent_of', 'subsidiary_of',
+  'integrates_with', 'competes_with', 'acquired_by', 'employs', 'works_at',
+] as const;
+
+export type RelationType = typeof RELATION_TYPES[number];
 
 export interface Contact {
   id: string;

@@ -43,8 +43,8 @@ function respond(text: string) {
  * Returns null if not found.
  */
 export function resolveContact(store: Store, contact: string): string | null {
-  // 1. Dossier code (e.g. "CL-RANMUL-002") — use it directly.
-  if (/^[A-Z]{2,3}-/.test(contact)) {
+  // 1. Dossier code (e.g. "CL-RANMUL-002", "SAAS-CHER-001") — use it directly.
+  if (/^[A-Z]{2,4}-/.test(contact)) {
     return contact;
   }
   // 2. Dossier folder name or full folder path (e.g. "MENSAH-CHAN_Izzy") —

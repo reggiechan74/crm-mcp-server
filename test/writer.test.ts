@@ -157,7 +157,7 @@ describe('resolveSectionFile', () => {
 });
 
 describe('resolveContact regex', () => {
-  const resolveContactRegex = /^[A-Z]{2,3}-/;
+  const resolveContactRegex = /^[A-Z]{2,4}-/;
 
   it('matches 2-letter category codes', () => {
     expect(resolveContactRegex.test('CL-RANMUL-002')).toBe(true);
@@ -167,6 +167,11 @@ describe('resolveContact regex', () => {
   it('matches 3-letter profession codes', () => {
     expect(resolveContactRegex.test('BSB-ROSBRA-001')).toBe(true);
     expect(resolveContactRegex.test('VAP-JANAPP-001')).toBe(true);
+  });
+
+  it('matches 4-letter org type codes', () => {
+    expect(resolveContactRegex.test('SAAS-CHER-001')).toBe(true);
+    expect(resolveContactRegex.test('REIT-PLD-001')).toBe(true);
   });
 
   it('does not match plain names', () => {
