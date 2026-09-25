@@ -2,6 +2,12 @@
 
 All notable changes to crm-mcp-server are documented here.
 
+## [0.7.3] - 2026-09-24
+
+### Fixed
+- Patched 16 dependency vulnerabilities via `npm audit fix` (non-breaking), including the MCP SDK's transitive `express-rate-limit`, `hono`, `path-to-regexp`, `fast-uri` and `ip-address`, plus `protobufjs` and `tar` under the optional `@huggingface/transformers`. Rebuilt `dist/` so the bundled server ships the patched versions.
+- Deferred (require breaking upgrades): `sharp` via `@huggingface/transformers` 3 → 4, `esbuild` (Windows dev-server only), `vitest`/`@vitest/mocker` (test tooling only).
+
 ## [0.7.2] - 2026-05-31
 
 ### Fixed
