@@ -1,10 +1,36 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { join } from 'node:path';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { createStore, type Store } from '../src/store.js';
 
 const FIXTURES = join(import.meta.dirname, 'fixtures');
 let store: Store;
+
+function writeDossier(root: string, rel: string, yaml: string): void {
+  mkdirSync(join(root, rel), { recursive: true });
+  writeFileSync(join(root, rel, 'INDEX.md'), `---\n${yaml}\nstatus: Active\n---\n\n# X\n`);
+}
+
+/** Oxford (OPR; Client+OperatingPartner) → operating_partner_of → XYZ (INV; Client); Jane works at "oxford". */
+function graphRoot(): string {
+  const root = mkdtempSync(join(tmpdir(), 'crm-graph-'));
+  writeDossier(root, 'Organizations/OPR_Oxford', [
+    'name: "Oxford Properties"', 'dossierCode: "OPR-OXF-001"', 'orgType: OPR', 'aliases:', '  - "Oxford"',
+    'roles:', '  - Client', '  - OperatingPartner',
+    'linkedContacts:', '  - { name: "INV-XYZ-001", type: operating_partner_of, context: "TX MF" }',
+  ].join('\n'));
+  writeDossier(root, 'Organizations/INV_Xyz', [
+    'name: "XYZ Capital"', 'dossierCode: "INV-XYZ-001"', 'orgType: INV', 'roles:', '  - Client',
+  ].join('\n'));
+  writeDossier(root, 'Network/DOE_Jane', [
+    'name: "Jane Doe"', 'dossierCode: "NE-JANDOE-001"', 'organization: "oxford"',
+    'linkedContacts:', '  - "Nobody Here (unknown)"', '  - "Sam Twin (ambiguous)"',
+  ].join('\n'));
+  writeDossier(root, 'Network/TWIN_Sam', 'name: "Sam Twin"\ndossierCode: "NE-SAMTWI-001"');
+  writeDossier(root, 'Clients/TWIN_Sam', 'name: "Sam Twin"\ndossierCode: "CL-SAMTWI-001"');
+  return root;
+}
 
 beforeAll(() => {
   store = createStore(':memory:', FIXTURES);
@@ -235,5 +261,65 @@ describe('reindex after out-of-band edit (issue #1, AC#2)', () => {
       writeFileSync(sectionPath, original, 'utf-8');
       store.indexOne('Network/TEST_Contact');
     }
+  });
+});
+
+describe('relationship resolution', () => {
+  it('resolves target_id by dossier code', () => {
+    const s = createStore(':memory:', graphRoot());
+    s.indexAll();
+    const rels = s.getConnections('OPR-OXF-001');
+    const op = rels.find(r => r.type === 'operating_partner_of');
+    expect(op!.targetId).toBe('INV-XYZ-001');
+    s.close();
+  });
+
+  it('derives works_at from organization via alias, case-insensitive', () => {
+    const s = createStore(':memory:', graphRoot());
+    s.indexAll();
+    const rels = s.getConnections('NE-JANDOE-001');
+    const w = rels.find(r => r.type === 'works_at');
+    expect(w).toMatchObject({ targetId: 'OPR-OXF-001', targetName: 'Oxford Properties', context: 'auto: organization field' });
+    s.close();
+  });
+
+  it('leaves unknown and ambiguous targets unresolved without crashing', () => {
+    const s = createStore(':memory:', graphRoot());
+    s.indexAll();
+    const rels = s.getConnections('NE-JANDOE-001');
+    expect(rels.find(r => r.targetName === 'Nobody Here')!.targetId).toBe('');
+    expect(rels.find(r => r.targetName === 'Sam Twin')!.targetId).toBe('');
+    s.close();
+  });
+
+  it('traverses person → org → org at depth 2', () => {
+    const s = createStore(':memory:', graphRoot());
+    s.indexAll();
+    const rels = s.getConnections('NE-JANDOE-001', 2);
+    expect(rels.some(r => r.type === 'operating_partner_of' && r.targetId === 'INV-XYZ-001')).toBe(true);
+    s.close();
+  });
+
+  it('shows inbound edges on the target', () => {
+    const s = createStore(':memory:', graphRoot());
+    s.indexAll();
+    const rels = s.getConnections('INV-XYZ-001');
+    expect(rels.some(r => r.sourceId === 'OPR-OXF-001' && r.type === 'operating_partner_of')).toBe(true);
+    s.close();
+  });
+
+  it('re-derives works_at after indexOne (no duplicates, follows org change)', () => {
+    const root = graphRoot();
+    const s = createStore(':memory:', root);
+    s.indexAll();
+    s.indexOne('Organizations/OPR_Oxford');
+    const count = () => (s.db.prepare(
+      "SELECT COUNT(*) AS n FROM relationships WHERE type = 'works_at'").get() as any).n;
+    expect(count()).toBe(1);
+    const p = join(root, 'Network/DOE_Jane/INDEX.md');
+    writeFileSync(p, readFileSync(p, 'utf-8').replace('organization: "oxford"', 'organization: "Elsewhere"'));
+    s.indexOne('Network/DOE_Jane');
+    expect(count()).toBe(0);
+    s.close();
   });
 });
