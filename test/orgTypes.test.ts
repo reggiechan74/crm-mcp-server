@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import {
   ORG_GROUPS, ORG_GROUP_KEYS, ORG_TYPES, ORG_TYPE_CODES, ORG_ROLES, ROLE_OVERLAYS,
   normalizeOrgType, groupOf, normalizeOrgTypeList, formatOrgTypeChoices, orgTemplateLayers,
-  generateCid, isValidCid, orgFolderName,
+  generateCid, isValidCid, orgFolderName, formatOrgTypeCatalog,
 } from '../src/orgTypes.js';
 import { CATEGORY_DIRS, CATEGORY_CODES, RELATION_TYPES } from '../src/types.js';
 import { PROFESSIONS } from '../src/professions.js';
@@ -106,6 +106,24 @@ describe('org taxonomy', () => {
     ]);
     expect(orgTemplateLayers(root, { orgType: 'OTH' })).toEqual([join(root, 'COMMON')]);
     expect(orgTemplateLayers(root, { orgType: 'LND', roles: ['Nope'] })).toEqual([join(root, 'COMMON')]);
+  });
+});
+
+describe('formatOrgTypeCatalog', () => {
+  it('lists every group, its overlay file, types, roles and the tech-sale motion', () => {
+    const text = formatOrgTypeCatalog();
+    expect(text).toContain('## Lending & Capital (LENDING) — adds lending.md');
+    expect(text).toContain('- DEBT — Debt fund / private lender');
+    expect(text).toContain('## Other (OTHER) — no extra file');
+    expect(text).toContain('Vendor, ServiceProvider → vendor.md');
+    expect(text).toContain('tech-stack.md');
+  });
+
+  it('filters to one group', () => {
+    const text = formatOrgTypeCatalog('lending');
+    expect(text).toContain('BANK');
+    expect(text).not.toContain('REIT');
+    expect(() => formatOrgTypeCatalog('NOPE')).toThrow(/Invalid org group/);
   });
 });
 
