@@ -2,6 +2,20 @@
 
 All notable changes to crm-mcp-server are documented here.
 
+## [Unreleased]
+
+### Added
+- **Organization dossiers.** New `Organization` category (`Organizations/`) with `[orgType]-[CID]-[SEQ]` codes, multi-valued `roles`, and proptech / RE SaaS templates (`REAL_ESTATE/ORGANIZATION`: index, profile, portfolio, intelligence, stakeholders, pipeline, log, plus `competitive.md` / `partnership.md` role overlays). Confidentiality block in INDEX.md for info obtained via one relationship about another.
+- Typed `linkedContacts` object form (`{ name, type, context }`) with org relation types (`operating_partner_of`, `lp_in`, `gp_of`, `parent_of`, `subsidiary_of`, `integrates_with`, `competes_with`, `acquired_by`, `employs`, `works_at`). Legacy `"Name (Context)"` strings unchanged.
+- `crm_search` `roles` (AND) and `orgType` filters; `crm_create` `orgType`, `cid`, `roles` inputs.
+
+### Changed
+- `crm_connections` now prints each edge as `- Source → Target (type) — context` (all edges, not only organizations), because resolved inbound links now appear alongside outbound ones.
+
+### Fixed
+- Relationship `target_id` was never resolved, so `crm_connections` could not traverse past one hop or show inbound links. Targets now resolve by dossier code, name, or alias (unique matches only).
+- `resolveContact` now recognizes 4-letter dossier-code prefixes (`SAAS-…`, `REIT-…`, `DATA-…`).
+
 ## [0.7.3] - 2026-09-24
 
 ### Fixed
