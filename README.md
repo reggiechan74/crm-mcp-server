@@ -4,8 +4,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.5-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![MCP Tools](https://img.shields.io/badge/MCP_Tools-17-8B5CF6)](https://modelcontextprotocol.io/)
-[![Tests](https://img.shields.io/badge/Tests-269-2EA043)](test/)
+[![MCP Tools](https://img.shields.io/badge/MCP_Tools-18-8B5CF6)](https://modelcontextprotocol.io/)
+[![Tests](https://img.shields.io/badge/Tests-317-2EA043)](test/)
 [![Skills](https://img.shields.io/badge/Skills-23-E879F9)](skills/)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-F97316?logo=anthropic&logoColor=white)](https://claude.ai/code)
 
@@ -173,13 +173,13 @@ git ls-remote https://<TOKEN>@github.com/reggiechan74/crm-mcp-server.git HEAD
 
 ## Tools
 
-The server exposes 17 MCP tools:
+The server exposes 18 MCP tools:
 
 ### Core Workflow (Progressive Disclosure)
 
 | Tool | Purpose | Tokens |
 |------|---------|--------|
-| `crm_search` | Find contacts and organizations by name, org, status, category, profession, org role, org type | ~50-100 per result |
+| `crm_search` | Find contacts and organizations by name, org, status, category, profession, org role, org type (`orgType`, matches primary or secondary) or org group (`orgGroup`) | ~50-100 per result |
 | `crm_outline` | Structural overview — sections, sizes, fill % | ~200-400 |
 | `crm_read` | Read a specific section with boilerplate stripped | Varies (footer shows estimate) |
 
@@ -187,7 +187,7 @@ The server exposes 17 MCP tools:
 
 | Tool | Purpose |
 |------|---------|
-| `crm_create` | Create a new dossier from template (optional `profession` code; for companies, `category: "Organization"` with `orgType`, `cid`, `roles`) |
+| `crm_create` | Create a new dossier from template (optional `profession` code; for companies, `category: "Organization"` with `orgType`, `secondaryTypes`, `cid`, `roles`, `techSale`) |
 | `crm_update` | Update a YAML field in a dossier |
 | `crm_log` | Append an interaction to the contact's log |
 | `crm_bulk_update` | Update a field across multiple contacts |
@@ -211,6 +211,7 @@ The server exposes 17 MCP tools:
 |------|---------|
 | `crm_templates_list` | List installed and available remote templates |
 | `crm_templates_pull` | Download a template from GitHub to local `.templates/` |
+| `crm_org_types` | List organization types, groups, roles, and the template file each adds |
 
 ## Skills
 
@@ -420,26 +421,40 @@ crm_create({ name: "Ross Bratt", category: "Network", profession: "BSB" })
 npx tsx scripts/generate-real-estate-templates.ts --force
 ```
 
-### Organization dossiers
+### Organizations
 
-Track a company as its own dossier, with multiple roles and typed links to other companies:
+Organization dossiers live in `Organizations/` with codes `[orgType]-[CID]-[SEQ]` (e.g. `DEBT-ARES-001`).
+Types are grouped — run `crm_org_types` for the full list:
 
-```
-crm_create({ name: "Oxford Properties", category: "Organization", orgType: "OPR", cid: "OXF",
-             roles: ["Client", "OperatingPartner"] })
-# → OPR-OXF-001 at Organizations/OPR_Oxford_Properties
-```
+| Group | Types | Adds |
+|---|---|---|
+| Owners & Investors | REIT, PRVT, REOC, INV, LP, FO, SYN | `portfolio.md` |
+| Lending & Capital | BANK, DEBT, AGCY, LIFE, SVCR | `lending.md` |
+| Brokerage & Advisory | BRK, CAP, TREP, RES | `deal-flow.md` |
+| Development & Construction | DEV, HB, GC, ARCH, ENG | `projects.md` |
+| Operators & Management | PM, OPR, FM, HOSP, SNR, FLEX | `managed-portfolio.md` |
+| Professional Services | LAW, TTL, VAL, ACCT, CONS, ENV, INS | `engagements.md` |
+| Occupiers | CORP, RTL | `occupancy.md` |
+| Public Sector & Nonprofit | GOV, HA, NPO | `programs.md` |
+| Technology & Data | SAAS, DATA, BTEC | `product.md` |
+| Industry Bodies | ASSN | `membership.md` |
+| Other | OTH | — |
 
-Link companies in `INDEX.md`:
+Every organization gets the neutral core (index, profile, stakeholders, intelligence, pipeline, log) plus the file for its
+primary type's group. Multi-line firms add `secondaryTypes` (e.g. CBRE: `orgType: BRK`, `secondaryTypes: [PM, INV, VAL]`),
+which add their groups' files and make `crm_search orgType=PM` / `orgGroup=OPERATORS` match.
 
-```yaml
-linkedContacts:
-  - { name: "INV-XYZ-001", type: operating_partner_of, context: "Runs TX MF portfolio" }
-```
+Roles describe your relationship: Client, Prospect, IntegrationPartner, ChannelPartner, Competitor, OperatingPartner,
+Investor, Lender, Employer, TalentTarget, Landlord, Tenant, Borrower, JVPartner, CoInvestor, Vendor, ServiceProvider,
+ReferralSource, Regulator. Competitor adds `competitive.md`; IntegrationPartner/ChannelPartner add `partnership.md`;
+Vendor/ServiceProvider add `vendor.md`.
 
-People whose `organization` matches a company's name or alias are linked automatically (`works_at`).
-Org types: REIT, INV, LP, OPR, DEV, LND, BRK, SAAS, DATA, SVC. Pull the templates with
-`crm-mcp templates pull REAL_ESTATE/ORGANIZATION`.
+**Selling technology?** Set `"salesMotion": "tech"` in `~/.crm-mcp.json` (or `CRM_SALES_MOTION=tech`, or `techSale: true`
+on `crm_create`) to add `tech-stack.md` (systems of record, data maturity, buying committee) and a SaaS pipeline
+(POC → Security Review → MSA) to new organization dossiers.
+
+Changing `orgType`/`secondaryTypes`/`roles` later does not rename the dossier; run `crm_audit` to see the sections the
+change adds and `crm_repair` to insert them. After upgrading, run `crm-mcp templates pull REAL_ESTATE/ORGANIZATION`.
 
 ## Configuration
 

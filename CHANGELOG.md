@@ -5,9 +5,9 @@ All notable changes to crm-mcp-server are documented here.
 ## [Unreleased]
 
 ### Added
-- **Organization dossiers.** New `Organization` category (`Organizations/`) with `[orgType]-[CID]-[SEQ]` codes, multi-valued `roles`, and proptech / RE SaaS templates (`REAL_ESTATE/ORGANIZATION`: index, profile, portfolio, intelligence, stakeholders, pipeline, log, plus `competitive.md` / `partnership.md` role overlays). Confidentiality block in INDEX.md for info obtained via one relationship about another.
+- **Organization dossiers.** New `Organization` category (`Organizations/`) with `[orgType]-[CID]-[SEQ]` codes from a grouped real-estate taxonomy (44 types in 11 groups — owners, lenders, brokerages, developers, operators, professional services, occupiers, public sector, technology, associations, other), secondaryTypes for multi-line firms, multi-valued roles, and templates composed from a neutral core plus one overlay per type group, role overlays (competitive, partnership, vendor) and an opt-in tech-sale layer. Confidentiality block in INDEX.md for info obtained via one relationship about another.
 - Typed `linkedContacts` object form (`{ name, type, context }`) with org relation types (`operating_partner_of`, `lp_in`, `gp_of`, `parent_of`, `subsidiary_of`, `integrates_with`, `competes_with`, `acquired_by`, `employs`, `works_at`). Legacy `"Name (Context)"` strings unchanged.
-- `crm_search` `roles` (AND) and `orgType` filters; `crm_create` `orgType`, `cid`, `roles` inputs.
+- `crm_search` `roles` (AND), `orgType` (matches primary or secondary) and `orgGroup` filters; `crm_create` `orgType`, `secondaryTypes`, `cid`, `roles` and `techSale` inputs with enumerated choices; new `crm_org_types` catalog tool; `salesMotion` setting (`"general"` | `"tech"`). Audit/repair check organizations against their composed template, and repair creates a missing overlay file from the template.
 
 ### Changed
 - `crm_connections` now prints each edge as `- Source → Target (type) — context` (all edges, not only organizations), because resolved inbound links now appear alongside outbound ones.
