@@ -148,6 +148,10 @@ export function createStore(dbPath: string, crmRoot: string): Store {
       INSERT OR REPLACE INTO relationships (source_id, target_id, target_name, type, context, bidirectional)
       VALUES (?, ?, ?, ?, ?, ?)
     `),
+    insertRelationshipIfAbsent: db.prepare(`
+      INSERT OR IGNORE INTO relationships (source_id, target_id, target_name, type, context, bidirectional)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `),
     insertContentCache: db.prepare(`
       INSERT OR REPLACE INTO content_cache (contact_id, section, file_hash, cleaned_content, cleaned_at)
       VALUES (?, ?, ?, ?, ?)
@@ -300,7 +304,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
       if (c.category === 'Organization' || !c.organization) continue;
       const orgId = unique(orgIndex, c.organization);
       if (!orgId) continue;
-      stmts.insertRelationship.run(c.id, orgId, orgName.get(orgId)!, 'works_at', AUTO_WORKS_AT_CONTEXT, 0);
+      stmts.insertRelationshipIfAbsent.run(c.id, orgId, orgName.get(orgId)!, 'works_at', AUTO_WORKS_AT_CONTEXT, 0);
     }
   }
 

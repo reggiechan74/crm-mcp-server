@@ -322,4 +322,26 @@ describe('relationship resolution', () => {
     expect(count()).toBe(0);
     s.close();
   });
+
+  it('never clobbers a hand-authored works_at edge with the auto-derived one', () => {
+    const root = mkdtempSync(join(tmpdir(), 'crm-manual-works-at-'));
+    writeDossier(root, 'Organizations/OPR_Oxford', [
+      'name: "Oxford Properties"', 'dossierCode: "OPR-OXF-001"', 'orgType: OPR', 'roles:', '  - Client',
+    ].join('\n'));
+    writeDossier(root, 'Network/DOE_Jane', [
+      'name: "Jane Doe"', 'dossierCode: "NE-JANDOE-001"', 'organization: "Oxford Properties"',
+      'linkedContacts:',
+      '  - { name: "Oxford Properties", type: works_at, context: "Head of Data" }',
+    ].join('\n'));
+    const s = createStore(':memory:', root);
+    s.indexAll();
+    s.indexOne('Network/DOE_Jane');
+    const rows = s.db.prepare(
+      "SELECT * FROM relationships WHERE source_id = 'NE-JANDOE-001' AND type = 'works_at'",
+    ).all() as any[];
+    expect(rows.length).toBe(1);
+    expect(rows[0].context).toBe('Head of Data');
+    expect(rows[0].target_id).toBe('OPR-OXF-001');
+    s.close();
+  });
 });
