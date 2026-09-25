@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { makeTempDir } from './helpers/tmp.js';
 import { join, resolve, dirname } from 'node:path';
-import { mkdtempSync, cpSync, readFileSync, existsSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, cpSync, readFileSync, existsSync, mkdirSync, writeFileSync, rmSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createStore, type Store } from '../src/store.js';
 import { appendLog, updateField, createDossier, generateF3L3 } from '../src/writer.js';
 import { resolveSectionFile } from '../src/types.js';
+import { parseFrontmatter } from '../src/frontmatter.js';
 
 let store: Store;
 let tempDir: string;
@@ -299,11 +300,11 @@ describe('createDossier', () => {
 
   it('throws when org-only inputs are given for a non-Organization category (F7)', () => {
     expect(() => createDossier(store, tempDir, { name: 'Test User', category: 'Network', orgType: 'INV' }))
-      .toThrow(/orgType, cid and roles apply to Organization dossiers only/);
+      .toThrow(/apply to Organization dossiers only/);
     expect(() => createDossier(store, tempDir, { name: 'Test User', category: 'Network', cid: 'ABC' }))
-      .toThrow(/orgType, cid and roles apply to Organization dossiers only/);
+      .toThrow(/apply to Organization dossiers only/);
     expect(() => createDossier(store, tempDir, { name: 'Test User', category: 'Network', roles: ['Client'] }))
-      .toThrow(/orgType, cid and roles apply to Organization dossiers only/);
+      .toThrow(/apply to Organization dossiers only/);
   });
 
   it('creates dossier with 3-letter profession code', () => {
@@ -426,12 +427,12 @@ describe('createDossier — Organization', () => {
     expect(r.id).toBe('OPR-OXF-001');
     expect(r.path).toBe('Organizations/OPR_Oxford_Properties');
     const dir = join(tempDir, r.path);
-    for (const f of ['INDEX.md', 'profile.md', 'intelligence.md',
-      'stakeholders.md', 'pipeline.md', 'log.md']) {
+    for (const f of ['INDEX.md', 'profile.md', 'intelligence.md', 'stakeholders.md', 'pipeline.md', 'log.md',
+      'managed-portfolio.md']) {
       expect(existsSync(join(dir, f)), f).toBe(true);
     }
-    expect(existsSync(join(dir, 'competitive.md'))).toBe(false);
-    expect(existsSync(join(dir, 'partnership.md'))).toBe(false);
+    expect(existsSync(join(dir, 'portfolio.md'))).toBe(false);
+    expect(existsSync(join(dir, 'tech-stack.md'))).toBe(false);
   });
 
   it('writes org fields into INDEX.md and indexes as Organization', () => {
@@ -516,10 +517,103 @@ describe('createDossier — Organization', () => {
       .toThrow(/templates pull REAL_ESTATE\/ORGANIZATION/);
   });
 
-  it('org sections resolve and index (intelligence, pipeline)', () => {
-    const r = createDossier(store, tempDir, { name: 'Oxford Properties', category: 'Organization', orgType: 'OPR', cid: 'OXF' });
+  it('org sections resolve and index (overlay, intelligence, pipeline)', () => {
+    const r = createDossier(store, tempDir, { name: 'Oxford Properties', category: 'Organization', orgType: 'INV', cid: 'OXF' });
+    expect(store.getSection(r.id, 'portfolio')).toContain('BUY BOX');
     expect(store.getSection(r.id, 'intelligence')).toContain('PRIORITIES & PAIN POINTS');
     expect(store.getSection(r.id, 'pipeline')).toContain('ACTIVE OPPORTUNITIES');
+  });
+
+  it('adds exactly the primary group overlay for each group', () => {
+    const cases: Array<[string, string]> = [
+      ['REIT', 'portfolio.md'], ['DEBT', 'lending.md'], ['BRK', 'deal-flow.md'], ['DEV', 'projects.md'],
+      ['PM', 'managed-portfolio.md'], ['LAW', 'engagements.md'], ['CORP', 'occupancy.md'],
+      ['GOV', 'programs.md'], ['SAAS', 'product.md'], ['ASSN', 'membership.md'],
+    ];
+    const overlayFiles = cases.map(([, f]) => f);
+    for (const [code, file] of cases) {
+      const r = createDossier(store, tempDir, { name: `Org ${code}`, category: 'Organization', orgType: code, cid: code });
+      const files = readdirSync(join(tempDir, r.path));
+      expect(files, code).toContain(file);
+      expect(files.filter((f) => overlayFiles.includes(f)), code).toEqual([file]);
+      expect(r.warnings).toEqual([]);
+    }
+    const oth = createDossier(store, tempDir, { name: 'Misc Co', category: 'Organization', orgType: 'OTH', cid: 'MISC' });
+    expect(readdirSync(join(tempDir, oth.path)).filter((f) => overlayFiles.includes(f))).toEqual([]);
+  });
+
+  it('multi-line firm gets one overlay per distinct group and records secondaryTypes', () => {
+    const r = createDossier(store, tempDir, {
+      name: 'CBRE', category: 'Organization', orgType: 'BRK', cid: 'CBRE', secondaryTypes: ['PM', 'INV', 'VAL'],
+    });
+    expect(r.id).toBe('BRK-CBRE-001');
+    const files = readdirSync(join(tempDir, r.path));
+    for (const f of ['deal-flow.md', 'managed-portfolio.md', 'portfolio.md', 'engagements.md']) expect(files).toContain(f);
+    const yaml = parseFrontmatter(readFileSync(join(tempDir, r.path, 'INDEX.md'), 'utf-8'))!;
+    expect(yaml.orgType).toBe('BRK');
+    expect(yaml.secondaryTypes).toEqual(['PM', 'INV', 'VAL']);
+    expect(yaml.salesMotion).toBe('general');
+  });
+
+  it('dedupes secondary types (same as primary, repeated, same group)', () => {
+    const r = createDossier(store, tempDir, {
+      name: 'Dup Co', category: 'Organization', orgType: 'BRK', cid: 'DUP', secondaryTypes: ['CAP', 'brk', 'CAP'],
+    });
+    const yaml = parseFrontmatter(readFileSync(join(tempDir, r.path, 'INDEX.md'), 'utf-8'))!;
+    expect(yaml.secondaryTypes).toEqual(['CAP']);
+    expect(readdirSync(join(tempDir, r.path)).filter((f) => f === 'deal-flow.md')).toHaveLength(1);
+  });
+
+  it('normalizes type codes (case and whitespace)', () => {
+    const r = createDossier(store, tempDir, {
+      name: 'Padded Co', category: 'Organization', orgType: ' debt ', cid: 'PAD', secondaryTypes: [' pm'],
+    });
+    expect(r.id).toBe('DEBT-PAD-001');
+    const yaml = parseFrontmatter(readFileSync(join(tempDir, r.path, 'INDEX.md'), 'utf-8'))!;
+    expect(yaml.secondaryTypes).toEqual(['PM']);
+  });
+
+  it('rejects unknown secondary types with the grouped list', () => {
+    expect(() => createDossier(store, tempDir, {
+      name: 'Bad Co', category: 'Organization', orgType: 'BRK', secondaryTypes: ['LND'],
+    })).toThrow(/Invalid org type\(s\): LND\. Valid:\n.*Owners & Investors/s);
+    expect(existsSync(join(tempDir, 'Organizations', 'BRK_Bad_Co'))).toBe(false);
+  });
+
+  it('tech sales motion adds the tech-sale layer and SaaS pipeline', () => {
+    const r = createDossier(store, tempDir, {
+      name: 'Greystar', category: 'Organization', orgType: 'PM', cid: 'GREY', roles: ['Prospect'], salesMotion: 'tech',
+    });
+    const dir = join(tempDir, r.path);
+    expect(existsSync(join(dir, 'tech-stack.md'))).toBe(true);
+    expect(readFileSync(join(dir, 'pipeline.md'), 'utf-8')).toContain('Security Review');
+    expect(parseFrontmatter(readFileSync(join(dir, 'INDEX.md'), 'utf-8'))!.salesMotion).toBe('tech');
+  });
+
+  it('general sales motion keeps the neutral pipeline', () => {
+    const r = createDossier(store, tempDir, { name: 'Plain PM', category: 'Organization', orgType: 'PM', cid: 'PLN' });
+    expect(readFileSync(join(tempDir, r.path, 'pipeline.md'), 'utf-8')).not.toContain('Security Review');
+  });
+
+  it('Vendor and ServiceProvider roles add vendor.md once', () => {
+    const r = createDossier(store, tempDir, {
+      name: 'Fix It', category: 'Organization', orgType: 'FM', cid: 'FIX', roles: ['Vendor', 'ServiceProvider'],
+    });
+    expect(existsSync(join(tempDir, r.path, 'vendor.md'))).toBe(true);
+  });
+
+  it('warns when an overlay is not installed but still creates the dossier', () => {
+    rmSync(join(tempDir, '.templates', 'REAL_ESTATE', 'ORGANIZATION', 'TYPES', 'LENDING'), { recursive: true });
+    const r = createDossier(store, tempDir, { name: 'Old Bank', category: 'Organization', orgType: 'BANK', cid: 'OLDB' });
+    expect(existsSync(join(tempDir, r.path, 'INDEX.md'))).toBe(true);
+    expect(r.warnings).toHaveLength(1);
+    expect(r.warnings[0]).toContain('TYPES/LENDING');
+    expect(r.warnings[0]).toContain('crm-mcp templates pull REAL_ESTATE/ORGANIZATION');
+  });
+
+  it('rejects secondaryTypes on person dossiers', () => {
+    expect(() => createDossier(store, tempDir, { name: 'Pat Person', category: 'Network', secondaryTypes: ['PM'] }))
+      .toThrow(/apply to Organization dossiers only/);
   });
 
   it('crm_read index surfaces the confidentiality block', () => {
