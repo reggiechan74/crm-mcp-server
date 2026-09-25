@@ -9,6 +9,7 @@ import { makeTempDir } from './helpers/tmp.js';
 import { join, resolve, dirname } from 'node:path';
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import { createStore, type Store } from '../src/store.js';
 import { resolveSection } from '../src/types.js';
 import { appendLog, updateField, createDossier, bulkUpdateField } from '../src/writer.js';
@@ -424,5 +425,60 @@ describe('server', () => {
     const config = { crmRoot: root, dbPath: ':memory:', embeddingModel: 't', templates: [], defaultTemplate: 'simple', templateRepo: 'o/r' };
     const server = createMcpServer(store, config) as any;
     expect(Object.keys(server._registeredTools).sort()).toEqual(Object.keys(TOOL_SUMMARIES).sort());
+  });
+});
+
+// ── Independent-review follow-ups ──────────────────────────────────────
+
+describe('review follow-ups', () => {
+  beforeEach(() => setup());
+
+  function addTwin(): void {
+    // Same folder name under two categories
+    mkdirSync(join(root, 'Clients', 'TEST_Contact'), { recursive: true });
+    writeFileSync(join(root, 'Clients', 'TEST_Contact', 'INDEX.md'),
+      '---\nname: "Other Person"\ndossierCode: "CL-OTHPER-001"\nstatus: Active\n---\n# X\n');
+    store.indexAll();
+  }
+
+  it('strict mode refuses a bare folder name shared by two dossiers', () => {
+    addTwin();
+    expect(() => resolveContact(store, 'TEST_Contact', { strict: true })).toThrow(/matches 2 dossier folders/);
+    expect(resolveContact(store, 'Clients/TEST_Contact', { strict: true })).toBe('CL-OTHPER-001');
+    expect(resolveContact(store, join(root, 'Network', 'TEST_Contact'), { strict: true })).toBe('NE-TESCON-001');
+  });
+
+  it('odd file names on disk do not break indexing or updates', () => {
+    const dir = join(root, 'Network', 'TEST_Contact');
+    writeFileSync(join(dir, '..md'), 'weird\n');
+    store.indexAll();
+    expect(store.fullTextSearch('Introductory').map(r => r.id)).toContain('NE-TESCON-001');
+    updateField(store, 'NE-TESCON-001', 'index', 'status', 'Dormant');
+    expect(store.getOutline('NE-TESCON-001').contact.status).toBe('Dormant');
+  });
+
+  it('bulk update reports a dossier that fails to reindex and commits the rest', () => {
+    // Break ADECOY_Den's frontmatter after it is written by making INDEX.md unparseable on reindex
+    const bad = join(root, 'Network', 'ADECOY_Den', 'INDEX.md');
+    writeFileSync(bad, readFileSync(bad, 'utf-8') + '\n');
+    const orig = store.indexMany.bind(store);
+    store.indexMany = (paths: string[]) => {
+      writeFileSync(bad, 'no frontmatter at all\n');
+      return orig(paths);
+    };
+    const r = bulkUpdateField(store, { category: 'Network' }, 'status', 'Dormant');
+    expect(r.errors.map(e => e.id)).toEqual(['Network/ADECOY_Den']);
+    expect(store.getOutline('NE-TESCON-001').contact.status).toBe('Dormant');
+    expect(store.getOutline('NE-BOBSMI-100').contact.status).toBe('Dormant');
+  });
+
+  it('a stripping-rule version change invalidates reused cleaned content', () => {
+    // Simulate a row cached before versioning: plain sha256 of the unchanged file
+    const raw = readFileSync(join(root, 'Network', 'TEST_Contact', 'log.md'), 'utf-8');
+    const legacyHash = createHash('sha256').update(raw).digest('hex');
+    store.db.prepare("UPDATE content_cache SET cleaned_content = 'STALE', file_hash = ? WHERE contact_id = 'NE-TESCON-001' AND section = 'log'").run(legacyHash);
+    store.indexAll();
+    expect(store.getSection('NE-TESCON-001', 'log')).not.toBe('STALE');
+    expect(store.getSection('NE-TESCON-001', 'log')).toContain('Introductory');
   });
 });

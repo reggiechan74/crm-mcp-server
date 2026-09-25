@@ -44093,7 +44093,7 @@ function normalizeOrgType(input) {
   return upper in ORG_TYPES ? upper : null;
 }
 function asciiWords(name) {
-  return name.normalize("NFD").replace(/[̀-ͯ]/g, "").split(/[^A-Za-z0-9]+/).filter(Boolean);
+  return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^A-Za-z0-9]+/).filter(Boolean);
 }
 function generateCid(name) {
   const words = asciiWords(name);
@@ -44187,6 +44187,10 @@ function sanitizeFtsQuery(query) {
   if (words.length === 0) return '""';
   return words.map((w) => `"${w.replace(/"/g, '""')}"`).join(" ");
 }
+var CLEANER_VERSION = "1";
+function contentHash(raw) {
+  return sha256(`${CLEANER_VERSION}\0${raw}`);
+}
 function createStore(dbPath, crmRoot) {
   mkdirSync(dirname3(dbPath), { recursive: true });
   const db = openDatabase(dbPath);
@@ -44228,7 +44232,7 @@ function createStore(dbPath, crmRoot) {
     return new Map(rows.map((r) => [`${r.contact_id}\0${r.section}`, { hash: r.file_hash, cleaned: r.cleaned_content }]));
   }
   function writeSectionRows(contactId, sectionKey, raw, prior) {
-    const hash2 = sha256(raw);
+    const hash2 = contentHash(raw);
     const cleaned = prior && prior.hash === hash2 ? prior.cleaned : stripBoilerplate(raw);
     stmts.insertContentFts.run(contactId, sectionKey, cleaned);
     stmts.insertContentCache.run(contactId, sectionKey, hash2, cleaned, (/* @__PURE__ */ new Date()).toISOString(), Buffer.byteLength(raw, "utf-8"));
@@ -44262,7 +44266,7 @@ function createStore(dbPath, crmRoot) {
     }
     for (const relPath of collectMdFiles(dossierPath)) {
       const posix = relPath.split("\\").join("/");
-      const sectionKey = FILE_TO_SECTION[posix] ?? resolveSection(posix).key;
+      const sectionKey = FILE_TO_SECTION[posix] ?? sectionKeyForFile(posix);
       const raw = readFileSync4(join4(dossierPath, relPath), "utf-8");
       writeSectionRows(contact.id, sectionKey, raw, priorCache.get(`${contact.id}\0${sectionKey}`));
     }
@@ -44337,28 +44341,45 @@ function createStore(dbPath, crmRoot) {
     }
     return result;
   }
-  function reindexPaths(dossierRelPaths) {
-    const parsedByPath = dossierRelPaths.map((relPath) => {
+  function reindexPaths(dossierRelPaths, tolerant) {
+    const failed = [];
+    const parsedByPath = [];
+    for (const relPath of dossierRelPaths) {
       const dossierPath = join4(crmRoot, relPath);
-      return {
-        relPath,
-        parsed: existsSync3(join4(dossierPath, "INDEX.md")) ? parseDossierIndex(dossierPath) : null
-      };
-    });
+      try {
+        parsedByPath.push({
+          relPath,
+          parsed: existsSync3(join4(dossierPath, "INDEX.md")) ? parseDossierIndex(dossierPath) : null
+        });
+      } catch (err) {
+        if (!tolerant) throw err;
+        failed.push({ path: relPath, message: err.message });
+      }
+    }
     const run = db.transaction(() => {
       for (const { relPath, parsed } of parsedByPath) {
-        const prior = /* @__PURE__ */ new Map();
-        const oldIds = db.prepare("SELECT id FROM contacts WHERE path = ?").all(relPath).map((r) => r.id);
-        const newId = parsed?.contact.id ?? "";
-        for (const id of new Set([...oldIds, newId].filter(Boolean))) {
-          for (const [k, v] of loadCache(id)) prior.set(k, v);
-          deleteContactRows(id);
+        db.exec("SAVEPOINT dossier");
+        try {
+          const prior = /* @__PURE__ */ new Map();
+          const oldIds = db.prepare("SELECT id FROM contacts WHERE path = ?").all(relPath).map((r) => r.id);
+          const newId = parsed?.contact.id ?? "";
+          for (const id of new Set([...oldIds, newId].filter(Boolean))) {
+            for (const [k, v] of loadCache(id)) prior.set(k, v);
+            deleteContactRows(id);
+          }
+          if (parsed && newId) indexDossier(relPath, prior, parsed);
+          db.exec("RELEASE dossier");
+        } catch (err) {
+          db.exec("ROLLBACK TO dossier");
+          db.exec("RELEASE dossier");
+          if (!tolerant) throw err;
+          failed.push({ path: relPath, message: err.message });
         }
-        if (parsed && newId) indexDossier(relPath, prior, parsed);
       }
       resolveRelationshipTargets();
     });
     run();
+    return failed;
   }
   const store = {
     db,
@@ -44372,9 +44393,13 @@ function createStore(dbPath, crmRoot) {
         db.exec("DELETE FROM content_fts");
         db.exec("DELETE FROM content_cache");
         for (const relPath of indexFiles) {
+          db.exec("SAVEPOINT dossier");
           try {
             indexDossier(dirname3(relPath), prior);
+            db.exec("RELEASE dossier");
           } catch (err) {
+            db.exec("ROLLBACK TO dossier");
+            db.exec("RELEASE dossier");
             console.error(`Failed to index ${relPath}:`, err);
           }
         }
@@ -44383,10 +44408,10 @@ function createStore(dbPath, crmRoot) {
       runIndex();
     },
     indexOne(dossierRelPath) {
-      reindexPaths([dossierRelPath]);
+      reindexPaths([dossierRelPath], false);
     },
     indexMany(dossierRelPaths) {
-      reindexPaths(dossierRelPaths);
+      return { failed: reindexPaths(dossierRelPaths, true) };
     },
     reindexSection(contactId, section) {
       const path = store.getContactPath(contactId);
@@ -44554,7 +44579,7 @@ function createStore(dbPath, crmRoot) {
       }
       const raw = readFileSync4(filePath, "utf-8");
       const cached2 = stmts.getContentCache.get(contactId, key);
-      if (cached2 && cached2.file_hash === sha256(raw)) {
+      if (cached2 && cached2.file_hash === contentHash(raw)) {
         return cached2.cleaned_content;
       }
       const run = db.transaction(() => {
@@ -44655,6 +44680,11 @@ function createStore(dbPath, crmRoot) {
       const row = stmts.getContactPath.get(contactId);
       return row ? row.path : null;
     },
+    resolveAllByPath(input) {
+      const slug = input.replace(/[\\/]+$/, "").split(/[\\/]/).pop();
+      if (!slug) return [];
+      return db.prepare("SELECT id, path FROM contacts").all().filter((r) => r.path && r.path.split(/[\\/]/).pop() === slug).map((r) => r.id);
+    },
     resolveByPath(input) {
       const slug = input.replace(/[\\/]+$/, "").split(/[\\/]/).pop();
       if (!slug) return null;
@@ -44714,6 +44744,13 @@ function createStore(dbPath, crmRoot) {
     }
   };
   return store;
+}
+function sectionKeyForFile(posixRelPath) {
+  try {
+    return resolveSection(posixRelPath).key;
+  } catch {
+    return posixRelPath.replace(/\.md$/, "");
+  }
 }
 function parseAliases(raw) {
   if (!raw) return [];
@@ -45049,7 +45086,11 @@ function bulkUpdateField(store, filters, field, value) {
       result.errors.push({ id: c.id, message: e.message });
     }
   }
-  if (paths.length > 0) store.indexMany(paths);
+  if (paths.length > 0) {
+    for (const f of store.indexMany(paths).failed) {
+      result.errors.push({ id: f.path, message: `written but not reindexed: ${f.message}` });
+    }
+  }
   return result;
 }
 var CATEGORY_TO_CODE = Object.fromEntries(
@@ -45059,7 +45100,7 @@ function getUserTemplatesDir(crmRoot) {
   return join5(crmRoot, ".templates");
 }
 function generateF3L3(fullName) {
-  const normalized = fullName.normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const normalized = fullName.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const parts = normalized.trim().split(/\s+/);
   if (parts.length < 2) {
     throw new Error(`Name must have at least first and last parts: "${fullName}"`);
@@ -46027,14 +46068,14 @@ function migrateManifest(crmRoot) {
       } catch {
       }
     }
-    const contentHash = computeContentHash(tmplDir);
+    const contentHash2 = computeContentHash(tmplDir);
     const now = (/* @__PURE__ */ new Date()).toISOString();
     manifest.templates[entry.name] = {
       version: version2,
       installedAt: now,
       updatedAt: now,
       source: "unknown",
-      contentHash
+      contentHash: contentHash2
     };
   }
   writeManifest(crmRoot, manifest);
@@ -46252,8 +46293,20 @@ function resolveContact(store, contact, opts = {}) {
   if (/^[A-Z]{2,4}-/.test(contact) && store.getContactPath(contact) != null) {
     return contact;
   }
-  const byFolder = store.resolveByPath(contact);
-  if (byFolder) return byFolder;
+  const byFolder = store.resolveAllByPath(contact);
+  const pathMatch = contact.replace(/\\/g, "/").replace(/\/+$/, "");
+  const exactPath = byFolder.filter((id) => {
+    const p = store.getContactPath(id);
+    return p != null && (pathMatch === p || pathMatch.endsWith(`/${p}`));
+  });
+  if (exactPath.length === 1) return exactPath[0];
+  if (byFolder.length === 1) return byFolder[0];
+  if (byFolder.length > 1) {
+    if (opts.strict) {
+      throw new Error(`"${contact}" matches ${byFolder.length} dossier folders (${byFolder.join(", ")}). Use the dossier code.`);
+    }
+    return byFolder[0];
+  }
   const exact = store.findByExactName(contact);
   if (exact.length === 1) return exact[0];
   if (exact.length > 1) {

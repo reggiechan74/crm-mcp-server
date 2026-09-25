@@ -46,7 +46,7 @@ export function normalizeOrgType(input: string): OrgType | null {
 
 function asciiWords(name: string): string[] {
   return name
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .split(/[^A-Za-z0-9]+/)
     .filter(Boolean);
 }

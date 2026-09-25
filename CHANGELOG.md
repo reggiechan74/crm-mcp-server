@@ -11,8 +11,8 @@ All notable changes to crm-mcp-server are documented here.
 
 ### Changed
 - `crm_connections` now prints each edge as `- Source → Target (type) — context` (all edges, not only organizations), because resolved inbound links now appear alongside outbound ones.
-- **Writes require an exact contact match.** `crm_update`, `crm_log` and `crm_repair` accept a dossier code, folder name, or a name/alias that matches exactly (case-insensitive); an input matching several contacts is an error. The substring/full-text fallback is now used by read tools only, so a typo can no longer write to a different person's dossier.
-- `crm_bulk_update` requires `category` or `status`, updates every match (no 1000-row cap), reports per-contact errors, and reindexes once.
+- **Writes require an exact contact match.** `crm_update`, `crm_log` and `crm_repair` accept a dossier code, folder name/path, or a name/alias that matches exactly (case-insensitive); an input matching several contacts (including a bare folder name that exists under two categories) is an error. The substring/full-text fallback is now used by read tools only, so a typo can no longer write to a different person's dossier.
+- `crm_bulk_update` requires `category` or `status`, updates every match (no 1000-row cap), reports per-contact errors (including dossiers that fail to reindex, without rolling back the rest), and reindexes once.
 - `crm_repair` refuses to run if the dossier changed since `crm_audit`, reindexes afterwards, and restores every file if the repair would lose more than 15% of distinct content lines (`rolledBack: true`). Dedup only collapses a section whose content is identical to the canonical copy, and never removes its subsections.
 - Frontmatter writes preserve comments, key order and quoting (yaml Document API) and are atomic (temp file + rename). Malformed frontmatter is reported instead of rewritten.
 - `crm_vector_search` errors when stored embeddings came from a different model than `embeddingModel`, and reports sections changed since `crm-mcp embed`.
@@ -30,6 +30,7 @@ All notable changes to crm-mcp-server are documented here.
 - Audit treated any `---` horizontal rule as frontmatter, hiding the content after it.
 - `crm_create`: `$&`/`$1` in names were expanded, quotes in names broke YAML, and path characters in names reached the folder path.
 - Startup instructions re-read every section file before the handshake; stats now come from the index. `indexOne` leaves no stale rows when a dossier code changes or a folder is deleted, and unchanged sections reuse cached cleaned content.
+- Indexing uses a savepoint per dossier, so one failing dossier is never left half-indexed; odd file names (e.g. `..md`) no longer break indexing. Cached cleaned content is keyed to the boilerplate-stripper version.
 - Tests no longer leak temp directories (previously exhausted `/tmp` inodes).
 
 ## [0.7.3] - 2026-09-24

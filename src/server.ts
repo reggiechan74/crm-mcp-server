@@ -86,8 +86,22 @@ export function resolveContact(store: Store, contact: string, opts: { strict?: b
   //    a folder name is not a substring of the stored display name, so the name
   //    search would fall through to the fail-open FTS fallback and silently
   //    return the wrong contact.
-  const byFolder = store.resolveByPath(contact);
-  if (byFolder) return byFolder;
+  //    A full "Category/Folder" path is unambiguous; a bare folder name can
+  //    exist under several categories, which strict mode refuses to guess.
+  const byFolder = store.resolveAllByPath(contact);
+  const pathMatch = contact.replace(/\\/g, '/').replace(/\/+$/, '');
+  const exactPath = byFolder.filter((id) => {
+    const p = store.getContactPath(id);
+    return p != null && (pathMatch === p || pathMatch.endsWith(`/${p}`));
+  });
+  if (exactPath.length === 1) return exactPath[0];
+  if (byFolder.length === 1) return byFolder[0];
+  if (byFolder.length > 1) {
+    if (opts.strict) {
+      throw new Error(`"${contact}" matches ${byFolder.length} dossier folders (${byFolder.join(', ')}). Use the dossier code.`);
+    }
+    return byFolder[0];
+  }
 
   // 3. Exact name / alias.
   const exact = store.findByExactName(contact);
