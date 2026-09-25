@@ -16,7 +16,7 @@ All notable changes to crm-mcp-server are documented here.
 - `crm_repair` refuses to run if the dossier changed since `crm_audit`, reindexes afterwards, and restores every file if the repair would lose more than 15% of distinct content lines (`rolledBack: true`). Dedup only collapses a section whose content is identical to the canonical copy, and never removes its subsections.
 - Frontmatter writes preserve comments, key order and quoting (yaml Document API) and are atomic (temp file + rename). Malformed frontmatter is reported instead of rewritten.
 - `crm_vector_search` errors when stored embeddings came from a different model than `embeddingModel`, and reports sections changed since `crm-mcp embed`.
-- Tools are registered with `registerTool` and MCP annotations (read-only / destructive hints). The server reports the package version, and its instructions list all 17 tools.
+- Tools are registered with `registerTool` and MCP annotations (read-only / destructive hints). The server reports the package version, and its instructions list all 18 tools.
 - `crm-mcp mcp` now uses the same connect-first startup as the plugin entry; tool calls wait for the initial index.
 
 ### Fixed
