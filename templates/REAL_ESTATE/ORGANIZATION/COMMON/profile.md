@@ -18,21 +18,14 @@ lastUpdated: {{date}}
 | Founded | [TO BE POPULATED] | [V/I/A] |
 | Website | [TO BE POPULATED] | [V/I/A] |
 
-## II. OWNERSHIP & CAPITAL
-
-### A. Ownership
+## II. OWNERSHIP
 
 | Field | Value | Conf |
 |-------|-------|------|
 | Public / Private | [TO BE POPULATED] | [V/I/A] |
 | Parent | [TO BE POPULATED] | [V/I/A] |
 | Major Shareholders / Sponsors | [TO BE POPULATED] | [V/I/A] |
-
-### B. Fund Family
-
-| Fund | Vintage | Size | Strategy | Stage | Conf |
-|------|---------|------|----------|-------|------|
-| [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] | [Core / Value-Add / Opportunistic / Debt] | [Fundraising / Deploying / Harvesting] | [V/I/A] |
+| Capital Sources | [TO BE POPULATED] | [V/I/A] |
 
 ## III. STRUCTURE
 
@@ -45,7 +38,7 @@ lastUpdated: {{date}}
 | Field | Value | Conf |
 |-------|-------|------|
 | Peer Set | [TO BE POPULATED] | [V/I/A] |
-| Memberships | [NCREIF / PREA / NAREIT / ULI] | [V/I/A] |
+| Memberships | [e.g. ULI / NAIOP / BOMA / CREFC / NAREIT] | [V/I/A] |
 | Reputation | [TO BE POPULATED] | [V/I/A] |
 
 ## V. RECENT EVENTS
