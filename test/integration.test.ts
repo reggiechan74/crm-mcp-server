@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { makeTempDir } from './helpers/tmp.js';
 import { join, resolve, dirname } from 'node:path';
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -149,7 +150,7 @@ describe('profession workflow', () => {
   let profStore: Store;
 
   beforeAll(() => {
-    tempDir = mkdtempSync(join(tmpdir(), 'crm-prof-test-'));
+    tempDir = makeTempDir('crm-prof-test-');
     cpSync(FIXTURES, tempDir, { recursive: true });
     installTestTemplates(tempDir);
     profStore = createStore(':memory:', tempDir);
@@ -264,7 +265,7 @@ describe('plugin integration', () => {
   let tempDir: string;
 
   beforeAll(() => {
-    tempDir = mkdtempSync(join(tmpdir(), 'crm-plugin-test-'));
+    tempDir = makeTempDir('crm-plugin-test-');
   });
 
   it('init creates working CRM that indexes correctly', () => {
@@ -343,7 +344,7 @@ describe('plugin integration', () => {
 
 describe('Oxford scenario: org as client and operating partner of another client', () => {
   it('links person → Oxford → client and filters by combined roles', () => {
-    const root = mkdtempSync(join(tmpdir(), 'crm-oxford-'));
+    const root = makeTempDir('crm-oxford-');
     mkdirSync(join(root, '.templates'), { recursive: true });
     cpSync(join(import.meta.dirname, '..', 'templates', 'REAL_ESTATE'),
       join(root, '.templates', 'REAL_ESTATE'), { recursive: true });

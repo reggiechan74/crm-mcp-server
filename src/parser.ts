@@ -1,8 +1,11 @@
-import { readFileSync, statSync, existsSync, readdirSync } from 'node:fs';
-import { join, basename, dirname, relative } from 'node:path';
-import { parse as parseYaml } from 'yaml';
+import { readFileSync, statSync, existsSync } from 'node:fs';
+import { join, basename, dirname } from 'node:path';
 import type { Contact, SectionMeta, Relationship, Category, RelationType } from './types.js';
 import { SECTION_FILES, CATEGORY_DIRS, RELATION_TYPES } from './types.js';
+import { parseFrontmatter } from './frontmatter.js';
+import { collectMdFiles, formatDate } from './fsutil.js';
+
+export { collectMdFiles };
 
 // Reverse lookup: directory name → Category
 const DIR_TO_CATEGORY: Record<string, Category> = Object.fromEntries(
@@ -10,50 +13,12 @@ const DIR_TO_CATEGORY: Record<string, Category> = Object.fromEntries(
 ) as Record<string, Category>;
 
 /**
- * Parse YAML frontmatter from a markdown string.
- * Returns the parsed object or null if no frontmatter found.
- * Uses lenient parsing to handle malformed YAML (e.g., unquoted parentheses in alias arrays).
+ * Read INDEX.md once and extract both the contact row and its linkedContacts
+ * relationship edges.
  */
-function parseFrontmatter(content: string): Record<string, unknown> | null {
-  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-  if (!match) return null;
-  try {
-    return parseYaml(match[1]) as Record<string, unknown>;
-  } catch {
-    // Fallback: quote unquoted parenthetical content in array items and retry
-    const fixed = match[1].replace(
-      /^(\s*-\s*"[^"]*")\s*(\([^)]*\))/gm,
-      '$1 # $2',
-    );
-    try {
-      return parseYaml(fixed) as Record<string, unknown>;
-    } catch {
-      // Last resort: extract key fields with regex
-      const result: Record<string, unknown> = {};
-      for (const [key, pattern] of [
-        ['name', /^name:\s*"?([^"\n]+)"?/m],
-        ['dossierCode', /^dossierCode:\s*"?([^"\n]+)"?/m],
-        ['organization', /^organization:\s*"?([^"\n]+)"?/m],
-        ['status', /^status:\s*(\S+)/m],
-        ['lastContactDate', /^lastContactDate:\s*(\S+)/m],
-        ['lastUpdated', /^lastUpdated:\s*(\S+)/m],
-        ['profession', /^profession:\s*"?([^"\n]+)"?/m],
-      ] as const) {
-        const m = match[1].match(pattern);
-        if (m) result[key] = m[1].trim();
-      }
-      return Object.keys(result).length > 0 ? result : null;
-    }
-  }
-}
-
-/**
- * Read INDEX.md from a dossier directory and extract contact metadata.
- */
-export function parseIndexYaml(dossierPath: string): Contact {
+export function parseDossierIndex(dossierPath: string): { contact: Contact; relationships: Relationship[] } {
   const indexPath = join(dossierPath, 'INDEX.md');
-  const content = readFileSync(indexPath, 'utf-8');
-  const yaml = parseFrontmatter(content);
+  const yaml = parseFrontmatter(readFileSync(indexPath, 'utf-8'));
   if (!yaml) {
     throw new Error(`No YAML frontmatter found in ${indexPath}`);
   }
@@ -62,34 +27,33 @@ export function parseIndexYaml(dossierPath: string): Contact {
   const parentDir = basename(dirname(dossierPath));
   const category = DIR_TO_CATEGORY[parentDir] ?? ('Network' as Category);
 
-  // Normalize date values — YAML parser may return Date objects
-  const lastContactRaw = yaml.lastContactDate;
-  const lastUpdatedRaw = yaml.lastUpdated;
-
-  const formatDate = (val: unknown): string | null => {
-    if (val == null) return null;
-    if (val instanceof Date) return val.toISOString().slice(0, 10);
-    return String(val);
-  };
-
   const aliasesRaw = yaml.aliases;
   const aliases = Array.isArray(aliasesRaw)
     ? JSON.stringify(aliasesRaw.map(String))
     : undefined;
 
-  return {
+  const contact: Contact = {
     id: String(yaml.dossierCode ?? ''),
     name: String(yaml.name ?? ''),
     category,
     organization: yaml.organization ? String(yaml.organization) : null,
     status: String(yaml.status ?? 'Unknown'),
-    lastContact: formatDate(lastContactRaw),
-    lastUpdated: formatDate(lastUpdatedRaw) ?? '',
+    lastContact: formatDate(yaml.lastContactDate),
+    lastUpdated: formatDate(yaml.lastUpdated) ?? '',
     path: basename(dirname(dossierPath)) + '/' + basename(dossierPath),
     metadataJson: JSON.stringify(yaml),
     profession: yaml.profession ? String(yaml.profession) : undefined,
     aliases,
   };
+
+  return { contact, relationships: relationshipsFromYaml(yaml, contact.id) };
+}
+
+/**
+ * Read INDEX.md from a dossier directory and extract contact metadata.
+ */
+export function parseIndexYaml(dossierPath: string): Contact {
+  return parseDossierIndex(dossierPath).contact;
 }
 
 // Patterns that indicate placeholder/boilerplate content
@@ -266,10 +230,6 @@ function removeOrphanedTableParts(
       if (nextNonBlank && TABLE_SEPARATOR_RE.test(nextNonBlank.line.trim())) {
         // Found a table. Check if all data rows after separator are removed
         const sepIdx = bodyLines.indexOf(nextNonBlank);
-        const dataRows = bodyLines.slice(sepIdx + 1).filter(b => {
-          const t = b.line.trim();
-          return TABLE_HEADER_RE.test(t) && !TABLE_SEPARATOR_RE.test(t);
-        });
 
         // Stop at next non-table line
         const tableDataRows: { index: number; line: string }[] = [];
@@ -303,41 +263,13 @@ function buildSectionMeta(fullPath: string, file: string): SectionMeta {
   const content = readFileSync(fullPath, 'utf-8');
   const stripped = stripBoilerplate(content);
 
-  const yaml = parseFrontmatter(content);
-  let lastUpdated: string | null = null;
-  if (yaml?.lastUpdated) {
-    const val = yaml.lastUpdated;
-    if (val instanceof Date) {
-      lastUpdated = val.toISOString().slice(0, 10);
-    } else {
-      lastUpdated = String(val);
-    }
-  }
+  const lastUpdated = formatDate(parseFrontmatter(content)?.lastUpdated);
 
   const sizeBytes = stat.size;
   const filledBytes = Buffer.byteLength(stripped, 'utf-8');
   const fillPercent = sizeBytes > 0 ? Math.round((filledBytes / sizeBytes) * 100) : 0;
 
   return { file, sizeBytes, filledBytes, fillPercent, lastUpdated };
-}
-
-/**
- * Recursively collect all .md files under a directory,
- * returning paths relative to the root directory.
- */
-export function collectMdFiles(dir: string, root?: string): string[] {
-  const base = root ?? dir;
-  const results: string[] = [];
-
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      results.push(...collectMdFiles(full, base));
-    } else if (entry.name.endsWith('.md')) {
-      results.push(relative(base, full));
-    }
-  }
-  return results;
 }
 
 /**
@@ -361,9 +293,7 @@ export function scanDossierSections(dossierPath: string): SectionMeta[] {
   if (existsSync(dossierPath)) {
     for (const relPath of collectMdFiles(dossierPath)) {
       if (knownFiles.has(relPath)) continue;
-      const fullPath = join(dossierPath, relPath);
-      if (!statSync(fullPath).isFile()) continue;
-      results.push(buildSectionMeta(fullPath, relPath));
+      results.push(buildSectionMeta(join(dossierPath, relPath), relPath));
     }
   }
 
@@ -374,11 +304,11 @@ export function scanDossierSections(dossierPath: string): SectionMeta[] {
  * Extract relationship entries from INDEX.md linkedContacts YAML field.
  */
 export function extractRelationships(dossierPath: string, contactId: string): Relationship[] {
-  const indexPath = join(dossierPath, 'INDEX.md');
-  const content = readFileSync(indexPath, 'utf-8');
-  const yaml = parseFrontmatter(content);
-  if (!yaml) return [];
+  const yaml = parseFrontmatter(readFileSync(join(dossierPath, 'INDEX.md'), 'utf-8'));
+  return yaml ? relationshipsFromYaml(yaml, contactId) : [];
+}
 
+function relationshipsFromYaml(yaml: Record<string, unknown>, contactId: string): Relationship[] {
   const linkedContacts = yaml.linkedContacts;
   if (!Array.isArray(linkedContacts)) return [];
 

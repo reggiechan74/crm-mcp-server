@@ -3,7 +3,7 @@ import { build } from 'esbuild';
 const shared = {
   bundle: true,
   platform: 'node',
-  target: 'node18',
+  target: 'node22',
   format: 'esm',
   sourcemap: true,
   // CJS packages (yaml, fast-glob, etc.) use require() internally. In an ESM bundle,

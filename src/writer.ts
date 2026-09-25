@@ -1,15 +1,14 @@
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, cpSync, existsSync } from 'node:fs';
+import { readFileSync, mkdirSync, readdirSync, cpSync, existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
-import { SECTION_FILES, CATEGORY_CODES, CATEGORY_DIRS, resolveSectionFile, type DossierSection, type Category } from './types.js';
+import { CATEGORY_CODES, CATEGORY_DIRS, resolveSection, type Category } from './types.js';
 import { lookupProfession } from './professions.js';
-import { stripBoilerplate } from './parser.js';
-import { createHash } from 'node:crypto';
 import type { Store } from './store.js';
 import {
   ORG_TYPES, ORG_ROLES, ROLE_OVERLAYS, normalizeOrgType, generateCid, isValidCid,
   orgFolderName, type OrgRole,
 } from './orgTypes.js';
+import { parseFrontmatter, splitFrontmatter, updateFrontmatter } from './frontmatter.js';
+import { atomicWriteFileSync, isWithin, today } from './fsutil.js';
 
 export interface LogEntry {
   date: string;       // "2026-03-04"
@@ -22,118 +21,108 @@ export interface LogEntry {
 /**
  * Look up a contact's filesystem path from the store.
  */
-function getContactPath(store: Store, contactId: string): string {
-  const row = store.db.prepare('SELECT path FROM contacts WHERE id = ?').get(contactId) as any;
-  if (!row) {
+function requireContactPath(store: Store, contactId: string): string {
+  const path = store.getContactPath(contactId);
+  if (!path) {
     throw new Error(`Contact not found: ${contactId}`);
   }
-  return row.path;
+  return path;
 }
 
-/**
- * Get today's date as YYYY-MM-DD.
- */
-function today(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
-/**
- * Parse YAML frontmatter and body from a markdown string.
- * Returns { yaml, body } where yaml is the parsed object and body is everything after the closing ---.
- */
-function parseFrontmatterAndBody(content: string): { yaml: Record<string, unknown>; body: string } {
-  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
-  if (!match) {
-    return { yaml: {}, body: content };
+/** Resolve a section to an absolute file path, refusing anything outside the dossier folder. */
+function sectionFilePath(store: Store, contactPath: string, section: string): { key: string; filePath: string } {
+  const { key, file } = resolveSection(section);
+  const dossierDir = join(store.crmRoot, contactPath);
+  const filePath = join(dossierDir, file);
+  if (!isWithin(dossierDir, filePath)) {
+    throw new Error(`Invalid section: "${section}"`);
   }
-  const yaml = parseYaml(match[1]) as Record<string, unknown>;
-  return { yaml, body: match[2] };
+  return { key, filePath };
+}
+
+// ── Interaction log ─────────────────────────────────────────────────────
+
+const TABLE_SEPARATOR_RE = /^\|[-|\s:]+\|$/;
+
+/** Escape a value for a single markdown table cell. */
+function tableCell(value: string | undefined): string {
+  return (value ?? '').replace(/\r?\n/g, ' ').replace(/\|/g, '\\|').trim();
+}
+
+function splitRow(line: string): string[] {
+  return line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim().toLowerCase());
 }
 
 /**
- * Reconstruct a markdown file from YAML frontmatter and body.
- * Ensures dates stay as YYYY-MM-DD strings, not full ISO timestamps.
+ * Locate the interaction table — the first table whose header starts with
+ * Date and includes Type and Summary columns. Returns the header columns and
+ * the index of its last row.
  */
-function reconstructFile(yaml: Record<string, unknown>, body: string): string {
-  // Convert any Date objects to YYYY-MM-DD strings before stringifying
-  const sanitized = { ...yaml };
-  for (const [key, value] of Object.entries(sanitized)) {
-    if (value instanceof Date) {
-      sanitized[key] = value.toISOString().split('T')[0];
-    }
+function findInteractionTable(lines: string[]): { columns: string[]; lastRowIndex: number } | null {
+  for (let i = 0; i < lines.length - 1; i++) {
+    const header = lines[i].trim();
+    if (!header.startsWith('|') || !TABLE_SEPARATOR_RE.test(lines[i + 1].trim())) continue;
+    const columns = splitRow(header);
+    if (columns[0] !== 'date' || !columns.includes('type') || !columns.includes('summary')) continue;
+    let last = i + 1;
+    while (last + 1 < lines.length && lines[last + 1].trim().startsWith('|')) last++;
+    return { columns, lastRowIndex: last };
   }
-  const yamlStr = stringifyYaml(sanitized, { lineWidth: 0 }).trimEnd();
-  return `---\n${yamlStr}\n---\n${body}`;
+  return null;
 }
 
-/**
- * Invalidate the cache and re-index a specific section for a contact.
- */
-function invalidateAndReindex(store: Store, contactId: string, section: string, filePath: string): void {
-  // Delete from content_cache
-  store.db.prepare('DELETE FROM content_cache WHERE contact_id = ? AND section = ?').run(contactId, section);
-
-  // Delete from content_fts
-  store.db.prepare('DELETE FROM content_fts WHERE contact_id = ? AND section = ?').run(contactId, section);
-
-  // Re-read, re-strip, re-insert
-  const raw = readFileSync(filePath, 'utf-8');
-  const hash = createHash('sha256').update(raw).digest('hex');
-  const cleaned = stripBoilerplate(raw);
-  const now = new Date().toISOString();
-
-  store.db.prepare(
-    'INSERT INTO content_fts (contact_id, section, content) VALUES (?, ?, ?)',
-  ).run(contactId, section, cleaned);
-
-  store.db.prepare(
-    'INSERT OR REPLACE INTO content_cache (contact_id, section, file_hash, cleaned_content, cleaned_at) VALUES (?, ?, ?, ?, ?)',
-  ).run(contactId, section, hash, cleaned, now);
+function buildLogRow(columns: string[], entry: LogEntry): string {
+  const hasOutcome = columns.includes('outcome');
+  const summary = !hasOutcome && entry.outcome
+    ? `${entry.summary} — Outcome: ${entry.outcome}`
+    : entry.summary;
+  const cells = columns.map((col) => {
+    if (col === 'date') return tableCell(entry.date);
+    if (col === 'type') return tableCell(entry.type);
+    if (col === 'summary') return tableCell(summary);
+    if (col === 'outcome') return tableCell(entry.outcome);
+    if (/^(next steps?|follow[- ]?ups?)$/.test(col)) return tableCell(entry.nextStep);
+    return '';
+  });
+  return `| ${cells.join(' | ')} |`;
 }
 
+const DEFAULT_LOG_COLUMNS = ['date', 'type', 'summary', 'outcome', 'next step'];
+
 /**
- * Append a new interaction row to a contact's log.md.
+ * Append a new interaction row to the interaction table in a contact's log.md.
+ * When the log has no interaction table (e.g. heading-based family logs), a
+ * new one is appended at the end of the file.
  */
 export function appendLog(store: Store, contactId: string, entry: LogEntry): void {
-  const contactPath = getContactPath(store, contactId);
+  const contactPath = requireContactPath(store, contactId);
   const logFile = join(store.crmRoot, contactPath, 'log.md');
 
-  const content = readFileSync(logFile, 'utf-8');
-  const { yaml, body } = parseFrontmatterAndBody(content);
-
-  // Build the new row
-  const outcome = entry.outcome ?? '';
-  const nextStep = entry.nextStep ?? '';
-  const newRow = `| ${entry.date} | ${entry.type} | ${entry.summary} | ${outcome} | ${nextStep} |`;
-
-  // Find the interaction table and append the row
-  // The table ends at the last line that starts with |
+  const content = existsSync(logFile) ? readFileSync(logFile, 'utf-8') : '';
+  const { body } = splitFrontmatter(content);
   const bodyLines = body.split('\n');
-  let lastTableRowIndex = -1;
 
-  for (let i = bodyLines.length - 1; i >= 0; i--) {
-    if (bodyLines[i].trimStart().startsWith('|')) {
-      lastTableRowIndex = i;
-      break;
-    }
-  }
-
-  if (lastTableRowIndex >= 0) {
-    bodyLines.splice(lastTableRowIndex + 1, 0, newRow);
+  const table = findInteractionTable(bodyLines);
+  if (table) {
+    bodyLines.splice(table.lastRowIndex + 1, 0, buildLogRow(table.columns, entry));
   } else {
-    // No table found — append at end
-    bodyLines.push(newRow);
+    while (bodyLines.length > 0 && bodyLines[bodyLines.length - 1].trim() === '') bodyLines.pop();
+    bodyLines.push(
+      '',
+      '| Date | Type | Summary | Outcome | Next Step |',
+      '|------|------|---------|---------|-----------|',
+      buildLogRow(DEFAULT_LOG_COLUMNS, entry),
+      '',
+    );
   }
 
-  // Update lastUpdated
-  yaml.lastUpdated = today();
+  const withBody = content.slice(0, content.length - body.length) + bodyLines.join('\n');
+  atomicWriteFileSync(logFile, updateFrontmatter(withBody, { lastUpdated: today() }));
 
-  const updatedContent = reconstructFile(yaml, bodyLines.join('\n'));
-  writeFileSync(logFile, updatedContent, 'utf-8');
-
-  // Invalidate cache and re-index
-  invalidateAndReindex(store, contactId, 'log', logFile);
+  store.reindexSection(contactId, 'log');
 }
+
+// ── Field updates ───────────────────────────────────────────────────────
 
 /** INDEX.md fields that hold list values (comma-separated or JSON array string on input). */
 const LIST_FIELDS = new Set(['roles', 'aliases', 'assetClasses']);
@@ -159,19 +148,16 @@ function parseListValue(value: string): string[] {
 }
 
 /**
- * Update a specific YAML frontmatter field in a dossier section file.
+ * Write a frontmatter field to disk without touching the index.
+ * Returns the canonical section key and the dossier's relative path.
  */
-export function updateField(store: Store, contactId: string, section: string, field: string, value: string): void {
-  const contactPath = getContactPath(store, contactId);
-  const sectionFile = resolveSectionFile(section);
-
-  const filePath = join(store.crmRoot, contactPath, sectionFile);
+function writeField(store: Store, contactId: string, section: string, field: string, value: string): { key: string; contactPath: string } {
+  const contactPath = requireContactPath(store, contactId);
+  const { key, filePath } = sectionFilePath(store, contactPath, section);
   const content = readFileSync(filePath, 'utf-8');
-  const { yaml, body } = parseFrontmatterAndBody(content);
 
-  // Update the specified field and lastUpdated
   let newValue: unknown = value;
-  if (section === 'index' && LIST_FIELDS.has(field)) {
+  if (key === 'index' && LIST_FIELDS.has(field)) {
     const list = parseListValue(value);
     if (field === 'roles') {
       const badRoles = list.filter((r) => !(ORG_ROLES as readonly string[]).includes(r));
@@ -181,21 +167,58 @@ export function updateField(store: Store, contactId: string, section: string, fi
     }
     newValue = list;
   }
-  yaml[field] = newValue;
-  yaml.lastUpdated = today();
 
-  const updatedContent = reconstructFile(yaml, body);
-  writeFileSync(filePath, updatedContent, 'utf-8');
+  atomicWriteFileSync(filePath, updateFrontmatter(content, { [field]: newValue, lastUpdated: today() }));
+  return { key, contactPath };
+}
 
-  if (section === 'index') {
+/**
+ * Update a specific YAML frontmatter field in a dossier section file.
+ */
+export function updateField(store: Store, contactId: string, section: string, field: string, value: string): void {
+  const { key, contactPath } = writeField(store, contactId, section, field, value);
+  if (key === 'index') {
     // Full reindex of the dossier refreshes metadata_json, aliases, every
     // contacts column (including last_updated), and auto-derived edges
     // (e.g. works_at) that depend on this field.
     store.indexOne(contactPath);
   } else {
-    // Invalidate cache and re-index just this section.
-    invalidateAndReindex(store, contactId, section, filePath);
+    store.reindexSection(contactId, key);
   }
+}
+
+export interface BulkUpdateResult {
+  updated: string[];
+  errors: Array<{ id: string; message: string }>;
+}
+
+/**
+ * Update an INDEX.md field across every contact matching the filter, then
+ * reindex them in one pass. At least one filter is required so a missing
+ * argument can never rewrite the whole CRM.
+ */
+export function bulkUpdateField(
+  store: Store,
+  filters: { category?: string; status?: string },
+  field: string,
+  value: string,
+): BulkUpdateResult {
+  if (!filters.category && !filters.status) {
+    throw new Error('bulk update requires at least one filter (category or status)');
+  }
+  const contacts = store.searchContacts({ ...filters, limit: 100_000 });
+  const result: BulkUpdateResult = { updated: [], errors: [] };
+  const paths: string[] = [];
+  for (const c of contacts) {
+    try {
+      paths.push(writeField(store, c.id, 'index', field, value).contactPath);
+      result.updated.push(c.id);
+    } catch (e: any) {
+      result.errors.push({ id: c.id, message: e.message });
+    }
+  }
+  if (paths.length > 0) store.indexMany(paths);
+  return result;
 }
 
 // ── Dossier Creation ────────────────────────────────────────────────────
@@ -240,7 +263,7 @@ function getUserTemplatesDir(crmRoot: string): string {
  */
 export function generateF3L3(fullName: string): string {
   // Remove accents
-  const normalized = fullName.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const normalized = fullName.normalize('NFD').replace(/[̀-ͯ]/g, '');
   const parts = normalized.trim().split(/\s+/);
   if (parts.length < 2) {
     throw new Error(`Name must have at least first and last parts: "${fullName}"`);
@@ -268,6 +291,15 @@ function templateTypeForCategory(category: string): string {
 }
 
 /**
+ * Strip characters that are unsafe in a folder name (path separators,
+ * Windows-reserved characters, control characters) from one name part.
+ */
+function safeFolderPart(part: string): string {
+  // eslint-disable-next-line no-control-regex
+  return part.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').replace(/^\.+/, '').trim();
+}
+
+/**
  * Next sequence number for a dossier code prefix (e.g. "NE-JANSMI-" or "OPR-OXF-")
  * by scanning INDEX.md dossierCode values under a category directory.
  */
@@ -279,10 +311,9 @@ function nextSequence(catPath: string, prefix: string): number {
     const indexPath = join(catPath, entry.name, 'INDEX.md');
     if (!existsSync(indexPath)) continue;
     try {
-      const content = readFileSync(indexPath, 'utf-8');
-      const match = content.match(/dossierCode:\s*"?([^"\n]+)"?/);
-      if (match && match[1].startsWith(prefix)) {
-        const seq = parseInt(match[1].substring(prefix.length), 10);
+      const code = String(parseFrontmatter(readFileSync(indexPath, 'utf-8'))?.dossierCode ?? '');
+      if (code.startsWith(prefix)) {
+        const seq = parseInt(code.substring(prefix.length), 10);
         if (!isNaN(seq) && seq >= nextSeq) nextSeq = seq + 1;
       }
     } catch {
@@ -297,11 +328,11 @@ function nextSequence(catPath: string, prefix: string): number {
  */
 export function createDossier(store: Store, crmRoot: string, input: CreateDossierInput): CreateDossierResult {
   // 1. Validate category
-  const category = input.category as Category;
-  const categoryDir = CATEGORY_DIRS[category];
-  if (!categoryDir) {
+  if (!Object.hasOwn(CATEGORY_DIRS, input.category)) {
     throw new Error(`Invalid category: "${input.category}". Valid: ${Object.keys(CATEGORY_DIRS).join(', ')}`);
   }
+  const category = input.category as Category;
+  const categoryDir = CATEGORY_DIRS[category];
 
   if (category === 'Organization') {
     return createOrgDossier(store, crmRoot, input);
@@ -337,10 +368,13 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
 
   const dossierCode = `${codePrefix}-${f3l3}-${String(nextSeq).padStart(3, '0')}`;
 
-  // 5. Create folder name: LASTNAME_Firstname
+  // 5. Create folder name: LASTNAME_Firstname (unsafe path characters removed)
   const nameParts = input.name.trim().split(/\s+/);
-  const lastName = nameParts[nameParts.length - 1];
-  const firstName = nameParts.slice(0, -1).join(' ');
+  const lastName = safeFolderPart(nameParts[nameParts.length - 1]);
+  const firstName = safeFolderPart(nameParts.slice(0, -1).join(' '));
+  if (!lastName || !firstName) {
+    throw new Error(`Name "${input.name}" does not produce a valid folder name`);
+  }
   const folderName = `${lastName.toUpperCase()}_${firstName}`;
 
   // 6. Determine template source — .templates/ is the single source of truth
@@ -361,7 +395,7 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
     const userTpl = join(userTemplates, templateName);
     const categoryTpl = join(userTemplates, templateTypeForCategory(input.category));
 
-    if (existsSync(userTpl)) {
+    if (isWithin(userTemplates, userTpl) && existsSync(userTpl)) {
       templatePath = userTpl;
     } else if (existsSync(categoryTpl)) {
       templatePath = categoryTpl;
@@ -373,17 +407,21 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
     }
   }
 
-  const destPath = join(crmRoot, categoryDir, folderName);
+  const categoryPath = join(crmRoot, categoryDir);
+  const destPath = join(categoryPath, folderName);
+  if (!isWithin(categoryPath, destPath) || destPath === categoryPath) {
+    throw new Error(`Name "${input.name}" does not produce a valid folder name`);
+  }
 
   if (existsSync(destPath)) {
     throw new Error(`Dossier folder already exists: ${destPath}`);
   }
 
   // Ensure category directory exists
-  mkdirSync(join(crmRoot, categoryDir), { recursive: true });
+  mkdirSync(categoryPath, { recursive: true });
 
   // Check if the template dir needs composition (has tracking file but no INDEX.md)
-  const needsCompose = templatePath && !existsSync(join(templatePath, 'INDEX.md'));
+  const needsCompose = !existsSync(join(templatePath, 'INDEX.md'));
   if (needsCompose && professionEntry) {
     // Compose: copy COMMON base files first, then overlay profession-specific files
     const commonDir = join(userTemplates, 'REAL_ESTATE', 'COMMON');
@@ -408,36 +446,30 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
     profession: input.profession ?? '',
   });
 
-  // 8. Rewrite INDEX.md with proper YAML frontmatter for parseIndexYaml compatibility
+  // 8. Rewrite INDEX.md key fields so parseDossierIndex sees them
   const indexPath = join(destPath, 'INDEX.md');
   const indexContent = readFileSync(indexPath, 'utf-8');
-  const { yaml: indexYaml, body: indexBody } = parseFrontmatterAndBody(indexContent);
-
-  // Overwrite key fields to ensure parseIndexYaml works
-  indexYaml.name = input.name;
-  indexYaml.dossierCode = dossierCode;
-  indexYaml.organization = input.organization ?? '';
-  indexYaml.status = 'Active';
-  indexYaml.lastContactDate = todayStr;
-  indexYaml.lastUpdated = todayStr;
-  if (input.context) {
-    indexYaml.context = input.context;
-  }
-  if (input.profession) {
-    indexYaml.profession = input.profession;
-  }
-  // Remove template-only fields
-  delete indexYaml.tier;
+  const { body: indexBody } = splitFrontmatter(indexContent);
 
   // Replace template name in body heading
   const updatedBody = indexBody
-    .replace(/DOSSIER_TEMPLATE_\w+/g, input.name)
-    .replace(/\[SUBJECT NAME\]/g, input.name)
-    .replace(/\[ORGANIZATION\]/g, input.organization ?? '')
-    .replace(/\[NAME\]/g, input.name);
+    .replace(/DOSSIER_TEMPLATE_\w+/g, () => input.name)
+    .replace(/\[SUBJECT NAME\]/g, () => input.name)
+    .replace(/\[ORGANIZATION\]/g, () => input.organization ?? '')
+    .replace(/\[NAME\]/g, () => input.name);
 
-  const updatedIndex = reconstructFile(indexYaml, updatedBody);
-  writeFileSync(indexPath, updatedIndex, 'utf-8');
+  const withBody = indexContent.slice(0, indexContent.length - indexBody.length) + updatedBody;
+  writeFileSync(indexPath, updateFrontmatter(withBody, {
+    name: input.name,
+    dossierCode,
+    organization: input.organization ?? '',
+    status: 'Active',
+    lastContactDate: todayStr,
+    lastUpdated: todayStr,
+    ...(input.context ? { context: input.context } : {}),
+    ...(input.profession ? { profession: input.profession } : {}),
+    tier: undefined, // template-only field
+  }), 'utf-8');
 
   // 9. Re-index the new dossier only (O(1) instead of O(N))
   const relPath = `${categoryDir}/${folderName}`;
@@ -511,18 +543,18 @@ function createOrgDossier(store: Store, crmRoot: string, input: CreateDossierInp
   });
 
   const indexPath = join(destPath, 'INDEX.md');
-  const { yaml: indexYaml, body: indexBody } = parseFrontmatterAndBody(readFileSync(indexPath, 'utf-8'));
-  indexYaml.name = input.name;
-  indexYaml.dossierCode = dossierCode;
-  indexYaml.category = 'Organization';
-  indexYaml.orgType = orgType;
-  indexYaml.roles = roles;
-  indexYaml.status = 'Active';
-  indexYaml.lastContactDate = todayStr;
-  indexYaml.lastUpdated = todayStr;
-  if (input.context) indexYaml.context = input.context;
-  delete indexYaml.tier;
-  writeFileSync(indexPath, reconstructFile(indexYaml, indexBody), 'utf-8');
+  writeFileSync(indexPath, updateFrontmatter(readFileSync(indexPath, 'utf-8'), {
+    name: input.name,
+    dossierCode,
+    category: 'Organization',
+    orgType,
+    roles,
+    status: 'Active',
+    lastContactDate: todayStr,
+    lastUpdated: todayStr,
+    ...(input.context ? { context: input.context } : {}),
+    tier: undefined, // template-only field
+  }), 'utf-8');
 
   const relPath = `${categoryDir}/${folderName}`;
   store.indexOne(relPath);
@@ -531,45 +563,59 @@ function createOrgDossier(store: Store, crmRoot: string, input: CreateDossierInp
 
 /**
  * Recursively replace placeholders in all .md files under a directory.
+ * Replacement values are inserted literally (function replacers, so `$&`
+ * and friends in a name are not expanded) and YAML values are emitted as
+ * double-quoted scalars so quotes in a name cannot break the frontmatter.
  */
 function replacePlaceholdersRecursive(
   dirPath: string,
   replacements: { name: string; dossierCode: string; organization: string; category: string; date: string; context: string; profession: string; orgType?: string },
 ): void {
-  const entries = readdirSync(dirPath, { withFileTypes: true });
-  for (const entry of entries) {
+  const vars: Record<string, string> = {
+    name: replacements.name,
+    dossierCode: replacements.dossierCode,
+    organization: replacements.organization,
+    category: replacements.category ?? '',
+    context: replacements.context,
+    date: replacements.date,
+    profession: replacements.profession,
+    orgType: replacements.orgType ?? '',
+  };
+
+  for (const entry of readdirSync(dirPath, { withFileTypes: true })) {
     const fullPath = join(dirPath, entry.name);
     if (entry.isDirectory()) {
       replacePlaceholdersRecursive(fullPath, replacements);
-    } else if (entry.name.endsWith('.md')) {
-      let content = readFileSync(fullPath, 'utf-8');
-
-      // Replace {{variable}} mustache-style placeholders first
-      const vars: Record<string, string> = {
-        name: replacements.name,
-        dossierCode: replacements.dossierCode,
-        organization: replacements.organization,
-        category: replacements.category ?? '',
-        context: replacements.context,
-        date: replacements.date,
-        profession: replacements.profession,
-        orgType: replacements.orgType ?? '',
-      };
-      for (const [key, value] of Object.entries(vars)) {
-        content = content.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
-      }
-
-      // Replace known placeholder patterns in YAML frontmatter
-      content = content.replace(/contactName:\s*"[^"]*"/g, `contactName: "${replacements.name}"`);
-      content = content.replace(/dossierCode:\s*"[^"]*"/g, `dossierCode: "${replacements.dossierCode}"`);
-
-      // Replace date placeholders in YAML
-      content = content.replace(/lastUpdated:\s*\S+/g, `lastUpdated: ${replacements.date}`);
-
-      // Replace template name references in body
-      content = content.replace(/DOSSIER_TEMPLATE_\w+/g, replacements.name);
-
-      writeFileSync(fullPath, content, 'utf-8');
+      continue;
     }
+    if (!entry.name.endsWith('.md')) continue;
+
+    const original = readFileSync(fullPath, 'utf-8');
+    const { yaml, body } = splitFrontmatter(original);
+    let head = original.slice(0, original.length - body.length);
+    let content = body;
+
+    // Known YAML placeholder fields — frontmatter only. Runs before the
+    // mustache pass so these regexes never see escaped quotes in a value.
+    if (yaml !== null) {
+      head = head
+        .replace(/contactName:\s*"[^"]*"/g, () => `contactName: ${JSON.stringify(replacements.name)}`)
+        .replace(/dossierCode:\s*"[^"]*"/g, () => `dossierCode: ${JSON.stringify(replacements.dossierCode)}`)
+        .replace(/lastUpdated:\s*\S+/g, () => `lastUpdated: ${replacements.date}`);
+    }
+
+    // Replace {{variable}} mustache-style placeholders. Inside frontmatter the
+    // templates wrap them in double quotes, so insert JSON-escaped text there.
+    for (const [key, value] of Object.entries(vars)) {
+      const re = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+      head = head.replace(re, () => JSON.stringify(value).slice(1, -1));
+      content = content.replace(re, () => value);
+    }
+    content = head + content;
+
+    // Replace template name references in body
+    content = content.replace(/DOSSIER_TEMPLATE_\w+/g, () => replacements.name);
+
+    writeFileSync(fullPath, content, 'utf-8');
   }
 }

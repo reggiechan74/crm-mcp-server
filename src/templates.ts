@@ -36,6 +36,32 @@ export interface LocalTemplateStatus {
   categories?: string[];
 }
 
+// ── Name validation ────────────────────────────────────────────────────
+
+const SAFE_TEMPLATE_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
+
+/**
+ * Throw unless `name` is a plain template/category identifier (letters,
+ * digits, `_`, `-`). Template names flow into filesystem paths and archive
+ * member names, so anything else (`/`, `..`, quotes, shell metacharacters)
+ * is rejected outright.
+ */
+export function assertSafeTemplateName(name: string, label = 'template'): void {
+  if (!SAFE_TEMPLATE_NAME_RE.test(name)) {
+    throw new Error(`Invalid ${label} name: "${name}" (use letters, digits, "_" or "-")`);
+  }
+}
+
+/** Parse "NAME" or "NAME/CATEGORY" into validated parts. */
+export function parseTemplateRef(ref: string): { templateName: string; category?: string } {
+  const parts = ref.split('/');
+  if (parts.length > 2) throw new Error(`Invalid template reference: "${ref}"`);
+  const [templateName, category] = parts;
+  assertSafeTemplateName(templateName);
+  if (category !== undefined) assertSafeTemplateName(category, 'category');
+  return { templateName, category: category || undefined };
+}
+
 // ── Bundled templates directory ────────────────────────────────────────
 
 export function getBundledTemplatesDir(): string {

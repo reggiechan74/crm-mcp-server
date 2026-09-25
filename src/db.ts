@@ -82,12 +82,3 @@ export function openDatabase(path: string): Database {
 
   return wrapDatabase(raw);
 }
-
-/**
- * Vector search is computed in-process with JS cosine similarity
- * (see embeddings.ts), so the native sqlite-vec extension is not required.
- * Kept as a no-op for backward compatibility with existing callers.
- */
-export function loadSqliteVec(_db: Database): boolean {
-  return false;
-}

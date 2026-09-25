@@ -2,19 +2,12 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadConfig } from './config.js';
 import { createStore } from './store.js';
-import { startMcpServer, startMcpServerUnconfigured } from './server.js';
+import { runMcpServer } from './server.js';
 
 const command = process.argv[2];
 
 if (command === 'mcp') {
-  const config = loadConfig();
-  if (config.crmRoot) {
-    const store = createStore(config.dbPath, config.crmRoot);
-    store.indexAll();
-    await startMcpServer(store, config);
-  } else {
-    await startMcpServerUnconfigured(config);
-  }
+  await runMcpServer(loadConfig());
 } else if (command === 'reindex') {
   const config = loadConfig();
   const store = createStore(config.dbPath, config.crmRoot);
@@ -48,16 +41,14 @@ if (command === 'mcp') {
   const loadTime = (Date.now() - t0) / 1000;
   console.log(`Model loaded in ${loadTime.toFixed(1)}s`);
 
-  // Count actual chunks from content_cache
-  const rows = store.db
-    .prepare('SELECT contact_id, section, cleaned_content FROM content_cache')
-    .all() as Array<{ contact_id: string; section: string; cleaned_content: string }>;
+  // Count actual chunks from the indexed section content
+  const rows = store.getSectionContents();
 
   let totalChunks = 0;
   let skipped = 0;
   for (const row of rows) {
-    const content = row.cleaned_content?.trim();
-    if (!content || content.length === 0) { skipped++; continue; }
+    const content = row.content.trim();
+    if (!content) { skipped++; continue; }
     totalChunks += chunkText(content).length;
   }
 
@@ -67,7 +58,7 @@ if (command === 'mcp') {
   // Benchmark 20 chunks
   const sampleChunks: string[] = [];
   for (const row of rows) {
-    const content = row.cleaned_content?.trim();
+    const content = row.content.trim();
     if (!content) continue;
     const chunks = chunkText(content);
     for (const c of chunks) {
@@ -130,7 +121,7 @@ async function handleTemplatesCommand(): Promise<void> {
   const {
     listLocalTemplates, ensureManifest, isCustomized,
     readTemplateInfo, computeContentHash, countFiles, dirSize,
-    installTemplate,
+    parseTemplateRef, assertSafeTemplateName,
   } = await import('./templates.js');
   const { listRemoteTemplates, downloadTemplate } = await import('./github.js');
 
@@ -186,9 +177,14 @@ async function handleTemplatesCommand(): Promise<void> {
     }
 
     // Parse name — could be "REAL_ESTATE" or "REAL_ESTATE/A_BROKERAGE_SALES"
-    const parts = nameArg.split('/');
-    const templateName = parts[0];
-    const category = parts[1] || undefined;
+    let templateName: string;
+    let category: string | undefined;
+    try {
+      ({ templateName, category } = parseTemplateRef(nameArg));
+    } catch (e: any) {
+      console.error(e.message);
+      process.exit(1);
+    }
 
     // Check if already installed and customized
     const manifest = ensureManifest(config.crmRoot);
@@ -261,6 +257,13 @@ async function handleTemplatesCommand(): Promise<void> {
 
     for (const [name, entry] of Object.entries(manifest.templates)) {
       if (onlyTemplate && name !== onlyTemplate) continue;
+      try {
+        assertSafeTemplateName(name);
+      } catch (e: any) {
+        console.log(`  ${e.message} — skipping`);
+        skipped++;
+        continue;
+      }
 
       const upstream = remoteMap.get(name);
       if (!upstream) {
@@ -324,6 +327,12 @@ async function handleTemplatesCommand(): Promise<void> {
     const nameArg = process.argv[4];
     if (!nameArg) {
       console.error('Usage: crm-mcp templates info <name>');
+      process.exit(1);
+    }
+    try {
+      assertSafeTemplateName(nameArg);
+    } catch (e: any) {
+      console.error(e.message);
       process.exit(1);
     }
 
