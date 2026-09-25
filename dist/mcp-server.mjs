@@ -20963,17 +20963,22 @@ function createStore(dbPath, crmRoot) {
       return ids && ids.size === 1 ? [...ids][0] : "";
     };
     const all = buildIndex(contacts, true);
-    const update = db.prepare("UPDATE relationships SET target_id = ? WHERE rowid = ?");
+    const update = db.prepare("UPDATE relationships SET target_id = ? WHERE rowid = ? AND target_id IS NOT ?");
     for (const row of db.prepare("SELECT rowid, target_name FROM relationships").all()) {
-      update.run(unique(all, row.target_name), row.rowid);
+      const resolved = unique(all, row.target_name);
+      update.run(resolved, row.rowid, resolved);
     }
     const orgs = contacts.filter((c) => c.category === "Organization");
     const orgIndex = buildIndex(orgs, false);
     const orgName = new Map(orgs.map((o) => [o.id, o.name]));
+    const hasManualWorksAt = db.prepare(
+      "SELECT 1 FROM relationships WHERE source_id = ? AND type = 'works_at' AND target_id = ? LIMIT 1"
+    );
     for (const c of contacts) {
       if (c.category === "Organization" || !c.organization) continue;
       const orgId = unique(orgIndex, c.organization);
       if (!orgId) continue;
+      if (hasManualWorksAt.get(c.id, orgId)) continue;
       stmts.insertRelationshipIfAbsent.run(c.id, orgId, orgName.get(orgId), "works_at", AUTO_WORKS_AT_CONTEXT, 0);
     }
   }
@@ -21021,14 +21026,17 @@ function createStore(dbPath, crmRoot) {
     indexOne(dossierRelPath) {
       const dossierPath = join3(crmRoot, dossierRelPath);
       const contact = parseIndexYaml(dossierPath);
-      if (contact.id) {
-        db.prepare("DELETE FROM contacts WHERE id = ?").run(contact.id);
-        db.prepare("DELETE FROM relationships WHERE source_id = ?").run(contact.id);
-        db.prepare("DELETE FROM content_fts WHERE contact_id = ?").run(contact.id);
-        db.prepare("DELETE FROM content_cache WHERE contact_id = ?").run(contact.id);
-      }
-      indexDossier(dossierRelPath);
-      resolveRelationshipTargets();
+      const runIndexOne = db.transaction(() => {
+        if (contact.id) {
+          db.prepare("DELETE FROM contacts WHERE id = ?").run(contact.id);
+          db.prepare("DELETE FROM relationships WHERE source_id = ?").run(contact.id);
+          db.prepare("DELETE FROM content_fts WHERE contact_id = ?").run(contact.id);
+          db.prepare("DELETE FROM content_cache WHERE contact_id = ?").run(contact.id);
+        }
+        indexDossier(dossierRelPath);
+        resolveRelationshipTargets();
+      });
+      runIndexOne();
     },
     searchContacts(filters) {
       const {
@@ -21063,7 +21071,16 @@ function createStore(dbPath, crmRoot) {
         conditions.push("json_extract(metadata_json, '$.orgType') = ?");
         params.push(orgType.toUpperCase());
       }
-      for (const role of roles ?? []) {
+      const normalizedRoles = (roles ?? []).map((role) => {
+        const canonical = ORG_ROLES.find(
+          (r) => r.toLowerCase() === role.trim().toLowerCase()
+        );
+        if (!canonical) {
+          throw new Error(`Invalid role(s): ${role}. Valid: ${ORG_ROLES.join(", ")}`);
+        }
+        return canonical;
+      });
+      for (const role of normalizedRoles) {
         conditions.push("EXISTS (SELECT 1 FROM json_each(contacts.metadata_json, '$.roles') WHERE value = ?)");
         params.push(role);
       }
@@ -21083,7 +21100,7 @@ function createStore(dbPath, crmRoot) {
           ${status ? "AND c.status = ?" : ""}
           ${profession ? "AND c.profession = ?" : ""}
           ${orgType ? "AND json_extract(c.metadata_json, '$.orgType') = ?" : ""}
-          ${(roles ?? []).map(() => "AND EXISTS (SELECT 1 FROM json_each(c.metadata_json, '$.roles') WHERE value = ?)").join("\n")}
+          ${normalizedRoles.map(() => "AND EXISTS (SELECT 1 FROM json_each(c.metadata_json, '$.roles') WHERE value = ?)").join("\n")}
           ORDER BY rank
           LIMIT ?
         `;
@@ -21092,7 +21109,7 @@ function createStore(dbPath, crmRoot) {
         if (status) ftsParams.push(status);
         if (profession) ftsParams.push(profession);
         if (orgType) ftsParams.push(orgType.toUpperCase());
-        for (const role of roles ?? []) ftsParams.push(role);
+        for (const role of normalizedRoles) ftsParams.push(role);
         ftsParams.push(limit);
         const ftsRows = db.prepare(ftsSql).all(...ftsParams);
         results = ftsRows.map(toSearchResult);
@@ -44855,29 +44872,45 @@ function appendLog(store, contactId, entry) {
   writeFileSync(logFile, updatedContent, "utf-8");
   invalidateAndReindex(store, contactId, "log", logFile);
 }
+var LIST_FIELDS = /* @__PURE__ */ new Set(["roles", "aliases", "assetClasses"]);
+function parseListValue(value) {
+  const trimmed = value.trim();
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.map((v) => String(v).trim()).filter(Boolean);
+      }
+    } catch {
+    }
+  }
+  return trimmed.split(",").map((v) => v.trim()).filter(Boolean);
+}
 function updateField(store, contactId, section, field, value) {
   const contactPath = getContactPath(store, contactId);
   const sectionFile = resolveSectionFile(section);
   const filePath = join4(store.crmRoot, contactPath, sectionFile);
   const content = readFileSync4(filePath, "utf-8");
   const { yaml, body } = parseFrontmatterAndBody(content);
-  yaml[field] = value;
+  let newValue = value;
+  if (section === "index" && LIST_FIELDS.has(field)) {
+    const list = parseListValue(value);
+    if (field === "roles") {
+      const badRoles = list.filter((r) => !ORG_ROLES.includes(r));
+      if (badRoles.length > 0) {
+        throw new Error(`Invalid role(s): ${badRoles.join(", ")}. Valid: ${ORG_ROLES.join(", ")}`);
+      }
+    }
+    newValue = list;
+  }
+  yaml[field] = newValue;
   yaml.lastUpdated = today();
   const updatedContent = reconstructFile(yaml, body);
   writeFileSync(filePath, updatedContent, "utf-8");
-  invalidateAndReindex(store, contactId, section, filePath);
   if (section === "index") {
-    const columnMap = {
-      status: "status",
-      lastContactDate: "last_contact",
-      organization: "organization",
-      name: "name"
-    };
-    const column = columnMap[field];
-    if (column) {
-      store.db.prepare(`UPDATE contacts SET ${column} = ? WHERE id = ?`).run(value, contactId);
-    }
-    store.db.prepare("UPDATE contacts SET last_updated = ? WHERE id = ?").run(today(), contactId);
+    store.indexOne(contactPath);
+  } else {
+    invalidateAndReindex(store, contactId, section, filePath);
   }
 }
 var CATEGORY_TO_CODE = Object.fromEntries(
@@ -44931,6 +44964,9 @@ function createDossier(store, crmRoot, input) {
   }
   if (category === "Organization") {
     return createOrgDossier(store, crmRoot, input);
+  }
+  if (input.orgType || input.cid || input.roles && input.roles.length > 0) {
+    throw new Error("orgType, cid and roles apply to Organization dossiers only");
   }
   let codePrefix;
   let professionEntry;
@@ -45047,13 +45083,16 @@ function createOrgDossier(store, crmRoot, input) {
     throw new Error("Organization template not installed locally. Run: crm-mcp templates pull REAL_ESTATE/ORGANIZATION");
   }
   const categoryDir = CATEGORY_DIRS.Organization;
-  const folderName = orgFolderName(orgType, input.name);
+  const prefix = `${orgType}-${cid}-`;
+  const dossierCode = `${prefix}${String(nextSequence(join4(crmRoot, categoryDir), prefix)).padStart(3, "0")}`;
+  let folderName = orgFolderName(orgType, input.name);
+  if (folderName === `${orgType}_`) {
+    folderName = `${orgType}_${cid}`;
+  }
   const destPath = join4(crmRoot, categoryDir, folderName);
   if (existsSync4(destPath)) {
     throw new Error(`Dossier folder already exists: ${destPath}`);
   }
-  const prefix = `${orgType}-${cid}-`;
-  const dossierCode = `${prefix}${String(nextSequence(join4(crmRoot, categoryDir), prefix)).padStart(3, "0")}`;
   mkdirSync2(join4(crmRoot, categoryDir), { recursive: true });
   cpSync(commonDir, destPath, { recursive: true });
   const overlays = new Set(roles.map((r) => ROLE_OVERLAYS[r]).filter((d) => !!d));
@@ -46000,7 +46039,7 @@ function respond(text) {
   return { content: [{ type: "text", text: text + footer }] };
 }
 function resolveContact(store, contact) {
-  if (/^[A-Z]{2,4}-/.test(contact)) {
+  if (/^[A-Z]{2,4}-/.test(contact) && store.getContactPath(contact) != null) {
     return contact;
   }
   const byFolder = store.resolveByPath(contact);
@@ -46100,7 +46139,12 @@ function createMcpServer(store, config3) {
     async ({ query, category, status, profession, roles, orgType, limit, paths }) => {
       const err = requireConfigured(config3);
       if (err) return respond(err);
-      const results = store.searchContacts({ query, category, status, profession, roles, orgType, limit });
+      let results;
+      try {
+        results = store.searchContacts({ query, category, status, profession, roles, orgType, limit });
+      } catch (e) {
+        return respond(`Error: ${e.message}`);
+      }
       if (results.length === 0) return respond("No contacts found.");
       const header = `| ID | Name | Org | Category | Status | Last Contact |${paths ? " Path |" : ""}`;
       const sep = `|-----|------|-----|----------|--------|-------------|${paths ? "------|" : ""}`;

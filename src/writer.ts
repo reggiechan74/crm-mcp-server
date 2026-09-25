@@ -135,6 +135,29 @@ export function appendLog(store: Store, contactId: string, entry: LogEntry): voi
   invalidateAndReindex(store, contactId, 'log', logFile);
 }
 
+/** INDEX.md fields that hold list values (comma-separated or JSON array string on input). */
+const LIST_FIELDS = new Set(['roles', 'aliases', 'assetClasses']);
+
+/**
+ * Parse a list-valued field's incoming string into a string array.
+ * Accepts a JSON array string (`'["Client","Competitor"]'`) or a
+ * comma-separated string (`'Client, Competitor'`); trims items and drops empties.
+ */
+function parseListValue(value: string): string[] {
+  const trimmed = value.trim();
+  if (trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.map((v) => String(v).trim()).filter(Boolean);
+      }
+    } catch {
+      // fall through to comma-split parsing below
+    }
+  }
+  return trimmed.split(',').map((v) => v.trim()).filter(Boolean);
+}
+
 /**
  * Update a specific YAML frontmatter field in a dossier section file.
  */
@@ -147,29 +170,31 @@ export function updateField(store: Store, contactId: string, section: string, fi
   const { yaml, body } = parseFrontmatterAndBody(content);
 
   // Update the specified field and lastUpdated
-  yaml[field] = value;
+  let newValue: unknown = value;
+  if (section === 'index' && LIST_FIELDS.has(field)) {
+    const list = parseListValue(value);
+    if (field === 'roles') {
+      const badRoles = list.filter((r) => !(ORG_ROLES as readonly string[]).includes(r));
+      if (badRoles.length > 0) {
+        throw new Error(`Invalid role(s): ${badRoles.join(', ')}. Valid: ${ORG_ROLES.join(', ')}`);
+      }
+    }
+    newValue = list;
+  }
+  yaml[field] = newValue;
   yaml.lastUpdated = today();
 
   const updatedContent = reconstructFile(yaml, body);
   writeFileSync(filePath, updatedContent, 'utf-8');
 
-  // Invalidate cache and re-index
-  invalidateAndReindex(store, contactId, section, filePath);
-
-  // If updating INDEX.md fields, also update the contacts table
   if (section === 'index') {
-    const columnMap: Record<string, string> = {
-      status: 'status',
-      lastContactDate: 'last_contact',
-      organization: 'organization',
-      name: 'name',
-    };
-    const column = columnMap[field];
-    if (column) {
-      store.db.prepare(`UPDATE contacts SET ${column} = ? WHERE id = ?`).run(value, contactId);
-    }
-    // Always update last_updated in contacts table for index changes
-    store.db.prepare('UPDATE contacts SET last_updated = ? WHERE id = ?').run(today(), contactId);
+    // Full reindex of the dossier refreshes metadata_json, aliases, every
+    // contacts column (including last_updated), and auto-derived edges
+    // (e.g. works_at) that depend on this field.
+    store.indexOne(contactPath);
+  } else {
+    // Invalidate cache and re-index just this section.
+    invalidateAndReindex(store, contactId, section, filePath);
   }
 }
 
@@ -280,6 +305,10 @@ export function createDossier(store: Store, crmRoot: string, input: CreateDossie
 
   if (category === 'Organization') {
     return createOrgDossier(store, crmRoot, input);
+  }
+
+  if (input.orgType || input.cid || (input.roles && input.roles.length > 0)) {
+    throw new Error('orgType, cid and roles apply to Organization dossiers only');
   }
 
   // 2. Determine code prefix — profession code (3-letter) or category code (2-letter)
@@ -446,14 +475,20 @@ function createOrgDossier(store: Store, crmRoot: string, input: CreateDossierInp
   }
 
   const categoryDir = CATEGORY_DIRS.Organization;
-  const folderName = orgFolderName(orgType, input.name);
+  const prefix = `${orgType}-${cid}-`;
+  const dossierCode = `${prefix}${String(nextSequence(join(crmRoot, categoryDir), prefix)).padStart(3, '0')}`;
+
+  // orgFolderName strips non-ASCII characters; an all-non-ASCII name (e.g.
+  // pure CJK) yields an empty stem (`INV_`), which would collide with a
+  // second such org. Fall back to the CID as the stem in that case.
+  let folderName = orgFolderName(orgType, input.name);
+  if (folderName === `${orgType}_`) {
+    folderName = `${orgType}_${cid}`;
+  }
   const destPath = join(crmRoot, categoryDir, folderName);
   if (existsSync(destPath)) {
     throw new Error(`Dossier folder already exists: ${destPath}`);
   }
-
-  const prefix = `${orgType}-${cid}-`;
-  const dossierCode = `${prefix}${String(nextSequence(join(crmRoot, categoryDir), prefix)).padStart(3, '0')}`;
 
   mkdirSync(join(crmRoot, categoryDir), { recursive: true });
   cpSync(commonDir, destPath, { recursive: true });
