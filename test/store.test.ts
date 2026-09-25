@@ -345,3 +345,37 @@ describe('relationship resolution', () => {
     s.close();
   });
 });
+
+describe('searchContacts org filters', () => {
+  it('filters by single role', () => {
+    const s = createStore(':memory:', graphRoot());
+    s.indexAll();
+    const ids = s.searchContacts({ roles: ['Client'] }).map(r => r.id).sort();
+    expect(ids).toEqual(['INV-XYZ-001', 'OPR-OXF-001']);
+    s.close();
+  });
+
+  it('ANDs multiple roles', () => {
+    const s = createStore(':memory:', graphRoot());
+    s.indexAll();
+    expect(s.searchContacts({ roles: ['Client', 'OperatingPartner'] }).map(r => r.id)).toEqual(['OPR-OXF-001']);
+    s.close();
+  });
+
+  it('filters by orgType and never matches people', () => {
+    const s = createStore(':memory:', graphRoot());
+    s.indexAll();
+    expect(s.searchContacts({ orgType: 'INV' }).map(r => r.id)).toEqual(['INV-XYZ-001']);
+    expect(s.searchContacts({ roles: ['Competitor'] })).toEqual([]);
+    expect(s.searchContacts({ query: 'Jane' })[0].roles).toBeUndefined();
+    s.close();
+  });
+
+  it('returns orgType and roles on org rows', () => {
+    const s = createStore(':memory:', graphRoot());
+    s.indexAll();
+    const r = s.searchContacts({ query: 'Oxford Properties' })[0];
+    expect(r.roles).toEqual(['Client', 'OperatingPartner']);
+    s.close();
+  });
+});

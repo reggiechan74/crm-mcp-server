@@ -9,7 +9,7 @@ import { runAudit, type AuditPass } from './audit.js';
 import { runRepair } from './repair.js';
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
-import type { Config } from './types.js';
+import type { Config, Relationship } from './types.js';
 import { lookupProfession, searchProfessions } from './professions.js';
 import {
   listLocalTemplates, ensureManifest, isCustomized, readTemplateInfo,
@@ -64,8 +64,12 @@ export function resolveContact(store: Store, contact: string): string | null {
  * Resolve the template directory for a contact based on their category.
  * Uses .templates/ as the single source of truth.
  */
-function resolveTemplateDir(crmRoot: string, store: Store, contactId: string): string | null {
+export function resolveTemplateDir(crmRoot: string, store: Store, contactId: string): string | null {
   const outline = store.getOutline(contactId);
+  if (outline.contact.category === 'Organization') {
+    const orgTpl = join(crmRoot, '.templates', 'REAL_ESTATE', 'ORGANIZATION', 'COMMON');
+    return existsSync(orgTpl) ? orgTpl : null;
+  }
   const category = outline.contact.category.toLowerCase();
 
   // Map category to template type
@@ -81,6 +85,22 @@ function resolveTemplateDir(crmRoot: string, store: Store, contactId: string): s
   if (existsSync(userTplLower)) return userTplLower;
 
   return null;
+}
+
+/**
+ * Render relationship edges as "- Source → Target (type) — context".
+ * Source is shown because resolved inbound edges appear alongside outbound ones;
+ * resolved targets show their display name instead of the raw linkedContacts text.
+ */
+export function formatConnections(store: Store, connections: Relationship[]): string {
+  const nameOf = (id: string): string =>
+    (store.db.prepare('SELECT name FROM contacts WHERE id = ?').get(id) as any)?.name ?? id;
+  return connections
+    .map(c => {
+      const target = c.targetId ? nameOf(c.targetId) : c.targetName;
+      return `- ${nameOf(c.sourceId)} → ${target} (${c.type})${c.context ? ` — ${c.context}` : ''}`;
+    })
+    .join('\n');
 }
 
 /**
@@ -148,24 +168,27 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
   // ── 1. crm_search ────────────────────────────────────────────────────
   server.tool(
     'crm_search',
-    'Search contacts by name, alias/nickname, organization, status, category, or keyword. Returns compact results (~50-100 tokens each).',
+    'Search contacts and organizations by name, alias/nickname, organization, status, category, profession, org role, or org type. Returns compact results (~50-100 tokens each).',
     {
       query: z.string().optional().describe('Name, org, or keyword to search for'),
       category: z.string().optional().describe('Filter by category: Client, Network, Family, etc.'),
       status: z.string().optional().describe('Filter by status: ACTIVE, DORMANT, etc.'),
       profession: z.string().optional().describe('Filter by 3-letter profession code (e.g., BSB for Sales Broker)'),
+      roles: z.array(z.string()).optional().describe('Organization roles that must ALL be present (e.g., ["Client","OperatingPartner"])'),
+      orgType: z.string().optional().describe('Organization type code: REIT, INV, LP, OPR, DEV, LND, BRK, SAAS, DATA, SVC'),
       limit: z.number().optional().default(20).describe('Max results (default 20)'),
       paths: z.boolean().optional().default(false).describe('Include the absolute dossier folder path per result (off by default to keep results compact)'),
     },
-    async ({ query, category, status, profession, limit, paths }) => {
+    async ({ query, category, status, profession, roles, orgType, limit, paths }) => {
       const err = requireConfigured(config);
       if (err) return respond(err);
-      const results = store!.searchContacts({ query, category, status, profession, limit });
+      const results = store!.searchContacts({ query, category, status, profession, roles, orgType, limit });
       if (results.length === 0) return respond('No contacts found.');
       const header = `| ID | Name | Org | Category | Status | Last Contact |${paths ? ' Path |' : ''}`;
       const sep = `|-----|------|-----|----------|--------|-------------|${paths ? '------|' : ''}`;
       const rows = results.map(r => {
-        const base = `| ${r.id} | ${r.name} | ${r.organization || '-'} | ${r.category} | ${r.status} | ${r.lastContact || '-'} |`;
+        const org = r.orgType ? `${r.orgType}${r.roles?.length ? ` [${r.roles.join(', ')}]` : ''}` : (r.organization || '-');
+        const base = `| ${r.id} | ${r.name} | ${org} | ${r.category} | ${r.status} | ${r.lastContact || '-'} |`;
         return paths ? `${base} ${r.path ? join(config.crmRoot, r.path) : '-'} |` : base;
       });
       return respond([header, sep, ...rows].join('\n'));
@@ -209,7 +232,7 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
   // ── 3. crm_read ──────────────────────────────────────────────────────
   server.tool(
     'crm_read',
-    'Read a specific section of a contact\'s dossier. Returns cleaned content with boilerplate stripped. Standard sections: index, profile, log, intelligence-profile, intelligence-strategic, intelligence-risk, medical, medical-genetics, medical-pharmacogenomics, medical-labs, education. Profession-specific sections: deals, assignments, projects, portfolio, matters, assessments, jurisdictions, policies, campaigns, entities, holdings, programs, assets, services, engagements. Any custom file visible in crm_outline is also addressable by its relative path (e.g., "intelligence/intelligence-unsent").',
+    'Read a specific section of a contact\'s dossier. Returns cleaned content with boilerplate stripped. Standard sections: index, profile, log, intelligence-profile, intelligence-strategic, intelligence-risk, medical, medical-genetics, medical-pharmacogenomics, medical-labs, education. Profession-specific sections: deals, assignments, projects, portfolio, matters, assessments, jurisdictions, policies, campaigns, entities, holdings, programs, assets, services, engagements. Organization sections: index, profile, portfolio, intelligence, stakeholders, pipeline, log, competitive, partnership. Any custom file visible in crm_outline is also addressable by its relative path (e.g., "intelligence/intelligence-unsent").',
     {
       contact: z.string().describe('Contact name or dossier code'),
       section: z.string().describe('Section name (e.g., "profile", "deals", "assignments")'),
@@ -243,8 +266,7 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
       if (!contactId) return respond(`Contact not found: ${contact}`);
       const connections = store!.getConnections(contactId, depth);
       if (connections.length === 0) return respond('No connections found.');
-      const lines = connections.map(c => `- ${c.targetName} (${c.type}) — ${c.context}`);
-      return respond(lines.join('\n'));
+      return respond(formatConnections(store!, connections));
     },
   );
 
@@ -370,19 +392,22 @@ export function createMcpServer(store: Store | null, config: Config): McpServer 
   // ── 10. crm_create ─────────────────────────────────────────────────
   server.tool(
     'crm_create',
-    'Create a new contact dossier from template.',
+    'Create a new contact or organization dossier from template. For companies use category "Organization" with orgType (and optional cid, roles).',
     {
       name: z.string().describe("Full name (e.g., 'Jane Smith')"),
-      category: z.string().describe('Category: Client, Network, Family, Personal, Prospect, etc.'),
+      category: z.string().describe('Category: Client, Network, Family, Personal, Prospect, Organization, etc.'),
       organization: z.string().optional().describe('Organization name'),
       context: z.string().optional().describe('How you met or relationship context'),
       profession: z.string().optional().describe('3-letter profession code (e.g., BSB for Sales Broker). Generates profession-based dossier code.'),
+      orgType: z.string().optional().describe('Organization only: REIT, INV, LP, OPR, DEV, LND, BRK, SAAS, DATA, SVC'),
+      cid: z.string().optional().describe('Organization only: company identifier, 2-6 chars (ticker if public, e.g. "PLD")'),
+      roles: z.array(z.string()).optional().describe('Organization only: Client, Prospect, IntegrationPartner, ChannelPartner, Competitor, OperatingPartner, Investor, Lender, Employer, TalentTarget'),
     },
-    async ({ name, category, organization, context, profession }) => {
+    async ({ name, category, organization, context, profession, orgType, cid, roles }) => {
       const err = requireConfigured(config);
       if (err) return respond(err);
       try {
-        const result = createDossier(store!, config.crmRoot, { name, category, organization, context, profession });
+        const result = createDossier(store!, config.crmRoot, { name, category, organization, context, profession, orgType, cid, roles });
         return respond(`Created dossier ${result.id} at ${result.path}`);
       } catch (e: any) {
         return respond(`Error: ${e.message}`);

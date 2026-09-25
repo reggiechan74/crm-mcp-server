@@ -69,6 +69,8 @@ export interface SearchResult {
   path?: string;
   score?: number;
   snippet?: string;
+  orgType?: string;
+  roles?: string[];
 }
 
 export interface Config {
