@@ -1,8 +1,8 @@
 import { readFileSync, statSync, existsSync, readdirSync } from 'node:fs';
 import { join, basename, dirname, relative } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import type { Contact, SectionMeta, Relationship, Category } from './types.js';
-import { SECTION_FILES, CATEGORY_DIRS } from './types.js';
+import type { Contact, SectionMeta, Relationship, Category, RelationType } from './types.js';
+import { SECTION_FILES, CATEGORY_DIRS, RELATION_TYPES } from './types.js';
 
 // Reverse lookup: directory name → Category
 const DIR_TO_CATEGORY: Record<string, Category> = Object.fromEntries(
@@ -382,20 +382,36 @@ export function extractRelationships(dossierPath: string, contactId: string): Re
   const linkedContacts = yaml.linkedContacts;
   if (!Array.isArray(linkedContacts)) return [];
 
-  return linkedContacts.map((entry: unknown) => {
-    const str = String(entry);
-    // Parse "Name (Context)" format
-    const match = str.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
-    const targetName = match ? match[1].trim() : str.trim();
-    const context = match ? match[2].trim() : '';
+  const rels: Relationship[] = linkedContacts.map((entry: unknown): Relationship => {
+    // Object form: { name, type, context }
+    if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+      const obj = entry as Record<string, unknown>;
+      const rawType = String(obj.type ?? '');
+      const type = (RELATION_TYPES as readonly string[]).includes(rawType)
+        ? (rawType as RelationType)
+        : 'associated';
+      return {
+        sourceId: contactId,
+        targetId: '',
+        targetName: String(obj.name ?? '').trim(),
+        type,
+        context: obj.context != null ? String(obj.context) : '',
+        bidirectional: false,
+      };
+    }
 
+    // Legacy string form: "Name (Context)"
+    const str = String(entry);
+    const match = str.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
     return {
       sourceId: contactId,
       targetId: '',
-      targetName,
-      type: 'associated' as const,
-      context,
+      targetName: match ? match[1].trim() : str.trim(),
+      type: 'associated',
+      context: match ? match[2].trim() : '',
       bidirectional: false,
     };
   });
+
+  return rels.filter(r => r.targetName !== '');
 }
