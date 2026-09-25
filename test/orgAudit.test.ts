@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { join, resolve, dirname } from 'node:path';
-import { cpSync, mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { makeTempDir } from './helpers/tmp.js';
 import { createStore, type Store } from '../src/store.js';
@@ -73,6 +73,31 @@ describe('org audit/repair', () => {
     const audit = auditContact(store, root, r.id);
     expect(audit.findings.missing).toEqual([]);
     expect(() => repairContact(store, root, r.id, ['all'])).not.toThrow();
+  });
+
+  it('a fresh multi-layer org dossier reports no duplicates and repair "all" leaves it byte-identical (F2)', () => {
+    const r = createDossier(store, root, {
+      name: 'Fresh Multi', category: 'Organization', orgType: 'BRK', cid: 'FMULT',
+      secondaryTypes: ['REIT', 'BANK', 'DEV', 'PM', 'LAW', 'CORP', 'GOV', 'SAAS', 'ASSN', 'OTH'],
+      roles: ['Competitor', 'IntegrationPartner', 'Vendor'],
+      salesMotion: 'tech',
+    });
+    const dir = join(root, r.path);
+    const before = new Map(
+      readdirSync(dir).filter((f) => f.endsWith('.md')).map((f) => [f, readFileSync(join(dir, f), 'utf-8')]),
+    );
+
+    const audit = auditContact(store, root, r.id, ['duplicates']);
+    expect(audit.findings.duplicates).toEqual([]);
+
+    const result = repairContact(store, root, r.id, ['all']);
+    expect(result.applied.filter((c) => c.startsWith('D'))).toEqual([]);
+
+    // Every file present before repair is untouched; repair may only add new files.
+    for (const [file, content] of before) {
+      expect(readFileSync(join(dir, file), 'utf-8'), file).toBe(content);
+    }
+    expect(readFileSync(join(dir, 'pipeline.md'), 'utf-8')).toBe(before.get('pipeline.md'));
   });
 
   it('person dossiers still audit against their single template', () => {

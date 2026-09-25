@@ -15,7 +15,7 @@
 
 import { readFileSync, writeFileSync, existsSync, rmSync, mkdirSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
-import { AuditResult, runAudit, buildRoutingTable } from './audit.js';
+import { AuditResult, runAudit, buildRoutingTable, stripPlaceholderLines } from './audit.js';
 import { collectMdFiles, today } from './fsutil.js';
 import { parseFrontmatter, splitFrontmatter, updateFrontmatter } from './frontmatter.js';
 
@@ -167,9 +167,7 @@ function ownBody(lines: string[], headingIdx: number): { start: number; end: num
 
 /** Normalized content lines for comparison (matches audit's extractSections filtering). */
 function contentLines(lines: string[]): string[] {
-  return lines
-    .map(l => l.trim())
-    .filter(t => t.length > 0 && t !== '---' && !t.startsWith('|---') && !t.startsWith('| ---') && !t.startsWith('| Date'));
+  return stripPlaceholderLines(lines);
 }
 
 function findHeading(lines: string[], heading: string, occurrence = 0): number {

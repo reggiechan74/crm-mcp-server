@@ -449,6 +449,15 @@ Investor, Lender, Employer, TalentTarget, Landlord, Tenant, Borrower, JVPartner,
 ReferralSource, Regulator. Competitor adds `competitive.md`; IntegrationPartner/ChannelPartner add `partnership.md`;
 Vendor/ServiceProvider add `vendor.md`.
 
+Link companies to each other in `INDEX.md`:
+
+```yaml
+linkedContacts:
+  - { name: "INV-XYZ-001", type: operating_partner_of, context: "Runs TX MF portfolio" }
+```
+
+People whose `organization` matches a company's name or alias are linked automatically (`works_at`).
+
 **Selling technology?** Set `"salesMotion": "tech"` in `~/.crm-mcp.json` (or `CRM_SALES_MOTION=tech`, or `techSale: true`
 on `crm_create`) to add `tech-stack.md` (systems of record, data maturity, buying committee) and a SaaS pipeline
 (POC → Security Review → MSA) to new organization dossiers.
@@ -460,7 +469,7 @@ change adds and `crm_repair` to insert them. After upgrading, run `crm-mcp templ
 
 Config is read from (in priority order):
 
-1. Environment variables (`CRM_ROOT`, `CRM_TEMPLATE_REPO`, `CRM_GITHUB_TOKEN`)
+1. Environment variables (`CRM_ROOT`, `CRM_TEMPLATE_REPO`, `CRM_GITHUB_TOKEN`, `CRM_SALES_MOTION`)
 2. `~/.crm-mcp.json`
 3. Defaults (unconfigured mode with setup instructions)
 
@@ -482,6 +491,7 @@ Config is read from (in priority order):
 | `embeddingModel` | `onnx-community/embeddinggemma-300m-ONNX` | Local embedding model for `crm_vector_search` (override via `CRM_EMBEDDING_MODEL` env) |
 | `templateRepo` | `reggiechan74/crm-mcp-server` | GitHub repo for remote templates (forks can override) |
 | `githubToken` | — | Optional GitHub token for private repos or higher rate limits |
+| `salesMotion` | `general` | `"tech"` adds tech-sale sections to new organization dossiers (override via `CRM_SALES_MOTION` env; `techSale` on `crm_create` overrides per-dossier) |
 
 ## CLI Commands
 

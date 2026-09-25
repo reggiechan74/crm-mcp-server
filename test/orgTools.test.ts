@@ -80,6 +80,7 @@ describe('org tools', () => {
     await call(server, 'crm_create', { name: 'Ares', category: 'Organization', orgType: 'DEBT', cid: 'ARES' });
     const text = await call(server, 'crm_update', { contact: 'DEBT-ARES-001', section: 'index', field: 'orgType', value: 'SVCR' });
     expect(text).toContain('dossier code and folder are unchanged');
+    expect(text).toContain('The previous type is no longer listed — add it to secondaryTypes to keep it.');
     expect(text).toContain('crm_audit');
   });
 });

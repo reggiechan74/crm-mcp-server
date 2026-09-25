@@ -382,7 +382,7 @@ export function createMcpServer(store: Store | null, config: Config, opts: Serve
       const id = contactId(s, contact, true);
       updateField(s, id, section, field, value);
       const note = resolveSection(section).key === 'index' && field === 'orgType'
-        ? '\nNote: the dossier code and folder are unchanged (codes are permanent). Run crm_audit to see sections the new type adds, then crm_repair to insert them.'
+        ? '\nNote: the dossier code and folder are unchanged (codes are permanent). The previous type is no longer listed — add it to secondaryTypes to keep it. Run crm_audit to see sections the new type adds, then crm_repair to insert them.'
         : '';
       return `Updated ${field} = "${value}" in ${section} for ${id}${note}`;
     },

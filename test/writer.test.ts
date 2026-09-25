@@ -5,7 +5,7 @@ import { mkdtempSync, cpSync, readFileSync, existsSync, mkdirSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createStore, type Store } from '../src/store.js';
-import { appendLog, updateField, createDossier, generateF3L3 } from '../src/writer.js';
+import { appendLog, updateField, createDossier, generateF3L3, bulkUpdateField } from '../src/writer.js';
 import { resolveSectionFile } from '../src/types.js';
 import { parseFrontmatter } from '../src/frontmatter.js';
 
@@ -166,6 +166,62 @@ describe('updateField — org roles (F1)', () => {
     const rels = store.getConnections(person.id);
     const w = rels.find(r => r.type === 'works_at');
     expect(w).toMatchObject({ targetId: org.id });
+  });
+});
+
+describe('updateField — secondaryTypes (F1)', () => {
+  it('accepts a JSON array string for secondaryTypes, including an empty array to clear it', () => {
+    const org = createDossier(store, tempDir, {
+      name: 'Epsilon Capital', category: 'Organization', orgType: 'BRK', cid: 'EPS', secondaryTypes: ['PM'],
+    });
+    updateField(store, org.id, 'index', 'secondaryTypes', '["PM","INV"]');
+    let yaml = parseFrontmatter(readFileSync(join(tempDir, org.path, 'INDEX.md'), 'utf-8'))!;
+    expect(yaml.secondaryTypes).toEqual(['PM', 'INV']);
+
+    updateField(store, org.id, 'index', 'secondaryTypes', '[]');
+    yaml = parseFrontmatter(readFileSync(join(tempDir, org.path, 'INDEX.md'), 'utf-8'))!;
+    expect(yaml.secondaryTypes).toEqual([]);
+  });
+
+  it('still accepts the comma-separated form', () => {
+    const org = createDossier(store, tempDir, {
+      name: 'Zeta Capital', category: 'Organization', orgType: 'BRK', cid: 'ZET',
+    });
+    updateField(store, org.id, 'index', 'secondaryTypes', 'PM, INV');
+    const yaml = parseFrontmatter(readFileSync(join(tempDir, org.path, 'INDEX.md'), 'utf-8'))!;
+    expect(yaml.secondaryTypes).toEqual(['PM', 'INV']);
+  });
+});
+
+describe('updateField — salesMotion (F5)', () => {
+  it('normalizes case-insensitively and rejects unknown values', () => {
+    const org = createDossier(store, tempDir, {
+      name: 'Eta Capital', category: 'Organization', orgType: 'INV', cid: 'ETA',
+    });
+    updateField(store, org.id, 'index', 'salesMotion', 'Tech');
+    const yaml = parseFrontmatter(readFileSync(join(tempDir, org.path, 'INDEX.md'), 'utf-8'))!;
+    expect(yaml.salesMotion).toBe('tech');
+
+    expect(() => updateField(store, org.id, 'index', 'salesMotion', 'aggressive'))
+      .toThrow(/Invalid salesMotion "aggressive"\. Valid: general, tech/);
+  });
+});
+
+describe('updateField — org-only fields on person dossiers (F7)', () => {
+  it('rejects orgType, secondaryTypes and salesMotion on a non-Organization dossier', () => {
+    expect(() => updateField(store, 'NE-TESCON-001', 'index', 'orgType', 'INV'))
+      .toThrow(/orgType applies to Organization dossiers only/);
+    expect(() => updateField(store, 'NE-TESCON-001', 'index', 'secondaryTypes', 'PM'))
+      .toThrow(/secondaryTypes applies to Organization dossiers only/);
+    expect(() => updateField(store, 'NE-TESCON-001', 'index', 'salesMotion', 'tech'))
+      .toThrow(/salesMotion applies to Organization dossiers only/);
+  });
+
+  it('bulkUpdateField reports the same rejection per contact instead of throwing', () => {
+    const r = bulkUpdateField(store, { category: 'Network' }, 'orgType', 'INV');
+    expect(r.updated).toEqual([]);
+    expect(r.errors.length).toBeGreaterThan(0);
+    expect(r.errors[0].message).toMatch(/orgType applies to Organization dossiers only/);
   });
 });
 
