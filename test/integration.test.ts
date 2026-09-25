@@ -375,6 +375,16 @@ describe('Oxford scenario: org as client and operating partner of another client
 
     expect(store.searchContacts({ roles: ['Client', 'OperatingPartner'] }).map(r => r.id)).toEqual([oxford.id]);
     expect(store.searchContacts({ roles: ['Client'] }).map(r => r.id).sort()).toEqual([oxford.id, client.id].sort());
+
+    // Multi-line lender that is also a servicer, found by group and by secondary type
+    const lender = createDossier(store, root, {
+      name: 'Harbor Credit', category: 'Organization', orgType: 'DEBT', cid: 'HARB', secondaryTypes: ['SVCR'], roles: ['Lender'],
+    });
+    expect(lender.warnings).toEqual([]);
+    expect(store.searchContacts({ orgGroup: 'LENDING' }).map((r) => r.id)).toContain('DEBT-HARB-001');
+    expect(store.searchContacts({ orgType: 'SVCR' }).map((r) => r.id)).toEqual(['DEBT-HARB-001']);
+    expect(store.getSection('DEBT-HARB-001', 'lending')).toContain('CREDIT BOX');
+
     store.close();
   });
 });
