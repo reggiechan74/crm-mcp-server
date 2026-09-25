@@ -217,7 +217,13 @@ export function bulkUpdateField(
       result.errors.push({ id: c.id, message: e.message });
     }
   }
-  if (paths.length > 0) store.indexMany(paths);
+  // Dossiers that fail to reindex are reported, not fatal: the others'
+  // index rows still commit.
+  if (paths.length > 0) {
+    for (const f of store.indexMany(paths).failed) {
+      result.errors.push({ id: f.path, message: `written but not reindexed: ${f.message}` });
+    }
+  }
   return result;
 }
 
@@ -263,7 +269,7 @@ function getUserTemplatesDir(crmRoot: string): string {
  */
 export function generateF3L3(fullName: string): string {
   // Remove accents
-  const normalized = fullName.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const normalized = fullName.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const parts = normalized.trim().split(/\s+/);
   if (parts.length < 2) {
     throw new Error(`Name must have at least first and last parts: "${fullName}"`);

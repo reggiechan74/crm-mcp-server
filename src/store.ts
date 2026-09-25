@@ -50,8 +50,12 @@ export interface Store {
   crmRoot: string;
   indexAll(): void;
   indexOne(dossierRelPath: string): void;
-  /** Reindex several dossiers in one transaction with a single relationship-resolution pass. */
-  indexMany(dossierRelPaths: string[]): void;
+  /**
+   * Reindex several dossiers in one transaction with a single relationship-resolution
+   * pass. A dossier that fails to parse/index is skipped (its old rows are kept) and
+   * reported; the rest still commit.
+   */
+  indexMany(dossierRelPaths: string[]): { failed: Array<{ path: string; message: string }> };
   /** Refresh the cache and FTS rows for one section after its file was written. */
   reindexSection(contactId: string, section: string): void;
   searchContacts(filters: {
@@ -83,6 +87,8 @@ export interface Store {
   getProfessionCounts(): Array<{ profession: string; count: number }>;
   getContactPath(contactId: string): string | null;
   resolveByPath(input: string): string | null;
+  /** Every contact whose folder basename equals the input's basename. */
+  resolveAllByPath(input: string): string[];
   saveAudit(contactId: string, auditJson: string, dossierHash: string): void;
   loadAudit(contactId: string): { auditJson: string; dossierHash: string | null } | null;
   clearAudit(contactId: string): void;
@@ -183,6 +189,17 @@ function sanitizeFtsQuery(query: string): string {
 
 type CacheEntry = { hash: string; cleaned: string };
 
+/**
+ * Bump when stripBoilerplate's output changes. It salts the content hash so
+ * cleaned text cached under an older cleaner is never reused (the cache
+ * persists across upgrades in ~/.crm-mcp/crm.db).
+ */
+const CLEANER_VERSION = '1';
+
+function contentHash(raw: string): string {
+  return sha256(`${CLEANER_VERSION}\0${raw}`);
+}
+
 export function createStore(dbPath: string, crmRoot: string): Store {
   mkdirSync(dirname(dbPath), { recursive: true });
   const db = openDatabase(dbPath);
@@ -230,7 +247,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
 
   /** Write cache + FTS rows for one section file, reusing the cleaned text when the hash is unchanged. */
   function writeSectionRows(contactId: string, sectionKey: string, raw: string, prior?: CacheEntry): void {
-    const hash = sha256(raw);
+    const hash = contentHash(raw);
     const cleaned = prior && prior.hash === hash ? prior.cleaned : stripBoilerplate(raw);
     stmts.insertContentFts.run(contactId, sectionKey, cleaned);
     stmts.insertContentCache.run(contactId, sectionKey, hash, cleaned, new Date().toISOString(), Buffer.byteLength(raw, 'utf-8'));
@@ -279,7 +296,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
     // and profession-specific files by relative path without .md.
     for (const relPath of collectMdFiles(dossierPath)) {
       const posix = relPath.split('\\').join('/');
-      const sectionKey = FILE_TO_SECTION[posix] ?? resolveSection(posix).key;
+      const sectionKey = FILE_TO_SECTION[posix] ?? sectionKeyForFile(posix);
       const raw = readFileSync(join(dossierPath, relPath), 'utf-8');
       writeSectionRows(contact.id, sectionKey, raw, priorCache.get(`${contact.id}\0${sectionKey}`));
     }
@@ -371,34 +388,56 @@ export function createStore(dbPath: string, crmRoot: string): Store {
     return result;
   }
 
-  /** Reindex the given dossiers (removing rows for any whose INDEX.md is gone). */
-  function reindexPaths(dossierRelPaths: string[]): void {
+  /**
+   * Reindex the given dossiers (removing rows for any whose INDEX.md is gone).
+   * With `tolerant`, a dossier that fails is rolled back to its savepoint
+   * (old rows kept) and reported; otherwise the first failure throws and the
+   * whole batch rolls back.
+   */
+  function reindexPaths(dossierRelPaths: string[], tolerant: boolean): Array<{ path: string; message: string }> {
+    const failed: Array<{ path: string; message: string }> = [];
     // Parse every INDEX.md before opening the transaction (avoids holding the
     // write lock during I/O). A dossier whose INDEX.md is gone is removed.
-    const parsedByPath = dossierRelPaths.map((relPath) => {
+    const parsedByPath: Array<{ relPath: string; parsed: ReturnType<typeof parseDossierIndex> | null }> = [];
+    for (const relPath of dossierRelPaths) {
       const dossierPath = join(crmRoot, relPath);
-      return {
-        relPath,
-        parsed: existsSync(join(dossierPath, 'INDEX.md')) ? parseDossierIndex(dossierPath) : null,
-      };
-    });
+      try {
+        parsedByPath.push({
+          relPath,
+          parsed: existsSync(join(dossierPath, 'INDEX.md')) ? parseDossierIndex(dossierPath) : null,
+        });
+      } catch (err: any) {
+        if (!tolerant) throw err;
+        failed.push({ path: relPath, message: err.message });
+      }
+    }
     const run = db.transaction(() => {
       for (const { relPath, parsed } of parsedByPath) {
-        // Rows are keyed by id, but the id may have changed on disk — clear
-        // both the row(s) stored under this path and the new id. The prior
-        // cache lets unchanged sections skip stripBoilerplate.
-        const prior = new Map<string, CacheEntry>();
-        const oldIds = (db.prepare('SELECT id FROM contacts WHERE path = ?').all(relPath) as any[]).map(r => r.id);
-        const newId = parsed?.contact.id ?? '';
-        for (const id of new Set([...oldIds, newId].filter(Boolean))) {
-          for (const [k, v] of loadCache(id)) prior.set(k, v);
-          deleteContactRows(id);
+        db.exec('SAVEPOINT dossier');
+        try {
+          // Rows are keyed by id, but the id may have changed on disk — clear
+          // both the row(s) stored under this path and the new id. The prior
+          // cache lets unchanged sections skip stripBoilerplate.
+          const prior = new Map<string, CacheEntry>();
+          const oldIds = (db.prepare('SELECT id FROM contacts WHERE path = ?').all(relPath) as any[]).map(r => r.id);
+          const newId = parsed?.contact.id ?? '';
+          for (const id of new Set([...oldIds, newId].filter(Boolean))) {
+            for (const [k, v] of loadCache(id)) prior.set(k, v);
+            deleteContactRows(id);
+          }
+          if (parsed && newId) indexDossier(relPath, prior, parsed);
+          db.exec('RELEASE dossier');
+        } catch (err: any) {
+          db.exec('ROLLBACK TO dossier');
+          db.exec('RELEASE dossier');
+          if (!tolerant) throw err;
+          failed.push({ path: relPath, message: err.message });
         }
-        if (parsed && newId) indexDossier(relPath, prior, parsed);
       }
       resolveRelationshipTargets();
     });
     run();
+    return failed;
   }
 
   const store: Store = {
@@ -420,9 +459,15 @@ export function createStore(dbPath: string, crmRoot: string): Store {
         db.exec('DELETE FROM content_cache');
 
         for (const relPath of indexFiles) {
+          // Savepoint per dossier: a failure part-way through one dossier
+          // rolls back only its rows, never leaving it half-indexed.
+          db.exec('SAVEPOINT dossier');
           try {
             indexDossier(dirname(relPath), prior);
+            db.exec('RELEASE dossier');
           } catch (err) {
+            db.exec('ROLLBACK TO dossier');
+            db.exec('RELEASE dossier');
             console.error(`Failed to index ${relPath}:`, err);
           }
         }
@@ -434,11 +479,11 @@ export function createStore(dbPath: string, crmRoot: string): Store {
     },
 
     indexOne(dossierRelPath: string): void {
-      reindexPaths([dossierRelPath]);
+      reindexPaths([dossierRelPath], false);
     },
 
-    indexMany(dossierRelPaths: string[]): void {
-      reindexPaths(dossierRelPaths);
+    indexMany(dossierRelPaths: string[]) {
+      return { failed: reindexPaths(dossierRelPaths, true) };
     },
 
     reindexSection(contactId: string, section: string): void {
@@ -642,7 +687,7 @@ export function createStore(dbPath: string, crmRoot: string): Store {
 
       const raw = readFileSync(filePath, 'utf-8');
       const cached = stmts.getContentCache.get(contactId, key) as any;
-      if (cached && cached.file_hash === sha256(raw)) {
+      if (cached && cached.file_hash === contentHash(raw)) {
         return cached.cleaned_content;
       }
 
@@ -780,6 +825,14 @@ export function createStore(dbPath: string, crmRoot: string): Store {
       return row ? row.path : null;
     },
 
+    resolveAllByPath(input: string): string[] {
+      const slug = input.replace(/[\\/]+$/, '').split(/[\\/]/).pop();
+      if (!slug) return [];
+      return (db.prepare('SELECT id, path FROM contacts').all() as any[])
+        .filter((r) => r.path && r.path.split(/[\\/]/).pop() === slug)
+        .map((r) => r.id);
+    },
+
     resolveByPath(input: string): string | null {
       // Resolve a dossier folder name (LASTNAME_Firstname convention) or full
       // folder path to a contact id by EXACT basename match. Exact string
@@ -853,6 +906,19 @@ export function createStore(dbPath: string, crmRoot: string): Store {
   };
 
   return store;
+}
+
+/**
+ * Section key for a file found on disk. Odd names that resolveSection
+ * rejects as input (e.g. "..md") are still indexed under their plain
+ * relative path, so one strange file never breaks indexing of a dossier.
+ */
+function sectionKeyForFile(posixRelPath: string): string {
+  try {
+    return resolveSection(posixRelPath).key;
+  } catch {
+    return posixRelPath.replace(/\.md$/, '');
+  }
 }
 
 function parseAliases(raw: string | null | undefined): string[] {
