@@ -30,6 +30,8 @@ export interface Store {
     category?: string;
     status?: string;
     profession?: string;
+    roles?: string[];
+    orgType?: string;
     limit?: number;
   }): SearchResult[];
   fullTextSearch(
@@ -308,6 +310,26 @@ export function createStore(dbPath: string, crmRoot: string): Store {
     }
   }
 
+  function toSearchResult(row: any): SearchResult {
+    const result: SearchResult = {
+      id: row.id,
+      name: row.name,
+      category: row.category,
+      organization: row.organization,
+      status: row.status,
+      lastContact: row.last_contact,
+      path: row.path,
+    };
+    if (row.category === 'Organization' && row.metadata_json) {
+      try {
+        const meta = JSON.parse(row.metadata_json);
+        if (meta.orgType) result.orgType = String(meta.orgType);
+        if (Array.isArray(meta.roles)) result.roles = meta.roles.map(String);
+      } catch { /* ignore malformed metadata */ }
+    }
+    return result;
+  }
+
   const store: Store = {
     db,
     crmRoot,
@@ -359,6 +381,8 @@ export function createStore(dbPath: string, crmRoot: string): Store {
         category,
         status,
         profession,
+        roles,
+        orgType,
         limit = 20,
       } = filters;
       const conditions: string[] = [];
@@ -384,35 +408,37 @@ export function createStore(dbPath: string, crmRoot: string): Store {
         conditions.push('profession = ?');
         params.push(profession);
       }
+      if (orgType) {
+        conditions.push("json_extract(metadata_json, '$.orgType') = ?");
+        params.push(orgType.toUpperCase());
+      }
+      for (const role of roles ?? []) {
+        conditions.push("EXISTS (SELECT 1 FROM json_each(contacts.metadata_json, '$.roles') WHERE value = ?)");
+        params.push(role);
+      }
 
       const where =
         conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
-      const sql = `SELECT id, name, category, organization, status, last_contact, path FROM contacts ${where} ORDER BY name LIMIT ?`;
+      const sql = `SELECT id, name, category, organization, status, last_contact, path, metadata_json FROM contacts ${where} ORDER BY name LIMIT ?`;
       params.push(limit);
 
       const rows = db.prepare(sql).all(...params);
 
-      let results = rows.map((row: any) => ({
-        id: row.id,
-        name: row.name,
-        category: row.category,
-        organization: row.organization,
-        status: row.status,
-        lastContact: row.last_contact,
-        path: row.path,
-      }));
+      let results = rows.map(toSearchResult);
 
       // If query provided and no name matches, fall back to FTS
       if (query && results.length === 0) {
         const ftsQuery = sanitizeFtsQuery(query);
         const ftsSql = `
-          SELECT DISTINCT c.id, c.name, c.category, c.organization, c.status, c.last_contact, c.path
+          SELECT DISTINCT c.id, c.name, c.category, c.organization, c.status, c.last_contact, c.path, c.metadata_json
           FROM content_fts f
           JOIN contacts c ON c.id = f.contact_id
           WHERE content_fts MATCH ?
           ${category ? 'AND c.category = ?' : ''}
           ${status ? 'AND c.status = ?' : ''}
           ${profession ? 'AND c.profession = ?' : ''}
+          ${orgType ? "AND json_extract(c.metadata_json, '$.orgType') = ?" : ''}
+          ${(roles ?? []).map(() => "AND EXISTS (SELECT 1 FROM json_each(c.metadata_json, '$.roles') WHERE value = ?)").join('\n')}
           ORDER BY rank
           LIMIT ?
         `;
@@ -420,18 +446,12 @@ export function createStore(dbPath: string, crmRoot: string): Store {
         if (category) ftsParams.push(category);
         if (status) ftsParams.push(status);
         if (profession) ftsParams.push(profession);
+        if (orgType) ftsParams.push(orgType.toUpperCase());
+        for (const role of roles ?? []) ftsParams.push(role);
         ftsParams.push(limit);
 
         const ftsRows = db.prepare(ftsSql).all(...ftsParams);
-        results = ftsRows.map((row: any) => ({
-          id: row.id,
-          name: row.name,
-          category: row.category,
-          organization: row.organization,
-          status: row.status,
-          lastContact: row.last_contact,
-          path: row.path,
-        }));
+        results = ftsRows.map(toSearchResult);
       }
 
       return results;

@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { join } from 'node:path';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { createStore } from '../src/store.js';
-import { createMcpServer, resolveContact } from '../src/server.js';
+import { createMcpServer, resolveContact, formatConnections, resolveTemplateDir } from '../src/server.js';
 import { runAudit } from '../src/audit.js';
 import { runRepair } from '../src/repair.js';
 
@@ -69,5 +71,35 @@ describe('audit and repair tools', () => {
     // The integration test (Task 12) will test end-to-end.
     expect(typeof runAudit).toBe('function');
     expect(typeof runRepair).toBe('function');
+  });
+});
+
+describe('org tool helpers', () => {
+  it('formatConnections shows source → target for inbound edges', () => {
+    const root = mkdtempSync(join(tmpdir(), 'crm-srv-'));
+    for (const [rel, yaml] of [
+      ['Organizations/OPR_A', 'name: "Org A"\ndossierCode: "OPR-A-001"\nlinkedContacts:\n  - { name: "INV-B-001", type: operating_partner_of }'],
+      ['Organizations/INV_B', 'name: "Org B"\ndossierCode: "INV-B-001"'],
+    ]) {
+      mkdirSync(join(root, rel), { recursive: true });
+      writeFileSync(join(root, rel, 'INDEX.md'), `---\n${yaml}\nstatus: Active\n---\n`);
+    }
+    const store = createStore(':memory:', root);
+    store.indexAll();
+    const text = formatConnections(store, store.getConnections('INV-B-001'));
+    expect(text).toBe('- Org A → Org B (operating_partner_of)');
+    store.close();
+  });
+
+  it('resolveTemplateDir returns the org template for Organization', () => {
+    const root = mkdtempSync(join(tmpdir(), 'crm-srv-'));
+    mkdirSync(join(root, 'Organizations/OPR_A'), { recursive: true });
+    writeFileSync(join(root, 'Organizations/OPR_A/INDEX.md'), '---\nname: "Org A"\ndossierCode: "OPR-A-001"\n---\n');
+    mkdirSync(join(root, '.templates/REAL_ESTATE/ORGANIZATION/COMMON'), { recursive: true });
+    const store = createStore(':memory:', root);
+    store.indexAll();
+    expect(resolveTemplateDir(root, store, 'OPR-A-001'))
+      .toBe(join(root, '.templates/REAL_ESTATE/ORGANIZATION/COMMON'));
+    store.close();
   });
 });
