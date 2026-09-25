@@ -11,11 +11,11 @@ lastUpdated: {{date}}
 
 | Date | Document | Type | Status | Location |
 |------|----------|------|--------|----------|
-| [TO BE POPULATED] | [TO BE POPULATED] | [NDA / MSA / SOW / Security Questionnaire / Order Form] | [Draft / Sent / Signed / Expired] | [TO BE POPULATED] |
+| [TO BE POPULATED] | [TO BE POPULATED] | [NDA / LOI / PSA / Lease / Loan Docs / Engagement Letter / Contract] | [Draft / Sent / Signed / Expired] | [TO BE POPULATED] |
 
 ## II. INTERACTION LOG
 
-Name the stakeholder(s) in the Summary. This table must stay last in the file (crm_log appends after the last table).
+Name the stakeholder(s) in the Summary. crm_log appends new rows to this table.
 
 | Date | Type | Summary | Outcome | Follow-Up |
 |------|------|---------|---------|-----------|

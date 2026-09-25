@@ -13,37 +13,27 @@ lastUpdated: {{date}}
 |-----------------|--------------------|--------------------|------|
 | [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] | [V/I/A] |
 
-## II. TECHNOLOGY BUYING BEHAVIOR
+## II. PRIORITIES & PAIN POINTS
 
-| Dimension | Assessment | Conf |
-|-----------|------------|------|
-| Central IT vs Business-Unit Buying | [TO BE POPULATED] | [V/I/A] |
-| Build vs Buy | [TO BE POPULATED] | [V/I/A] |
-| Adoption Pattern | [Early / Mainstream / Laggard] | [V/I/A] |
-| InfoSec Review Timeline | [TO BE POPULATED] | [V/I/A] |
-| Procurement Timeline | [TO BE POPULATED] | [V/I/A] |
-
-## III. PAIN POINTS
-
-| Pain Point | Confirmed / Inferred | Product Line | Evidence |
-|------------|---------------------|--------------|----------|
+| Priority / Pain Point | Confirmed / Inferred | Relevance to Us | Evidence |
+|-----------------------|---------------------|-----------------|----------|
 | [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] |
 
-## IV. RISKS
+## III. RISKS
 
-### A. Account Risks
+### A. Relationship Risks
 
 | Risk | Likelihood | Mitigation |
 |------|-----------|------------|
-| [Champion departure / Platform consolidation / Budget freeze] | [TO BE POPULATED] | [TO BE POPULATED] |
+| [Key contact departure / Consolidation / Budget freeze] | [TO BE POPULATED] | [TO BE POPULATED] |
 
 ### B. Company Viability Risks
 
 | Risk | Signal | Conf |
 |------|--------|------|
-| [Fund performance / Redemption queue / M&A] | [TO BE POPULATED] | [V/I/A] |
+| [Liquidity / Leadership change / M&A / Litigation] | [TO BE POPULATED] | [V/I/A] |
 
-## V. INTELLIGENCE GAPS & SOURCES
+## IV. INTELLIGENCE GAPS & SOURCES
 
 | Gap / Source | Reliability | Next Step |
 |--------------|-------------|-----------|

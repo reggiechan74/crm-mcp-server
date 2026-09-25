@@ -3,8 +3,10 @@ name: "{{name}}"
 dossierCode: "{{dossierCode}}"
 category: Organization
 orgType: "{{orgType}}"
+secondaryTypes: []
 assetClasses: []
 roles: []
+salesMotion: general
 accountTier: T3
 aliases: []
 parentOrg: ""
@@ -14,7 +16,7 @@ confidentiality: []
 status: Active
 tier: index
 lastUpdated: {{date}}
-templateVersion: "1.0"
+templateVersion: "2.0"
 ---
 
 # {{name}} - Quick Reference
@@ -26,9 +28,9 @@ templateVersion: "1.0"
 | Field | Value | Conf |
 |-------|-------|------|
 | **Org Type** | {{orgType}} | [V] |
+| **Also Operates As** | [TO BE POPULATED] | [V/I/A] |
 | **HQ** | [TO BE POPULATED] | [V/I/A] |
-| **AUM** | [TO BE POPULATED] | [V/I/A] |
-| **Assets / Units** | [TO BE POPULATED] | [V/I/A] |
+| **Size (AUM / revenue / portfolio)** | [TO BE POPULATED] | [V/I/A] |
 | **Headcount** | [TO BE POPULATED] | [V/I/A] |
 | **Parent** | [TO BE POPULATED] | [V/I/A] |
 | **Context** | {{context}} | [V] |
@@ -39,14 +41,15 @@ templateVersion: "1.0"
 |------|--------|---------|
 | [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] |
 
-## ACCOUNT HEALTH
+## RELATIONSHIP HEALTH
 
 | Metric | Value | Conf |
 |--------|-------|------|
-| ARR | [TO BE POPULATED] | [V/I/A] |
-| Renewal Date | [TO BE POPULATED] | [V/I/A] |
-| Adoption Health | [TO BE POPULATED] | [V/I/A] |
-| Qualification Score (1-100) | [TO BE POPULATED] | [V/I/A] |
+| Relationship Stage | [Cold / Warm / Active / Strategic] | [V/I/A] |
+| Strength (1-10) | [TO BE POPULATED] | [V/I/A] |
+| Last Meaningful Touch | [TO BE POPULATED] | [V/I/A] |
+| Business Value to Date | [TO BE POPULATED] | [V/I/A] |
+| Key Date (renewal / expiry / closing) | [TO BE POPULATED] | [V/I/A] |
 
 ## NEXT ACTION
 
@@ -59,4 +62,4 @@ templateVersion: "1.0"
 - None identified
 
 ---
-*Load stakeholders.md for meeting prep, pipeline.md for commercial status, portfolio.md for fit*
+*Load stakeholders.md for meeting prep, pipeline.md for commercial status, and the type file (e.g. lending.md, deal-flow.md) for business detail*

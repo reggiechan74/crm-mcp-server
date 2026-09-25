@@ -426,7 +426,7 @@ describe('createDossier — Organization', () => {
     expect(r.id).toBe('OPR-OXF-001');
     expect(r.path).toBe('Organizations/OPR_Oxford_Properties');
     const dir = join(tempDir, r.path);
-    for (const f of ['INDEX.md', 'profile.md', 'portfolio.md', 'intelligence.md',
+    for (const f of ['INDEX.md', 'profile.md', 'intelligence.md',
       'stakeholders.md', 'pipeline.md', 'log.md']) {
       expect(existsSync(join(dir, f)), f).toBe(true);
     }
@@ -516,10 +516,9 @@ describe('createDossier — Organization', () => {
       .toThrow(/templates pull REAL_ESTATE\/ORGANIZATION/);
   });
 
-  it('org sections resolve and index (portfolio, intelligence, pipeline)', () => {
+  it('org sections resolve and index (intelligence, pipeline)', () => {
     const r = createDossier(store, tempDir, { name: 'Oxford Properties', category: 'Organization', orgType: 'OPR', cid: 'OXF' });
-    expect(store.getSection(r.id, 'portfolio')).toContain('SYSTEMS OF RECORD');
-    expect(store.getSection(r.id, 'intelligence')).toContain('TECHNOLOGY BUYING BEHAVIOR');
+    expect(store.getSection(r.id, 'intelligence')).toContain('PRIORITIES & PAIN POINTS');
     expect(store.getSection(r.id, 'pipeline')).toContain('ACTIVE OPPORTUNITIES');
   });
 

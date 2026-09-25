@@ -13,18 +13,14 @@ lastUpdated: {{date}}
 |------|-------|-----------|---------|------|
 | [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] | [V/I/A] |
 
-## II. BUYING COMMITTEE
+## II. KEY DECISION MAKERS
 
 | Role | Name | Title | Stance | Dossier |
 |------|------|-------|--------|---------|
-| Economic Buyer (CIO / COO / CFO) | [TO BE POPULATED] | [TO BE POPULATED] | [Champion / Supporter / Neutral / Blocker] | [TO BE POPULATED] |
-| Technical Buyer (CTO / Head of Data) | [TO BE POPULATED] | [TO BE POPULATED] | [Champion / Supporter / Neutral / Blocker] | [TO BE POPULATED] |
-| User: Asset Mgmt | [TO BE POPULATED] | [TO BE POPULATED] | [Champion / Supporter / Neutral / Blocker] | [TO BE POPULATED] |
-| User: Portfolio Mgmt | [TO BE POPULATED] | [TO BE POPULATED] | [Champion / Supporter / Neutral / Blocker] | [TO BE POPULATED] |
-| User: Investor Reporting | [TO BE POPULATED] | [TO BE POPULATED] | [Champion / Supporter / Neutral / Blocker] | [TO BE POPULATED] |
-| User: Fund Accounting | [TO BE POPULATED] | [TO BE POPULATED] | [Champion / Supporter / Neutral / Blocker] | [TO BE POPULATED] |
-| Gatekeeper: InfoSec | [TO BE POPULATED] | [TO BE POPULATED] | [Champion / Supporter / Neutral / Blocker] | [TO BE POPULATED] |
-| Gatekeeper: Procurement / Legal | [TO BE POPULATED] | [TO BE POPULATED] | [Champion / Supporter / Neutral / Blocker] | [TO BE POPULATED] |
+| Executive Sponsor / Final Decision | [TO BE POPULATED] | [TO BE POPULATED] | [Champion / Supporter / Neutral / Blocker] | [TO BE POPULATED] |
+| Day-to-Day Lead | [TO BE POPULATED] | [TO BE POPULATED] | [Champion / Supporter / Neutral / Blocker] | [TO BE POPULATED] |
+| Influencer | [TO BE POPULATED] | [TO BE POPULATED] | [Champion / Supporter / Neutral / Blocker] | [TO BE POPULATED] |
+| Gatekeeper (Legal / Procurement / Compliance) | [TO BE POPULATED] | [TO BE POPULATED] | [Champion / Supporter / Neutral / Blocker] | [TO BE POPULATED] |
 
 ## III. OUR RELATIONSHIPS
 

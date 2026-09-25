@@ -9,22 +9,23 @@ lastUpdated: {{date}}
 
 > Never record one client's pricing, rent, or operational data in another client's or a competitor's dossier. Note the source relationship in INDEX.md `confidentiality`.
 
-## I. RELATIONSHIP SUMMARY
+## I. ACCOUNT SUMMARY
 
 | Field | Value | Conf |
 |-------|-------|------|
-| Relationship Since | [TO BE POPULATED] | [V/I/A] |
-| Business to Date | [TO BE POPULATED] | [V/I/A] |
-| Current Engagements | [TO BE POPULATED] | [V/I/A] |
-| Key Terms / Renewal Date | [TO BE POPULATED] | [V/I/A] |
-| Satisfaction | [TO BE POPULATED] | [V/I/A] |
+| ARR | [TO BE POPULATED] | [V/I/A] |
+| First Contract | [TO BE POPULATED] | [V/I/A] |
+| Renewal Date | [TO BE POPULATED] | [V/I/A] |
+| Modules / Products | [TO BE POPULATED] | [V/I/A] |
+| Connected Data Sources | [TO BE POPULATED] | [V/I/A] |
+| Adoption Health (users, logins, freshness) | [TO BE POPULATED] | [V/I/A] |
 
 ## II. ACTIVE OPPORTUNITIES
 
-Stages: Identified → Qualified → Proposal → Negotiation → Won / Lost
+Stages: Identified → Discovery → Pilot/POC → Security Review → Proposal → MSA/Order Form → Closed Won / Closed Lost
 
-| Opportunity | Type | Value | Stage | Champion | Blocker | Competition | Next Step |
-|-------------|------|-------|-------|----------|---------|-------------|-----------|
+| Opportunity | Module | ACV | Stage | Champion | Blocker | Competitors | Next Step |
+|-------------|--------|-----|-------|----------|---------|-------------|-----------|
 | [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] |
 
 ## III. STAGE HISTORY
@@ -35,7 +36,7 @@ Stages: Identified → Qualified → Proposal → Negotiation → Won / Lost
 
 ## IV. CLOSED WON / LOST
 
-Loss reasons: PRICE · FIT · TIMING · COMPETITOR · RELATIONSHIP · NO_DECISION · WITHDRAWN
+Loss reasons: PRICE · FIT · TIMING · COMPETITOR · BUILD_INTERNAL · SECURITY · CHAMPION_LEFT · NO_DECISION
 
 | Date | Opportunity | Outcome | Value | Reason | Lesson |
 |------|-------------|---------|-------|--------|--------|
@@ -45,6 +46,6 @@ Loss reasons: PRICE · FIT · TIMING · COMPETITOR · RELATIONSHIP · NO_DECISIO
 
 | Motion | Target | Path | Status |
 |--------|--------|------|--------|
-| Repeat Business | [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] |
-| Adjacent Service / Market | [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] |
-| Referral Path (via linked organizations) | [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] |
+| Cross-sell | [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] |
+| Renewal Plan | [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] |
+| Graph-Adjacent (via operating partner / LP / GP links) | [TO BE POPULATED] | [TO BE POPULATED] | [TO BE POPULATED] |
