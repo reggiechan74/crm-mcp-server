@@ -24,6 +24,7 @@ A personal CRM system built as an [MCP](https://modelcontextprotocol.io/) server
 - [Audit & Repair](#audit--repair)
 - [Tech Stack](#tech-stack)
 - [Development](#development)
+- [Contributing](#contributing)
 - [License](#license)
 
 ## What It Does
@@ -40,8 +41,6 @@ Instead of loading entire dossier files (thousands of tokens), the server strips
 ## Quick Start
 
 ### Option A: Claude Code Plugin (Recommended)
-
-> **Note:** This repository is currently **private**. You need SSH access to `reggiechan74/crm-mcp-server` before installing. See [Private Repository Access](#private-repository-access) below.
 
 **1. Add the marketplace:**
 
@@ -67,7 +66,7 @@ The init wizard walks you through choosing a directory, selecting templates, and
 
 ```bash
 # Clone and build
-git clone git@github.com:reggiechan74/crm-mcp-server.git
+git clone https://github.com/reggiechan74/crm-mcp-server.git
 cd crm-mcp-server
 npm install && npm run build
 
@@ -82,7 +81,7 @@ npx crm-mcp init
   "mcpServers": {
     "crm": {
       "command": "node",
-      "args": ["/path/to/crm-mcp-server/dist/cli.js", "mcp"]
+      "args": ["/path/to/crm-mcp-server/dist/mcp-server.mjs"]
     }
   }
 }
@@ -91,84 +90,6 @@ npx crm-mcp init
 ```bash
 # Index your contacts
 npx crm-mcp reindex
-```
-
-### Private Repository Access
-
-This repository is private. Access methods depend on your situation:
-
-#### For yourself: Deploy key (recommended for CI/Codespaces)
-
-If your environment uses per-repo deploy keys with custom SSH host aliases, configure a git URL rewrite so the plugin installer resolves correctly:
-
-```bash
-# 1. Add a deploy key to the repo (Settings → Deploy keys) with read access
-
-# 2. Configure SSH (~/.ssh/config) with a host alias:
-Host github-crm-mcp-server
-  HostName github.com
-  IdentityFile ~/.ssh/id_crm_mcp_server
-  IdentitiesOnly yes
-
-# 3. Tell git to rewrite the URL for this repo:
-git config --global url."git@github-crm-mcp-server:reggiechan74/crm-mcp-server".insteadOf "git@github.com:reggiechan74/crm-mcp-server"
-```
-
-After this, both `/plugin marketplace add` and `/plugin install` will use the deploy key transparently.
-
-#### For yourself: Personal SSH key
-
-If your default `~/.ssh/id_ed25519` (or `id_rsa`) is added to a GitHub account with access to this repo, no extra configuration is needed — `git clone git@github.com:reggiechan74/crm-mcp-server.git` will just work.
-
-#### For collaborators
-
-GitHub private repos have two access tiers:
-
-| Access Level | Method | What They Can Do |
-|-------------|--------|-----------------|
-| **Read + Write** | Add as [collaborator](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-roles/managing-an-individuals-access-to-a-repository) (Settings → Collaborators) | Clone, pull, push, install plugin |
-| **Read-only** | Fine-grained Personal Access Token (PAT) | Clone, pull, install plugin — no push |
-
-**Read + Write** — Adding a collaborator grants full read/write. They accept the invite, then clone via SSH as normal. Simple, but there's no way to restrict a collaborator to read-only on a personal repo (this is a GitHub limitation — only Organization repos support granular role-based permissions).
-
-**Read-only** — For read-only access without granting write, create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) scoped to this repo:
-
-```
-1. Go to: GitHub → Settings → Developer settings → Fine-grained personal access tokens
-2. Create a new token:
-   - Token name: crm-mcp-server-readonly (or descriptive name)
-   - Repository access: "Only select repositories" → reggiechan74/crm-mcp-server
-   - Permissions → Repository permissions → Contents: Read-only
-   - Generate token and share securely with collaborator
-3. Collaborator clones via HTTPS with the token:
-```
-
-```bash
-# Clone using PAT (collaborator runs this):
-git clone https://<TOKEN>@github.com/reggiechan74/crm-mcp-server.git
-
-# For plugin install, collaborator sets git URL rewrite to use HTTPS + token:
-git config --global url."https://<TOKEN>@github.com/reggiechan74/crm-mcp-server".insteadOf "git@github.com:reggiechan74/crm-mcp-server"
-```
-
-The collaborator can then run `/plugin marketplace add reggiechan74/crm-mcp-server` and `/plugin install crm@crm-mcp-server` normally — the git URL rewrite transparently injects the token.
-
-> **Note:** Fine-grained PATs have an expiration date (max 1 year). Set a calendar reminder to rotate before expiry. You can also revoke at any time from Settings → Developer settings → Personal access tokens.
-
-#### Verifying access
-
-```bash
-# Test SSH access (should show your username):
-ssh -T git@github.com
-
-# Or test via the deploy key alias:
-ssh -T git@github-crm-mcp-server
-
-# Test git access (should return a commit SHA):
-git ls-remote git@github.com:reggiechan74/crm-mcp-server.git HEAD
-
-# Test HTTPS/PAT access (for collaborators):
-git ls-remote https://<TOKEN>@github.com/reggiechan74/crm-mcp-server.git HEAD
 ```
 
 ## Tools
@@ -498,7 +419,7 @@ Config is read from (in priority order):
 | `defaultTemplate` | `simple` | Template used when none specified |
 | `embeddingModel` | `onnx-community/embeddinggemma-300m-ONNX` | Local embedding model for `crm_vector_search` (override via `CRM_EMBEDDING_MODEL` env) |
 | `templateRepo` | `reggiechan74/crm-mcp-server` | GitHub repo for remote templates (forks can override) |
-| `githubToken` | — | Optional GitHub token for private repos or higher rate limits |
+| `githubToken` | — | Optional GitHub token — only needed if `templateRepo` points at a private fork, or to raise GitHub API rate limits |
 | `salesMotion` | `general` | `"tech"` adds tech-sale sections to new organization dossiers (override via `CRM_SALES_MOTION` env; `techSale` on `crm_create` overrides per-dossier) |
 
 ## CLI Commands
@@ -547,6 +468,10 @@ npm run build         # Compile TypeScript
 npm run dev -- mcp    # Run server in dev mode
 ```
 
+## Contributing
+
+Issues and pull requests are welcome at [github.com/reggiechan74/crm-mcp-server](https://github.com/reggiechan74/crm-mcp-server). Run `npm test` and `npx tsc --noEmit -p .` before opening a PR.
+
 ## License
 
-MIT
+[MIT](LICENSE) © Reggie Chan

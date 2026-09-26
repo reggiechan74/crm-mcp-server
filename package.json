@@ -2,6 +2,16 @@
   "name": "crm-mcp-server",
   "version": "0.8.1",
   "description": "CRM contact intelligence MCP server for Claude Code — token-optimized dossier search and management",
+  "license": "MIT",
+  "author": "Reggie Chan",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/reggiechan74/crm-mcp-server.git"
+  },
+  "homepage": "https://github.com/reggiechan74/crm-mcp-server#readme",
+  "bugs": {
+    "url": "https://github.com/reggiechan74/crm-mcp-server/issues"
+  },
   "type": "module",
   "main": "dist/cli.mjs",
   "bin": {
