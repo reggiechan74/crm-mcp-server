@@ -14,6 +14,7 @@ A personal CRM system built as an [MCP](https://modelcontextprotocol.io/) server
 ## Table of Contents
 
 - [What It Does](#what-it-does)
+- [Why an Index?](#why-an-index)
 - [Quick Start](#quick-start)
 - [Tools](#tools)
 - [Skills](#skills)
@@ -37,6 +38,30 @@ Claude: [uses crm_search → crm_outline → crm_read to fetch relevant sections
 ```
 
 Instead of loading entire dossier files (thousands of tokens), the server strips boilerplate, caches cleaned content in SQLite with FTS5, and serves only what's requested. Every response includes a token estimate footer (`<!-- 599 chars | ~150 tokens -->`) so you can see exactly how much context each call consumes.
+
+## Why an Index?
+
+The dossiers are plain markdown, so why not just let Claude search the files with Grep and Glob? Because finding the right person and reading only what's needed is exactly what plain file search is bad at.
+
+- **Glob matches file names, not people.** It's cheap, but only works if you already know the folder is called `SMITH_Jane`. It can't tell you her organization, status or when you last spoke.
+- **Grep matches text, not records.** A name appears in the person's own dossier *and* in every other dossier that mentions them — meeting logs, linked contacts, deal notes. Grep can't tell the subject from the mentions, so Claude opens files to work out which one is theirs.
+- **Reading files is where the tokens go.** Dossiers are built from templates, so much of each file is headings, empty tables and `[TO BE POPULATED]` placeholders. A full dossier is easily 20,000+ tokens; the fact you wanted is one line.
+- **Structured questions need every file parsed.** "Clients I haven't contacted in 30 days", "every lender", "who works at Acme" require reading the frontmatter of every dossier on every query.
+
+Measured on a real CRM of 131 dossiers, looking up one contact by surname:
+
+| Approach | What comes back | ≈ Tokens |
+|---|---|---|
+| **`crm_search`** (index) | One row: code, organization, last contact, folder path | **~70** |
+| + `crm_outline` | Section list with sizes and fill % | ~300 |
+| + one `crm_read` | The one section you need, boilerplate stripped | ~1,000–4,000 |
+| Glob on the folder name | 6 file paths (only if you know the name) | ~70 |
+| Grep, file paths only | 42 files — the contact is mentioned in 41 other dossiers | ~450 |
+| Grep, matching lines | 169 lines of context | ~14,000 |
+| Reading the contact's whole dossier | 6 files | ~24,000 |
+| The whole CRM | Every markdown file | ~3,000,000 |
+
+**The markdown files stay the source of truth.** The SQLite index is a disposable cache built from them: names, aliases, codes, organizations, categories, status and dates as columns; relationships as a graph; section text in an FTS5 full-text index with boilerplate stripped; and a hash per file so unchanged sections aren't reprocessed. It rebuilds from disk on startup, updates itself after every write made through the tools, and `crm_reindex` picks up edits you make to the files directly. Delete it and no CRM data is lost — it's rebuilt on the next start (only semantic-search embeddings need `crm-mcp embed` again).
 
 ## Quick Start
 
